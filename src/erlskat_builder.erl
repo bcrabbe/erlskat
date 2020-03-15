@@ -100,14 +100,16 @@ dictionary_suffix(Suffix, Parent) ->
         [{data, root}] ->
             Suffix;
         [] ->
-            [{dictionary_suffix, ParentsSuffix}] = ets:lookup(Parent, dictionary_suffix),
+            [{dictionary_suffix, ParentsSuffix}] =
+                ets:lookup(Parent, dictionary_suffix),
             ParentsSuffix;
         [{data, #{} = _SomeData}] ->
             Suffix
     end.
 
 add_word_to_words_in_branch(NodeTid, Word) ->
-    [{words_in_branch, ExistingWordsInBranch}] = ets:lookup(NodeTid, words_in_branch),
+    [{words_in_branch, ExistingWordsInBranch}] =
+ets:lookup(NodeTid, words_in_branch),
     ets:insert(NodeTid, {words_in_branch, [Word | ExistingWordsInBranch]}).
 
 %% overwrites old data

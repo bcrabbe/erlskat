@@ -36,6 +36,11 @@
                    {ok, Pid :: pid(), State :: term()} |
                    {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
+    Dispatch = cowboy_router:compile([{'_', [{"/", erlskat_handler, []}]}]),
+    {ok, _} = cowboy:start_clear(
+                my_http_listener,
+                [{port, 8080}],
+                #{env => #{dispatch => Dispatch}}),
     case erlskat_sup:start_link() of
         {ok, Pid} ->
             {ok, Pid};

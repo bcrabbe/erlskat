@@ -9,8 +9,13 @@ LOCAL_DEPS = \
 	sasl
 BUILD_DEPS = \
        elvis_mk
+DEPS = cowboy \
+       jsx
+dep_cowboy_commit = 2.6.3
+dep_jsx_commit = 2.9.0
+DEP_PLUGINS = elvis_mk \
+	      cowboy
 
-DEP_PLUGINS = elvis_mk
 dep_elvis_mk = git https://github.com/inaka/elvis.mk.git
 SHELL_OPTS = \
 	-s $(PROJECT) \
