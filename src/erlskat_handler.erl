@@ -80,5 +80,3 @@ decrypt_session(Req, SessionHdr) ->
         _ ->
             {undefined, undefined}
     end.
-
-    %% decoded_credentials(EncodedCredentials) ->
