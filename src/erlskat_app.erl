@@ -1,18 +1,9 @@
-%%%-------------------------------------------------------------------
-%%% @author Ben Crabbe <ben.crabbe.dev@gmail.com>
-%%% @copyright (C) 2019, Ben Crabbe
-%%% @doc
-%%%
-%%% @end
-%%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
-%%%-------------------------------------------------------------------
 -module(erlskat_app).
 
 -behaviour(application).
 
 %% Application callbacks
--export([start/2, start_phase/3, stop/1, prep_stop/1,
-         config_change/3]).
+-export([start/2, start_phase/3, stop/1, prep_stop/1, config_change/3]).
 
 %%%===================================================================
 %%% Application callbacks
@@ -38,7 +29,7 @@
 start(_StartType, _StartArgs) ->
     Dispatch = cowboy_router:compile([{'_', [{"/", erlskat_handler, []}]}]),
     {ok, _} = cowboy:start_clear(
-                my_http_listener,
+                erlskat_ingress,
                 [{port, 8080}],
                 #{env => #{dispatch => Dispatch}}),
     case erlskat_sup:start_link() of

@@ -56,13 +56,13 @@ init([]) ->
     SupFlags = #{strategy => one_for_one,
                  intensity => 1,
                  period => 5},
-    TrieManager = #{id => erlskat_trie_manager,
-                    start => {erlskat_trie_manager, start_link, []},
-                    restart => permanent,
-                    shutdown => 5000,
-                    type => worker,
-                    modules => [erlskat_trie_manager]},
-    {ok, {SupFlags, [TrieManager]}}.
+    Manager = #{id => erlskat_manager,
+                start => {erlskat_manager, start_link, []},
+                restart => permanent,
+                shutdown => 5000,
+                type => worker,
+                modules => [erlskat_trie_manager]},
+    {ok, {SupFlags, [Manager]}}.
 
 %%%===================================================================
 %%% Internal functions
