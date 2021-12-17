@@ -61,8 +61,14 @@ init([]) ->
                 restart => permanent,
                 shutdown => 5000,
                 type => worker,
-                modules => [erlskat_trie_manager]},
-    {ok, {SupFlags, [Manager]}}.
+                modules => [erlskat_manager]},
+    Lobby = #{id => erlskat_lobby,
+              start => {erlskat_lobby, start_link, []},
+              restart => permanent,
+              shutdown => 5000,
+              type => worker,
+              modules => [erlskat_lobby]},
+    {ok, {SupFlags, [Manager, Lobby]}}.
 
 %%%===================================================================
 %%% Internal functions
