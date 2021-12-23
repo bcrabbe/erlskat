@@ -17,11 +17,11 @@ init(Req0, _) ->
          function => ?FUNCTION_NAME,
          req => Req0,
          event => connection_receieved}),
-    {SessionId, Req1} = session(Req0),
-     {cowboy_websocket, Req1, #{sessionId => SessionId}}.
+    {PlayerId, Req1} = session(Req0),
+    {cowboy_websocket, Req1, #{playerId => PlayerId}}.
 
 %% messages from client
-websocket_handle({text, Msg} = _Req0, #{sessionId := SessionId} = State) ->
+websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
     try jsx:decode(Msg, [return_maps]) of
         Json ->
             ?LOG_INFO(
@@ -29,8 +29,10 @@ websocket_handle({text, Msg} = _Req0, #{sessionId := SessionId} = State) ->
                  line => ?LINE,
                  function => ?FUNCTION_NAME,
                  msg => Msg,
-                 event => msg_decoded}),
-            {reply, {binary, erlskat_manager:handle(SessionId, Json)}, State}
+                 player => PlayerId,
+                 state => State}),
+            erlskat_manager:socket_message(#{id => PlayerId, socket => self()}, Json),
+            {ok, State}
     catch
         _:_ ->
             {reply,
@@ -38,7 +40,7 @@ websocket_handle({text, Msg} = _Req0, #{sessionId := SessionId} = State) ->
               to_json(
                 #{error => <<"invalid json">>,
                   msg => Msg,
-                  sessionId => SessionId,
+                  playerId => PlayerId,
                   event => decode_error})},
              State}
     end.
@@ -60,23 +62,26 @@ session(Req@) ->
 
 set_session(Req@) ->
     quickrand:seed(),
-    SessionId = generate_session_id(),
-    {SessionId, cowboy_req:set_resp_header(
+    PlayerId = generate_session_id(),
+    {PlayerId, cowboy_req:set_resp_header(
                   ?SESSION_HEADER,
-                  encrypt_session(SessionId),
+                  encrypt_session(PlayerId),
                   Req@)}.
 
 generate_session_id() -> uuid:get_v4().
 
-encrypt_session(SessionId) ->
-    ?LOG_INFO(#{ session => SessionId }),
-    base64:encode(<<?SESSION_SECRET/binary, ":"/utf8, SessionId/binary>>).
+encrypt_session(PlayerId) ->
+    ?LOG_INFO(#{ module => ?MODULE,
+                 line => ?LINE,
+                 function => ?FUNCTION_NAME,
+                 session => PlayerId }),
+    base64:encode(<<?SESSION_SECRET/binary, ":"/utf8, PlayerId/binary>>).
 
 decrypt_session(Req, SessionHdr) ->
     DecodedCredentials = base64:decode(SessionHdr),
     case binary:split(DecodedCredentials, <<$:>>) of
-        [?SESSION_SECRET, SessionId] ->
-            {Req, SessionId};
+        [?SESSION_SECRET, PlayerId] ->
+            {Req, PlayerId};
         _ ->
             {undefined, undefined}
     end.

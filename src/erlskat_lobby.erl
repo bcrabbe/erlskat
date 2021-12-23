@@ -9,10 +9,12 @@
 -module(erlskat_lobby).
 
 -behaviour(gen_statem).
+-include_lib("kernel/include/logger.hrl").
 
 %% API
 -export([start_link/0]).
 -export([new_player/1]).
+-export_type([lobby_response/0]).
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
@@ -20,19 +22,20 @@
 
 -define(SERVER, ?MODULE).
 
--type player() ::
-   #{ id => binary() }.
+-type lobby_response() ::
+        #{resp => matched | waiting,
+          players => list(erlskat:player_id())}.
 
--type new_player_response() ::
-        #{ msg => binary(),
-           players => list(player()) }.
+-type new_player_message() :: {new_player, elskat:player()}.
+
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec new_player(PlayerId :: binary()) -> new_player_response().
-new_player(PlayerId) ->
-    gen_statem:call(?SERVER, {new_player, PlayerId}).
+-spec new_player(erlskat:player()) -> pid().
+new_player(Player) ->
+    gen_statem:cast(?SERVER, {new_player, Player}),
+    ?SERVER.
 
 -spec start_link() -> {ok, Pid :: pid()} |
                       ignore |
@@ -52,32 +55,25 @@ init([]) ->
     process_flag(trap_exit, true),
     {ok, ready, #{players => []}}.
 
+
+
 -spec handle_event(gen_statem:event_type(),
-                   Msg :: term(),
-                   State :: term(),
-                   Data :: term()) ->
+                   Msg :: new_player_message(),
+                   State :: ready,
+                   Data :: #{players => elskat:player()}) ->
           gen_statem:event_handler_result(term()).
-handle_event({call, From},
-             {new_player, PlayerId},
-             _State,
+handle_event(cast,
+             {new_player, NewPlayer},
+             ready,
              #{players := WaitingPlayers}) when length(WaitingPlayers) < 2 ->
-    {keep_state,
-     #{players => [PlayerId | WaitingPlayers]},
-     [{reply,
-       From,
-       #{ msg => <<"waiting for more players">>,
-          players => [lists:map(
-                        fun (P) -> #{ id => P } end,
-                        WaitingPlayers)] }}]};
-handle_event({call, From},
-             {new_player, PlayerId},
-             _State,
-             #{players := WaitingPlayers}) when length(WaitingPlayers) == 2 ->
-
-    {keep_state, #{ players => [] }, [{reply, From, erlskat_util:trie_to_map(Trie)}]};
-
-handle_event({call, From}, _Msg, State, Data) ->
-    {next_state, State, Data, [{reply, From, ok}]}.
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                player => NewPlayer,
+                msg => msg}),
+    NewWaitingPlayers = [NewPlayer | WaitingPlayers],
+    notify_players_waiting(NewWaitingPlayers),
+    {keep_state, #{players => NewWaitingPlayers}}.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
                        any().
@@ -87,3 +83,18 @@ terminate(_Reason, _State, _Data) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+-spec player_id(erlskat:player()) -> erlskat:player_id().
+player_id(#{id := Id}) ->
+    Id.
+-spec notify_players_waiting(list(erlskat:players())) -> done.
+notify_players_waiting(WaitingPlayers) ->
+    lists:map(
+      fun
+          (#{socket := PlayerSocket}) ->
+              PlayerSocket ! #{state => waiting,
+                               players => lists:map(
+                                            fun player_id/1,
+                                            WaitingPlayers)}
+      end,
+      WaitingPlayers),
+    done.

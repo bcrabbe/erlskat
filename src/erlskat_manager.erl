@@ -14,7 +14,7 @@
 
 %% API
 -export([start_link/0]).
--export([handle/2]).
+-export([socket_message/2]).
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
@@ -22,17 +22,13 @@
 
 -define(SERVER, ?MODULE).
 
--type response() :: map().
--type error() :: map().
-
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec handle(Session :: binary(), Msg :: map()) ->
-          {ok, Response :: response()} |
-          {error, Error :: error()}.
-handle(Session, Msg) ->
-    gen_statem:call(?SERVER, {Session, Msg}).
+-spec socket_message(erlskat:player(), Msg :: map()) -> ok.
+socket_message(Player, Msg) ->
+    gen_statem:cast(?SERVER, {Player, Msg}),
+    ok.
 
 -spec start_link() ->
           {ok, Pid :: pid()} |
@@ -59,35 +55,35 @@ init([]) ->
                    State :: term(),
                    Data :: term()) ->
           gen_statem:event_handler_result(term()).
-handle_event({call, Socket},
-             {SessionId, Msg},
+handle_event(cast,
+             {#{id := PlayerId, socket := Socket} = Player, Msg},
              ready = _State,
              #{players := PlayersTid}) ->
-    ?LOG_INFO(#{call_from => Socket}),
-    Reply = case ets:lookup(PlayersTid, SessionId) of
-                [] -> new_player(Socket, PlayersTid, SessionId);
-                [{SessionId, Socket, Proc}] -> gen_statem:call(Pid, {SessionId, Msg})
-            end,
-    {keep_state_and_data, [{reply, Socket, Reply}]}.
-
-%% handle_event(
-%%   {call, self},
-%%   {new_player, Session, #{ name := Name }},
-%%   _State,
-%%   #{players := PlayersTid}) ->
-%%     {keep_state_and_data, [{reply, From, erlskat_util:trie_to_map(Trie)}]}.
-
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                socket => Socket,
+                player => PlayerId,
+                msg => msg}),
+    case ets:lookup(PlayersTid, PlayerId) of
+        [] -> new_player(Player, PlayersTid);
+        [{PlayerId, _Socket, Proc}] -> gen_statem:cast(
+                                        Proc,
+                                        #{player => Player,
+                                          msg => Msg})
+    end,
+    keep_state_and_data.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) -> any().
 
 terminate(_Reason, _State, _Data) ->
     void.
 
-new_player(Socket, PlayersTid, PlayerId) ->
-    erlskat_lobby:new_player(),
+new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid) ->
+    Proc = erlskat_lobby:new_player(Player),
     true = ets:insert(
              PlayersTid,
-             [{PlayerId, Socket, Proc}]).
+             {PlayerId, Socket, Proc}).
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
