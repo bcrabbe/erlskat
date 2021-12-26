@@ -64,7 +64,7 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 socket => Socket,
                 player => PlayerId,
-                msg => msg}),
+                msg => Msg}),
     case ets:lookup(PlayersTid, PlayerId) of
         [] -> new_player(Player, PlayersTid);
         [{PlayerId, _Socket, Proc}] -> gen_statem:cast(

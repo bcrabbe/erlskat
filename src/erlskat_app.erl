@@ -29,7 +29,7 @@
 start(_StartType, _StartArgs) ->
     Dispatch = cowboy_router:compile([{'_', [{"/", erlskat_handler, []}]}]),
     {ok, _} = cowboy:start_clear(
-                erlskat_ingress,
+                erlskat_handler,
                 [{port, 8080}],
                 #{env => #{dispatch => Dispatch}}),
     case erlskat_sup:start_link() of
