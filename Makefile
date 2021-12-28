@@ -11,12 +11,14 @@ BUILD_DEPS = \
        elvis_mk
 DEPS = cowboy \
        jsx \
-       uuid
+       uuid \
+       meck
 dep_jsx_commit = 2.9.0
 dep_cowboy_commit = 2.9.0
 DEP_PLUGINS = elvis_mk \
 	      cowboy
 
+EUNIT_OPTS = verbose
 dep_elvis_mk = git https://github.com/inaka/elvis.mk.git
 SHELL_OPTS = \
 	-s $(PROJECT) \

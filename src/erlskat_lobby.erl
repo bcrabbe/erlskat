@@ -12,7 +12,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/0]).
+-export([start_link/0, stop/0]).
 -export([new_player/1]).
 -export_type([lobby_response/0]).
 
@@ -43,6 +43,8 @@ new_player(Player) ->
 start_link() ->
     gen_statem:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+stop() ->
+     gen_statem:stop(?MODULE).
 %%%===================================================================
 %%% gen_statem callbacks
 %%%===================================================================
@@ -60,6 +62,17 @@ init([]) ->
                    State :: ready,
                    Data :: #{players => elskat:player()}) ->
           gen_statem:event_handler_result(term()).
+handle_event(info,
+             {'DOWN', _Ref, process, DownSocket, normal},
+             ready,
+             #{players := WaitingPlayers}) ->
+    NewWaitingPlayers = lists:delete(#{socket => DownSocket}, WaitingPlayers),
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                players => NewWaitingPlayers,
+                disconnected => DownSocket}),
+    {keep_state, #{players => NewWaitingPlayers}};
 handle_event(cast,
              {new_player, #{socket := Socket} = NewPlayer},
              ready,
@@ -67,8 +80,7 @@ handle_event(cast,
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                player => NewPlayer,
-                msg => msg}),
+                player => NewPlayer}),
     erlang:monitor(process, Socket),
     NewWaitingPlayers = [NewPlayer | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
