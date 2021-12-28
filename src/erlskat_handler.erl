@@ -31,7 +31,9 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
                  msg => Msg,
                  player => PlayerId,
                  state => State}),
-            erlskat_manager:socket_message(#{id => PlayerId, socket => self()}, Json),
+            erlskat_manager:socket_message(#{id => PlayerId,
+                                             socket => self()},
+                                           Json),
             {ok, State}
     catch
         _:_ ->

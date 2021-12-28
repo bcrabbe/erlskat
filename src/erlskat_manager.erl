@@ -14,7 +14,7 @@
 
 %% API
 -export([start_link/0]).
--export([socket_message/2]).
+-export([socket_message/2, update_player_proc/2]).
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
@@ -27,7 +27,12 @@
 %%%===================================================================
 -spec socket_message(erlskat:player(), Msg :: map()) -> ok.
 socket_message(Player, Msg) ->
-    gen_statem:cast(?SERVER, {Player, Msg}),
+    gen_statem:cast(?SERVER, {socket_message, Player, Msg}),
+    ok.
+
+-spec update_player_proc(erlskat:player(), pid()) -> ok.
+update_player_proc(Player, Proc) ->
+    gen_statem:cast(?SERVER, {update_player_proc, Player, Proc}),
     ok.
 
 -spec start_link() ->
@@ -56,14 +61,13 @@ init([]) ->
                    Data :: term()) ->
           gen_statem:event_handler_result(term()).
 handle_event(cast,
-             {#{id := PlayerId, socket := Socket} = Player, Msg},
-             ready = _State,
+             {socket_message, #{id := PlayerId} = Player, Msg},
+             ready,
              #{players := PlayersTid}) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                socket => Socket,
-                player => PlayerId,
+                player => Player,
                 msg => Msg}),
     case ets:lookup(PlayersTid, PlayerId) of
         [] -> new_player(Player, PlayersTid);
@@ -72,6 +76,21 @@ handle_event(cast,
                                         #{player => Player,
                                           msg => Msg})
     end,
+    keep_state_and_data;
+handle_event(cast,
+             {update_player_proc,
+              #{id := PlayerId, socket := Socket} = Player,
+              NewProc},
+             ready,
+             #{players := PlayersTid}) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                player => Player,
+                new_proc => NewProc}),
+    true = ets:insert(
+             PlayersTid,
+             {PlayerId, Socket, NewProc}),
     keep_state_and_data.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) -> any().

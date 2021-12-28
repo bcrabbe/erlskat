@@ -59,20 +59,24 @@ start_link(Players) ->
 -spec callback_mode() -> gen_statem:callback_mode_result().
 callback_mode() -> state_functions.
 
--spec init(list(Players :: list(erlskat:player()))) -> gen_statem:init_result(term()).
+-spec init(list(Players :: list(erlskat:player()))) ->
+          gen_statem:init_result(term()).
 init([Players])->
     process_flag(trap_exit, true),
+    [link(Socket) || #{socket := Socket} <- Players],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 players => Players,
                 action => new_game_starting}),
+    [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
     InitState = deal(Players),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 init_game_state => InitState,
                 action => cards_delt}),
+
     {ok, bidding, InitState}.
 
 -spec bidding(gen_statem:event_type(),
@@ -99,9 +103,15 @@ terminate(_Reason, _State, _Data) ->
 %%%===================================================================
 -spec shuffled_deck() -> list(erlskat:card()).
 shuffled_deck() ->
-    [{Rank, Suit} ||
-        Rank <- [ace, seven, eight, nine, ten, jack, queen, king],
-        Suit <- [clubs, diamonds, hearts, spades]].
+    Deck = [#{rank => Rank, suit => Suit} ||
+               Rank <- [ace, seven, eight, nine,
+                        ten, jack, queen, king],
+               Suit <- [clubs, diamonds, hearts, spades]],
+    [ShuffledCard ||
+        {_, ShuffledCard} <- lists:sort(
+                               [{rand:uniform(), Card} ||
+                                   Card <- Deck])].
+
 
 -spec deal(list(erlskat:players())) -> game_state().
 deal(Players) ->

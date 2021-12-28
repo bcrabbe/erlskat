@@ -61,7 +61,7 @@ init([]) ->
                    Data :: #{players => elskat:player()}) ->
           gen_statem:event_handler_result(term()).
 handle_event(cast,
-             {new_player, NewPlayer},
+             {new_player, #{socket := Socket} = NewPlayer},
              ready,
              #{players := WaitingPlayers}) when length(WaitingPlayers) < 2 ->
     ?LOG_INFO(#{module => ?MODULE,
@@ -69,6 +69,7 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer,
                 msg => msg}),
+    erlang:monitor(process, Socket),
     NewWaitingPlayers = [NewPlayer | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
@@ -88,7 +89,13 @@ handle_event(cast,
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
                        any().
-terminate(_Reason, _State, _Data) ->
+terminate(Reason, State, Data) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                state => State,
+                data => Data,
+                reason => Reason}),
     void.
 
 %%%===================================================================
