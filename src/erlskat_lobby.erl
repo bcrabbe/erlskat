@@ -66,13 +66,20 @@ handle_event(info,
              {'DOWN', _Ref, process, DownSocket, normal},
              ready,
              #{players := WaitingPlayers}) ->
-    NewWaitingPlayers = lists:delete(#{socket => DownSocket}, WaitingPlayers),
+    {Left, StillWaiting} = lists:partition(
+                          fun
+                              (#{socket := Socket}) when
+                                    Socket =:= DownSocket -> true;
+                              (_) -> false
+                          end,
+                          WaitingPlayers),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                players => NewWaitingPlayers,
-                disconnected => DownSocket}),
-    {keep_state, #{players => NewWaitingPlayers}};
+                still_waiting => StillWaiting,
+                left => Left}),
+    notify_players_waiting(StillWaiting),
+    {keep_state, #{players => StillWaiting}};
 handle_event(cast,
              {new_player, #{socket := Socket} = NewPlayer},
              ready,
@@ -81,8 +88,8 @@ handle_event(cast,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer}),
-    erlang:monitor(process, Socket),
-    NewWaitingPlayers = [NewPlayer | WaitingPlayers],
+    Ref = erlang:monitor(process, Socket),
+    NewWaitingPlayers = [NewPlayer#{ ref => Ref } | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
 handle_event(cast,
@@ -97,6 +104,12 @@ handle_event(cast,
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
     erlskat_game_sup:new_game(NewGamePlayers),
+    lists:foreach(
+      fun
+          (#{ref := Ref}) -> erlang:demonitor(Ref);
+          (_) -> ok
+      end,
+      NewGamePlayers),
     {keep_state, #{players => []}}.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->

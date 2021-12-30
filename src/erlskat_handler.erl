@@ -47,9 +47,21 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
              State}
     end.
 
-%% messages to client
-websocket_info(Reply, State) ->
-    {reply, {binary, to_json(Reply)}, State}.
+websocket_info(Msg, #{playerId := PlayerId} = State) ->
+    try to_json(Msg) of
+        Json ->
+            ?LOG_INFO(
+               #{module => ?MODULE,
+                 line => ?LINE,
+                 function => ?FUNCTION_NAME,
+                 msg => Msg,
+                 player => PlayerId,
+                 state => State}),
+            {reply, {binary, Json}, State}
+    catch
+        _:_ ->
+            {ok, State}
+    end.
 
 to_json(Reply) ->
     jsx:encode(Reply).
