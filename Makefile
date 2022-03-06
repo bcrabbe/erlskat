@@ -2,6 +2,8 @@ PROJECT = erlskat
 PROJECT_DESCRIPTION = New project
 PROJECT_VERSION = 0.1.0
 RELX_TAR = 0
+ERLC_OPTS := $(filter-out -Werror,$(ERLC_OPTS))
+
 SHELL_DEPS = \
 	sync
 

@@ -63,7 +63,7 @@ init([]) ->
                    Data :: #{players => elskat:player()}) ->
           gen_statem:event_handler_result(term()).
 handle_event(info,
-             {'DOWN', _Ref, process, DownSocket, normal},
+             {'DOWN', Ref, process, DownSocket, normal},
              ready,
              #{players := WaitingPlayers}) ->
     {Left, StillWaiting} = lists:partition(
@@ -73,6 +73,7 @@ handle_event(info,
                               (_) -> false
                           end,
                           WaitingPlayers),
+    erlang:demonitor(Ref),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,

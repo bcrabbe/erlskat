@@ -15,16 +15,18 @@
 %% API
 -export([start_link/0]).
 -export([socket_message/2, update_player_proc/2]).
+-export_type([player_message/0]).
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
 -export([handle_event/4]).
 
 -define(SERVER, ?MODULE).
-
 %%%===================================================================
 %%% API
 %%%===================================================================
+-type player_message() :: #{player => elskat:player(), msg => map()}.
+
 -spec socket_message(erlskat:player(), Msg :: map()) -> ok.
 socket_message(Player, Msg) ->
     gen_statem:cast(?SERVER, {socket_message, Player, Msg}),

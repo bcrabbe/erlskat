@@ -47,6 +47,7 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
              State}
     end.
 
+%% messages from server
 websocket_info(Msg, #{playerId := PlayerId} = State) ->
     try to_json(Msg) of
         Json ->

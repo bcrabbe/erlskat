@@ -18,28 +18,38 @@
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
--export([bidding/3]).
+-export([handle_event/4]).
 
 -define(SERVER, ?MODULE).
 -type color_game() :: erlskat:suit().
 -type game_type() :: color_game() | grand | null | ramsch.
 %% -type game_value() :: 18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36.
--type game_phase() :: bidding | playing | finished.
--type bidding_role() :: geben | horen | sagen.
--type player_state() :: #{player => erlskat:player(),
-                          role => bidding_role(),
-                          hand => list(erlskat:card()),
-                          playing => no | yes | undefined,
-                          bidded => nothing | number()}.
--type game_state() :: #{players => list(player_state()),
-                        game_phase => game_phase(),
-                        skat => list(erlskat:card()),
-                        game_type => game_type() | undefined}.
+-type server_state() :: bidding_state() | playing_state() | finished.
+-type playing_state() :: map().
+-type bidding_state() :: bid | bid_response.
+
+-type server_data() :: bidding_data() | playing_data().
+-type player_data() :: player_bidding_data().
+
+-type bidding_data() :: #{bidding_role() => player_bidding_data(), bid := number}.
+
+-type player_bidding_data() :: #{player := erlskat:player(),
+                                 initial_role := initial_bidding_role(),
+                                 hand := list(erlskat:card())}.
+
+-type initial_bidding_role() :: geben | horen | sagen.
+-type bidding_role() :: initial_bidding_role() | veiter_sagen | passed.
+
+
+-type playing_data() :: #{players => list(map()),
+                          skat => list(erlskat:card()),
+                          game_type => game_type() | undefined}.
+
 -type game_response() ::
-        #{state => matched | waiting,
+        #{state => map(),
           players => list(erlskat:player_id())}.
 
--type bid_message() :: #{player => elskat:player(), bid => number()}.
+-type bid_message() :: #{bid => number() | pass}.
 
 %%%===================================================================
 %%% API
@@ -57,11 +67,11 @@ start_link(Players) ->
 %%%===================================================================
 
 -spec callback_mode() -> gen_statem:callback_mode_result().
-callback_mode() -> state_functions.
+callback_mode() -> handle_event_function.
 
 -spec init(list(Players :: list(erlskat:player()))) ->
-          gen_statem:init_result(term()).
-init([Players])->
+          gen_statem:init_result(bid).
+init([Players]) ->
     process_flag(trap_exit, true),
     [link(Socket) || #{socket := Socket} <- Players],
     ?LOG_INFO(#{module => ?MODULE,
@@ -70,33 +80,61 @@ init([Players])->
                 players => Players,
                 action => new_game_starting}),
     [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
-    InitState = deal(Players),
+    #{hands := Hands, skat := Skat} = deal(Players),
+    InitBiddingData = lists:foldl(
+                        fun
+                            ({Player, Role, Cards}, Acc) ->
+                                Acc#{Role => #{player => Player, initial_role => Role, hand => Cards}}
+                        end,
+                        #{skat => Skat},
+                        Hands),
+    [player_bidding_data_msg(PlayerBiddingData) || PlayerBiddingData <- maps:values(InitBiddingData)],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                init_game_state => InitState,
-                action => cards_delt}),
+                init_bidding_data => InitBiddingData}),
+    {ok, bid, InitBiddingData}.
 
-    {ok, bidding, InitState}.
-
--spec bidding(gen_statem:event_type(),
-              Msg :: bid_message(),
-              Data :: game_state()) ->
+-spec handle_event(gen_statem:event_type(),
+                   Msg :: erlskat_manager:player_message(),
+                   State :: server_state(),
+                   Data :: server_data()) ->
           gen_statem:event_handler_result(term()).
-bidding(cast,
-        Msg,
-        State) ->
+handle_event(cast,
+             #{player := Player, msg := #{bid := Bid}} = Msg,
+             bid,
+             BiddingData) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 msg => Msg,
-                state => State}),
-    keep_state_and_data.
+                state => bid,
+                data => BiddingData}),
+    case is_bidder(Player, BiddingData) of
+        true -> {bid_response, BiddingData#{bid := Bid}};
+        false -> keep_state_and_data
+    end.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
                        any().
 terminate(_Reason, _State, _Data) ->
     void.
+
+%%%===================================================================
+%%% Socket messages
+%%%===================================================================
+-spec player_bidding_data_msg(player_bidding_data()) -> done.
+player_bidding_data_msg(#{player := Player} = PlayerBiddingData) ->
+    player_bidding_data_msg(Player, PlayerBiddingData);
+player_bidding_data_msg(_) ->
+    done.
+
+
+-spec player_bidding_data_msg(erlskat:player(), player_bidding_data()) -> done.
+player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
+    Socket ! PlayerBiddingData,
+    done.
+
 
 %%%===================================================================
 %%% Internal functions
@@ -113,26 +151,39 @@ shuffled_deck() ->
                                    Card <- Deck])].
 
 
--spec deal(list(erlskat:players())) -> game_state().
+-spec deal(list(erlskat:players())) ->
+          #{hands => list({erlskat:player(), initial_bidding_role(), list(erlskat:card())}),
+            skat => list(erlskat:card())}.
 deal(Players) ->
     Shuffled = shuffled_deck(),
     Hands = [lists:sublist(Shuffled, 10),
              lists:sublist(Shuffled, 11, 10),
              lists:sublist(Shuffled, 21, 10)],
     Skat = lists:sublist(Shuffled, 31, 2),
-    PlayerStates = lists:map(
-      fun
-          ({#{socket := PlayerSocket} = Player, Role, Hand}) ->
-              PlayerSocket ! #{role => Role, hand => Hand},
-              #{player => Player,
-                role => Role,
-                hand => Hand,
-                playing => no,
-                bidded => nothing}
+    HandsForRoles = lists:zip3(Players, [geben, horen, sagen], Hands),
+    #{hands => HandsForRoles,
+      skat => Skat}.
 
-      end,
-      lists:zip3(Players, [geben, horen, sagen], Hands)),
-    #{players => PlayerStates,
-      game_phase => bidding,
-      skat => Skat,
-      game_type => undefined}.
+-spec is_bidder(Sender :: erlskat:player(),
+                GameState :: #{bidding_role() => player_bidding_data()}) ->
+          boolean().
+is_bidder(#{id := SenderId}, PlayerStatesIndexedByRole) ->
+    case maps:get(which_role_bids(PlayerStatesIndexedByRole), PlayerStatesIndexedByRole) of
+        #{player := #{id := SenderId}} -> true;
+        _ -> false
+    end.
+
+-spec index_by_bidding_role(list(player_bidding_data())) -> #{bidding_role() => player_bidding_data()}.
+index_by_bidding_role(Players) ->
+     lists:foldl(
+      fun (#{role := Role} = Player, Acc) -> Acc#{Role => Player} end,
+       #{}, Players).
+
+-spec which_role_bids(#{bidding_role() => player_bidding_data()}) ->
+          bidding_role().
+which_role_bids(#{sagen := _}) ->
+    sagen;
+which_role_bids(#{veiter_sagen := _}) ->
+    veiter_sagen;
+which_role_bids(_) ->
+    done.
