@@ -12,7 +12,7 @@ happy_path_test_() ->
       {setup, fun start/0, fun stop/1, fun test_new_player/1}},
      {"When 3 players join, a game is started",
       {setup,
-       fun () -> start(), mock_game_sup() end,
+       fun () -> start(), mocks() end,
        fun (Arg) -> unload_mocks(), stop(Arg) end,
        fun game_starts/1}}].
 
@@ -21,7 +21,7 @@ player_disconnects_test_() ->
      {setup, fun start/0, fun stop/1, fun player_leaves/1}},
      {"Once a game is started disconnects should not be monitored",
       {setup,
-       fun () -> start(), mock_game_sup() end,
+       fun () -> start(), mocks() end,
        fun (Arg) -> unload_mocks(), stop(Arg) end,
        fun player_leaves_after_game_started/1}}].
 
@@ -146,17 +146,17 @@ player_leaves_after_game_started(_) ->
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%
-mock_game_sup() ->
-    meck:new(erlskat_game_sup, [unstick, passthrough]),
+mocks() ->
+    meck:new(erlskat_floor_manager, [unstick, passthrough]),
     meck:expect(
-      erlskat_game_sup,
-      new_game,
+      erlskat_floor_manager,
+      new_table,
       fun
-          (Players) when length(Players) =:= 3 -> noice
+          (Players) when length(Players) =:= 3 -> ok
       end).
 
 unload_mocks() ->
-    ok = meck:unload(erlskat_game_sup).
+    ok = meck:unload(erlskat_floor_manager).
 
 start() ->
     {ok, Pid} = erlskat_lobby:start_link(),
@@ -169,7 +169,6 @@ stop(_) ->
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%
-%% nothing here yet
 
 new_players(N) -> [new_player(I) || I <- lists:seq(1, N)].
 

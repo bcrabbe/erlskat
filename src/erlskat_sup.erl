@@ -68,13 +68,13 @@ init([]) ->
               shutdown => 5000,
               type => worker,
               modules => [erlskat_lobby]},
-    GameSup = #{id => erlskat_game_sup,
-                start => {erlskat_game_sup, start_link, []},
+    FloorManager = #{id => erlskat_floor_manager,
+                start => {erlskat_floor_manager, start_link, []},
                 restart => permanent,
                 shutdown => 5000,
                 type => supervisor,
-                modules => [erlskat_game_sup]},
-    {ok, {SupFlags, [Manager, Lobby, GameSup]}}.
+                modules => [erlskat_floor_manager]},
+    {ok, {SupFlags, [Manager, Lobby, FloorManager]}}.
 
 %%%===================================================================
 %%% Internal functions

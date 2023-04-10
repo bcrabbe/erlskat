@@ -2,7 +2,7 @@
 %%% @Author Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%% @copyright (C) 2019, Ben Crabbe
 %%% @doc
-%%%
+%%% knows where everyone is
 %%% @end
 %%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
@@ -62,6 +62,8 @@ init([]) ->
                    State :: term(),
                    Data :: term()) ->
           gen_statem:event_handler_result(term()).
+
+ %% message from a player socket
 handle_event(cast,
              {socket_message, #{id := PlayerId} = Player, Msg},
              ready,
@@ -74,11 +76,13 @@ handle_event(cast,
     case ets:lookup(PlayersTid, PlayerId) of
         [] -> new_player(Player, PlayersTid);
         [{PlayerId, _Socket, Proc}] -> gen_statem:cast(
-                                        Proc,
-                                        #{player => Player,
-                                          msg => Msg})
+                                         Proc,
+                                         {socket_message,
+                                          #{player => Player, msg => Msg}})
     end,
     keep_state_and_data;
+
+%% message from a process controlling a socket
 handle_event(cast,
              {update_player_proc,
               #{id := PlayerId, socket := Socket} = Player,

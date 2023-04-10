@@ -1,1 +1,7 @@
-erlskat
+```
+make deps
+make shell
+```
+
+
+

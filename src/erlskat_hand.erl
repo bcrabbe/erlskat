@@ -2,19 +2,17 @@
 %%% @author Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%% @copyright (C) 2019, Ben Crabbe
 %%% @doc
-%%% simple_one_for_one game supervisor. Starts games between 3
-%%% players.
+%%% supervises a hand of skat, starts the bidding and creates the game
 %%% @end
 %%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
--module(erlskat_game_sup).
+-module(erlskat_hand).
 
 -behaviour(supervisor).
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/0]).
--export([new_game/1]).
+-export([start_link/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -24,31 +22,19 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
--spec new_game(list(erlskat:player())) -> pid().
-new_game(Players) ->
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                players => Players,
-                action => starting_new_bidding}),
-    {ok, Game} = supervisor:start_child(
-                   ?SERVER,
-                   [Players]),
-    Game.
-
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the supervisor
 %% @end
 %%--------------------------------------------------------------------
--spec start_link() -> {ok, Pid :: pid()} |
+-spec start_link([erlskat:player()]) -> {ok, Pid :: pid()} |
                       {error, {already_started, Pid :: pid()}} |
                       {error, {shutdown, term()}} |
                       {error, term()} |
                       ignore.
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(Players) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, Players).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -76,17 +62,17 @@ start_link() ->
           {ok, {SupFlags :: supervisor:sup_flags(),
                 [ChildSpec :: supervisor:child_spec()]}} |
           ignore.
-init([]) ->
-    SupFlags = #{strategy => simple_one_for_one,
+init(Players) ->
+    SupFlags = #{strategy => one_for_all,
                  intensity => 1,
                  period => 5},
-    GameSpec = #{id => erlskat_bidding,
-      start => {erlskat_bidding, start_link, []},
+    Bidding = #{id => erlskat_bidding,
+      start => {erlskat_bidding, start_link, [Players]},
       restart => transient,
       shutdown => 5000,
       type => worker,
       modules => [erlskat_bidding]},
-    {ok, {SupFlags, [GameSpec]}}.
+    {ok, {SupFlags, [Bidding]}}.
 
 %%%===================================================================
 %%% Internal functions

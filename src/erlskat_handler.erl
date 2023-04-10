@@ -4,6 +4,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([init/2]).
+-export([websocket_init/1]).
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 
@@ -16,9 +17,18 @@ init(Req0, _) ->
          line => ?LINE,
          function => ?FUNCTION_NAME,
          req => Req0,
-         event => connection_receieved}),
+         event => connection_received}),
     {PlayerId, Req1} = session(Req0),
-    {cowboy_websocket, Req1, #{playerId => PlayerId}}.
+    {cowboy_websocket,
+     Req1,
+     #{playerId => PlayerId},
+     #{idle_timeout => infinity, max_frame_size => infinity}}.
+
+websocket_init(#{playerId := PlayerId} = State) ->
+    erlskat_manager:socket_message(
+      #{id => PlayerId, socket => self()},
+      #{}),
+    {ok, State}.
 
 %% messages from client
 websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
@@ -30,7 +40,8 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
                  function => ?FUNCTION_NAME,
                  msg => Msg,
                  player => PlayerId,
-                 state => State}),
+                 state => State,
+                 pid => self()}),
             erlskat_manager:socket_message(#{id => PlayerId,
                                              socket => self()},
                                            Json),
@@ -49,15 +60,15 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
 
 %% messages from server
 websocket_info(Msg, #{playerId := PlayerId} = State) ->
+    ?LOG_INFO(
+       #{module => ?MODULE,
+         line => ?LINE,
+         function => ?FUNCTION_NAME,
+         msg => Msg,
+         player => PlayerId,
+         state => State}),
     try to_json(Msg) of
         Json ->
-            ?LOG_INFO(
-               #{module => ?MODULE,
-                 line => ?LINE,
-                 function => ?FUNCTION_NAME,
-                 msg => Msg,
-                 player => PlayerId,
-                 state => State}),
             {reply, {binary, Json}, State}
     catch
         _:_ ->

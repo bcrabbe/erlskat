@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
--module(erlskat_game).
+-module(erlskat_bidding).
 
 -behaviour(gen_statem).
 -include_lib("kernel/include/logger.hrl").
@@ -37,8 +37,8 @@
                                  initial_role := initial_bidding_role(),
                                  hand := list(erlskat:card())}.
 
--type initial_bidding_role() :: geben | horen | sagen.
--type bidding_role() :: initial_bidding_role() | veiter_sagen | passed.
+-type initial_bidding_role() :: deals | listens | speaks.
+-type bidding_role() :: initial_bidding_role() | counter_speaks | passed.
 
 
 -type playing_data() :: #{players => list(map()),
@@ -60,7 +60,7 @@
           ignore |
           {error, Error :: term()}.
 start_link(Players) ->
-    gen_statem:start_link({local, ?SERVER}, ?MODULE, [Players], []).
+    gen_statem:start_link({local, ?SERVER}, ?MODULE, Players, []).
 
 %%%===================================================================
 %%% gen_statem callbacks
@@ -71,9 +71,8 @@ callback_mode() -> handle_event_function.
 
 -spec init(list(Players :: list(erlskat:player()))) ->
           gen_statem:init_result(bid).
-init([Players]) ->
+init(Players) ->
     process_flag(trap_exit, true),
-    [link(Socket) || #{socket := Socket} <- Players],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -132,7 +131,7 @@ player_bidding_data_msg(_) ->
 
 -spec player_bidding_data_msg(erlskat:player(), player_bidding_data()) -> done.
 player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
-    Socket ! PlayerBiddingData,
+    Socket ! maps:without([player], PlayerBiddingData),
     done.
 
 
@@ -150,7 +149,6 @@ shuffled_deck() ->
                                [{rand:uniform(), Card} ||
                                    Card <- Deck])].
 
-
 -spec deal(list(erlskat:players())) ->
           #{hands => list({erlskat:player(), initial_bidding_role(), list(erlskat:card())}),
             skat => list(erlskat:card())}.
@@ -160,7 +158,7 @@ deal(Players) ->
              lists:sublist(Shuffled, 11, 10),
              lists:sublist(Shuffled, 21, 10)],
     Skat = lists:sublist(Shuffled, 31, 2),
-    HandsForRoles = lists:zip3(Players, [geben, horen, sagen], Hands),
+    HandsForRoles = lists:zip3(Players, [deals, listens, speaks], Hands),
     #{hands => HandsForRoles,
       skat => Skat}.
 
@@ -181,9 +179,9 @@ index_by_bidding_role(Players) ->
 
 -spec which_role_bids(#{bidding_role() => player_bidding_data()}) ->
           bidding_role().
-which_role_bids(#{sagen := _}) ->
-    sagen;
-which_role_bids(#{veiter_sagen := _}) ->
-    veiter_sagen;
+which_role_bids(#{speaks := _}) ->
+    speaks;
+which_role_bids(#{counter_speaks := _}) ->
+    counter_speaks;
 which_role_bids(_) ->
     done.

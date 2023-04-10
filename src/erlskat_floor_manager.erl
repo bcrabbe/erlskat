@@ -2,19 +2,18 @@
 %%% @author Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%% @copyright (C) 2019, Ben Crabbe
 %%% @doc
-%%% simple_one_for_one game supervisor. Starts games between 3
-%%% players.
+%%% simple_one_for_one supervisor, starts tables for 3 players.
 %%% @end
 %%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
--module(erlskat_game_sup).
+-module(erlskat_floor_manager).
 
 -behaviour(supervisor).
 -include_lib("kernel/include/logger.hrl").
 
 %% API
 -export([start_link/0]).
--export([new_game/1]).
+-export([new_table/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -24,18 +23,22 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
--spec new_game(list(erlskat:player())) -> pid().
-new_game(Players) ->
+-spec new_table(list(erlskat:player())) -> pid().
+new_table(Players) ->
+    Tables = supervisor:count_children(?SERVER),
+    CurrentTableCount = proplists:get_value(specs, Tables, 0),
+    NewTableNumber = CurrentTableCount + 1,
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 players => Players,
-                action => starting_new_bidding}),
+                tables => Tables,
+                action => starting_new_table,
+                table_number => NewTableNumber}),
     {ok, Game} = supervisor:start_child(
                    ?SERVER,
-                   [Players]),
+                   [NewTableNumber, Players]),
     Game.
-
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -80,13 +83,13 @@ init([]) ->
     SupFlags = #{strategy => simple_one_for_one,
                  intensity => 1,
                  period => 5},
-    GameSpec = #{id => erlskat_bidding,
-      start => {erlskat_bidding, start_link, []},
+    TableSpec = #{id => erlskat_table,
+      start => {erlskat_table, start_link, []},
       restart => transient,
       shutdown => 5000,
-      type => worker,
-      modules => [erlskat_bidding]},
-    {ok, {SupFlags, [GameSpec]}}.
+      type => supervisor,
+      modules => [erlskat_table]},
+    {ok, {SupFlags, [TableSpec]}}.
 
 %%%===================================================================
 %%% Internal functions

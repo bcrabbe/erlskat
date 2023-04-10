@@ -34,7 +34,7 @@
 
 -spec new_player(erlskat:player()) -> pid().
 new_player(Player) ->
-    gen_statem:cast(?SERVER, {new_player, Player}),
+    gen_statem:cast(?SERVER, {?FUNCTION_NAME, Player}),
     ?SERVER.
 
 -spec start_link() -> {ok, Pid :: pid()} |
@@ -44,7 +44,7 @@ start_link() ->
     gen_statem:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 stop() ->
-     gen_statem:stop(?MODULE).
+     gen_statem:stop(?SERVER).
 %%%===================================================================
 %%% gen_statem callbacks
 %%%===================================================================
@@ -62,8 +62,9 @@ init([]) ->
                    State :: ready,
                    Data :: #{players => elskat:player()}) ->
           gen_statem:event_handler_result(term()).
+
 handle_event(info,
-             {'DOWN', Ref, process, DownSocket, normal},
+             {'DOWN', Ref, process, DownSocket, Reason},
              ready,
              #{players := WaitingPlayers}) ->
     {Left, StillWaiting} = lists:partition(
@@ -78,9 +79,11 @@ handle_event(info,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 still_waiting => StillWaiting,
-                left => Left}),
+                left => Left,
+                reason => Reason}),
     notify_players_waiting(StillWaiting),
     {keep_state, #{players => StillWaiting}};
+
 handle_event(cast,
              {new_player, #{socket := Socket} = NewPlayer},
              ready,
@@ -93,6 +96,7 @@ handle_event(cast,
     NewWaitingPlayers = [NewPlayer#{ ref => Ref } | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
+
 handle_event(cast,
              {new_player, NewPlayer},
              ready,
@@ -104,7 +108,7 @@ handle_event(cast,
                 action => starting_new_game}),
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
-    erlskat_game_sup:new_game(NewGamePlayers),
+    erlskat_floor_manager:new_table(NewGamePlayers),
     lists:foreach(
       fun
           (#{ref := Ref}) -> erlang:demonitor(Ref);
@@ -112,6 +116,13 @@ handle_event(cast,
       end,
       NewGamePlayers),
     {keep_state, #{players => []}}.
+
+%% handle_event(Event, Msg, _, _) ->
+%%     ?LOG_INFO(#{module => ?MODULE,
+%%                 line => ?LINE,
+%%                 function => ?FUNCTION_NAME,
+%%                 unhandled => #{event => Event, msg => Msg}}),
+%%     keep_state_and_data.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
                        any().
