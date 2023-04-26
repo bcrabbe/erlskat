@@ -60,7 +60,7 @@
           ignore |
           {error, Error :: term()}.
 start_link(Players) ->
-    gen_statem:start_link({local, ?SERVER}, ?MODULE, Players, []).
+    gen_statem:start_link(?MODULE, Players, []).
 
 %%%===================================================================
 %%% gen_statem callbacks

@@ -34,7 +34,7 @@
                       {error, term()} |
                       ignore.
 start_link(Players) ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, Players).
+    supervisor:start_link(?MODULE, Players).
 
 %%%===================================================================
 %%% Supervisor callbacks

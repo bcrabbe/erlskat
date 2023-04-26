@@ -22,7 +22,7 @@
 
 -define(SERVER, ?MODULE).
 
--define(RECONNECT_DEADLINE_MS, 5000).
+-define(RECONNECT_DEADLINE_MS, 10000).
 
 -type table_monitor_state() :: connected | connecting.
 -type table_monitor_data() :: #{connected => #{reference() => erlskat:player()},
@@ -34,14 +34,6 @@
 %%% API
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Creates a gen_statem process which calls Module:init/1 to
-%% initialize. To ensure a synchronized start-up procedure, this
-%% function does not return until Module:init/1 has returned.
-%%
-%% @end
-%%--------------------------------------------------------------------
 -spec start_link([erlskat:player()]) ->
           {ok, Pid :: pid()} |
           ignore |
@@ -53,6 +45,19 @@ stop(Pid) ->
      gen_statem:stop(Pid).
 
 %%%===================================================================
+%%% responses
+%%%===================================================================
+
+player_disconnected(DisconnectedPlayerId) ->
+    #{player_disconnected => DisconnectedPlayerId, reconnection_deadline_ms => ?RECONNECT_DEADLINE_MS}.
+
+player_timed_out(DisconnectedPlayerId) ->
+    #{player_timed_out => DisconnectedPlayerId}.
+
+game_closed() ->
+    game_closed.
+
+%%%===================================================================
 %%% gen_statem callbacks
 %%%===================================================================
 
@@ -61,7 +66,6 @@ callback_mode() -> handle_event_function.
 -spec init([erlskat:player()]) ->
           gen_statem:init_result(term()).
 init(Players) ->
-    process_flag(trap_exit, true),
     PlayersByRef = lists:foldl(
       fun
           (#{socket := Socket} = Player, Acc) ->
@@ -72,7 +76,7 @@ init(Players) ->
       Players
      ),
     {ok, connected, #{total => length(Players),
-                      connected => PlayersByRef,
+                      players => PlayersByRef,
                       reconnecting => []}}.
 
 -spec handle_event(gen_statem:event_type(),
@@ -84,36 +88,46 @@ init(Players) ->
 handle_event(info,
              {'DOWN', Ref, process, _DownSocket, _Reason} = Msg,
              State,
-             #{connected := ConnectedPlayers} = Data) ->
+             #{players := Players} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                player_disconected => Msg,
+                msg => Msg,
                 state => State,
                 data => Data,
+                self => self(),
                 reconnecting_deadline => ?RECONNECT_DEADLINE_MS}),
     erlang:demonitor(Ref),
-    #{id := DisconnectedPlayerId} = maps:get(Ref, ConnectedPlayers),
-    RemainingPlayersByRef = maps:without([Ref], ConnectedPlayers),
-    [Socket ! #{player_disconected => DisconnectedPlayerId} ||
+    #{id := DisconnectedPlayerId} = maps:get(Ref, Players),
+    RemainingPlayersByRef = maps:without([Ref], Players),
+    [Socket ! player_disconnected(DisconnectedPlayerId) ||
         #{socket := Socket}  <- maps:values(RemainingPlayersByRef)],
     {next_state, reconnecting,
      Data#{reconnecting => [DisconnectedPlayerId | maps:get(reconnecting, Data, [])]},
-     [{{timeout, dead}, ?RECONNECT_DEADLINE_MS, {disconnected, DisconnectedPlayerId}}]};
+     [{{timeout, player_timeout}, ?RECONNECT_DEADLINE_MS, {player_timeout, DisconnectedPlayerId}}]};
 
-handle_event({timeout, dead},
-             {disconnected, DisconnectedPlayerId} = Msg,
+handle_event({timeout, player_timeout},
+             {player_timeout, DisconnectedPlayerId} = Msg,
              State,
-             #{connected := RemainingPlayersByRef} = Data) ->
+             #{players := Players} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 state => State,
                 data => Data,
-                table_disconnected => Msg}),
-    [Socket ! #{player_timed_out => DisconnectedPlayerId} ||
+                self => self(),
+                msg => Msg}),
+    [Socket ! player_timed_out(DisconnectedPlayerId) ||
+        #{socket := Socket} <- maps:values(Players)],
+    {next_state, game_closed, Data, [{{timeout, game_closed}, 0, game_closed}]};
+
+handle_event({timeout, game_closed},
+             _Msg,
+             State,
+             #{players := RemainingPlayersByRef} = Data) ->
+    [Socket ! game_closed() ||
         #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
-    {stop, State, Data};
+    {stop, player_disconnected};
 
  %% a msg from the reconnecting player
 handle_event(cast,
@@ -126,17 +140,7 @@ handle_event(cast,
                   Player,
                   maps:put(reconnecting, lists:delete(Id, ReconnectingIds), Data));
         false -> {keep_state, State, Data}
-    end;
-
-handle_event(Event, Msg, State, Data) ->
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                ignored_event => Event,
-                ignored_msg => Msg,
-                state => State,
-                data  => Data}),
-    {keep_state, State, Data}.
+    end.
 
 %%--------------------------------------------------------------------
 %% @private

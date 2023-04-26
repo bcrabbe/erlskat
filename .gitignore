@@ -1,4 +1,6 @@
+TAGS
 *~
+*.beam
 *.plt
 erl_crash.dump
 deps

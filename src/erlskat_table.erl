@@ -41,7 +41,7 @@ start_link(TableNumber, Players) ->
                 players => Players,
                 action => new_table_started,
                 table_number => TableNumber}),
-    supervisor:start_link({local, ?SERVER}, ?MODULE, Players).
+    supervisor:start_link(?MODULE, Players).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -64,10 +64,10 @@ init(Players) ->
     SupFlags = #{strategy => one_for_one,
                  intensity => 1,
                  period => 5,
-                 auto_shutdown => all_significant},
+                 auto_shutdown => any_significant},
     Monitor = #{id => erlskat_table_monitor,
                 start => {erlskat_table_monitor, start_link, [Players]},
-                restart => transient,
+                restart => temporary,
                 shutdown => 5000,
                 significant => true,
                 type => worker,

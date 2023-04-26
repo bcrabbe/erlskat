@@ -65,6 +65,7 @@ websocket_info(Msg, #{playerId := PlayerId} = State) ->
          line => ?LINE,
          function => ?FUNCTION_NAME,
          msg => Msg,
+         pid => self(),
          player => PlayerId,
          state => State}),
     try to_json(Msg) of
@@ -89,6 +90,7 @@ session(Req@) ->
 set_session(Req@) ->
     quickrand:seed(),
     PlayerId = generate_session_id(),
+    ?LOG_INFO(#{player_id => PlayerId}),
     {PlayerId, cowboy_req:set_resp_header(
                   ?SESSION_HEADER,
                   encrypt_session(PlayerId),
@@ -108,6 +110,4 @@ decrypt_session(Req, SessionHdr) ->
     case binary:split(DecodedCredentials, <<$:>>) of
         [?SESSION_SECRET, PlayerId] ->
             {Req, PlayerId};
-        _ ->
-            {undefined, undefined}
     end.
