@@ -1,6 +1,7 @@
 -module(erlskat_table_monitor_tests).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("kernel/include/logger.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
@@ -18,6 +19,7 @@ one_leaver_test_() ->
      {"notifies remaining players of timeout",
       {setup, fun start_with_leaver/0, fun stop/1, fun receive_timeout_messages/1}}
     ].
+
 %% player_disconnects_test_() ->
 %%     [{"when player leaves he should be removed from the waiting players",
 %%      {setup, fun start/0, fun stop/1}},
@@ -50,9 +52,10 @@ receive_disconnect_messages(Pid) ->
      ?_assertMatch(#{player_disconnected := ?LEAVING_PLAYER_ID}, Resp2)].
 
 
-receive_timeout_messages(Pid) ->
-    Resps = receive_n(4),
-    %% io:format("~n~ngot ~p~n", Resps),
+receive_timeout_messages(_Pid) ->
+    timer:sleep(10000),
+    %% flush(),
+    Resps = receive_n(7),
     lists:map(
       fun
           ({1, Resp1}) ->
@@ -62,7 +65,13 @@ receive_timeout_messages(Pid) ->
           ({3, Resp3}) ->
               ?_assertMatch(#{player_timed_out := ?LEAVING_PLAYER_ID}, Resp3);
           ({4, Resp4}) ->
-              ?_assertMatch(#{player_timed_out := ?LEAVING_PLAYER_ID}, Resp4)
+              ?_assertMatch(#{player_timed_out := ?LEAVING_PLAYER_ID}, Resp4);
+          ({5, Resp5}) ->
+              ?_assertMatch(game_closed, Resp5);
+          ({6, Resp6}) ->
+              ?_assertMatch(game_closed, Resp6);
+          ({7, Resp7}) ->
+              ?_assertMatch({'EXIT', Pid, player_disconnected}, Resp7)
       end,
       Resps).
 
@@ -87,6 +96,9 @@ start_with_leaver() ->
               timer:sleep(100),
               exit(expected_mock_player_disconnect)
       end),
+    process_flag(trap_exit, true),
+    timer:sleep(110),
+    flush(),
     {ok, Pid} = erlskat_table_monitor:start_link([player(?LEAVING_PLAYER_ID, LeaverPid) | players(2)]),
     Pid.
 
@@ -97,29 +109,37 @@ stop([Pid | Pids]) ->
     stop(Pid),
     stop(Pids);
 stop(Pid) ->
-    erlskat_table_monitor:stop(Pid).
+    case is_process_alive(Pid) of
+        true -> erlskat_table_monitor:stop(Pid);
+        false -> ok
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 receive_n(N) ->
-    lists:map(
-              fun (Index) ->
-                      Received = receive
-                                     Msg -> Msg
-                                 after 2000 -> received_nothing
-                                 end,
-                      {Index, Received}
-              end,
-              lists:seq(1,N)).
+    lists:foldl(
+      fun (Index, Acc) ->
+              receive
+                  Msg -> [{Index, Msg} | Acc]
+              after 20000 -> [{Index, received_nothing} | Acc]
+              end
+
+      end,
+      [],
+      lists:seq(1,N)).
+
 flush() ->
     receive
         M ->
-            io:format("~n~ngot ~p~n",[M]),
-            flush()
+            ?LOG_INFO(#{module => ?MODULE,
+                        line => ?LINE,
+                        function => ?FUNCTION_NAME,
+                        msg => M}),
+                flush()
     after 0 ->
-        ok
+            ok
     end.
 
 players(N) ->

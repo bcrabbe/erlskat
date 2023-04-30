@@ -22,7 +22,7 @@
 
 -define(SERVER, ?MODULE).
 
--define(RECONNECT_DEADLINE_MS, 10000).
+-define(RECONNECT_DEADLINE_MS, 4000).
 
 -type table_monitor_state() :: connected | connecting.
 -type table_monitor_data() :: #{connected => #{reference() => erlskat:player()},

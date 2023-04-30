@@ -109,5 +109,5 @@ decrypt_session(Req, SessionHdr) ->
     DecodedCredentials = base64:decode(SessionHdr),
     case binary:split(DecodedCredentials, <<$:>>) of
         [?SESSION_SECRET, PlayerId] ->
-            {Req, PlayerId};
+            {Req, PlayerId}
     end.
