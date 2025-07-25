@@ -49,7 +49,8 @@ stop(Pid) ->
 %%%===================================================================
 
 player_disconnected(DisconnectedPlayerId) ->
-    #{player_disconnected => DisconnectedPlayerId, reconnection_deadline_ms => ?RECONNECT_DEADLINE_MS}.
+    #{player_disconnected => DisconnectedPlayerId,
+      reconnection_deadline_ms => ?RECONNECT_DEADLINE_MS}.
 
 player_timed_out(DisconnectedPlayerId) ->
     #{player_timed_out => DisconnectedPlayerId}.
@@ -163,7 +164,7 @@ terminate(_Reason, _State, _Data) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec code_change(
-        OldVsn :: term() | {down,term()},
+        OldVsn :: term() | {down, term()},
         State :: term(), Data :: term(), Extra :: term()) ->
           {ok, NewState :: term(), NewData :: term()} |
           (Reason :: term()).

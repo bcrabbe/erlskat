@@ -135,7 +135,7 @@ player_leaves_after_game_started(_) ->
                     players => [1]}, Resp1),
      ?_assertEqual(#{state => waiting,
                      players => [2, 1]}, Resp2),
-     ?_assertEqual(#{state => waiting,%two players receive this msg
+     ?_assertEqual(#{state => waiting, % two players receive this msg
                      players => [2, 1]}, Resp3),
      ?_assertEqual(#{state => matched,
                      players => [leaver, 2, 1]}, Resp4),

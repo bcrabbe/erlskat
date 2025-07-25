@@ -9,6 +9,7 @@ ERLC_OPTS := $(filter-out -Werror,$(ERLC_OPTS))
 
 # ------------ Runtime, build-time and shell deps ------------
 SHELL_DEPS = sync
+dep_sync = hex 0.4.1
 LOCAL_DEPS = sasl
 
 BUILD_DEPS = elvis_mk

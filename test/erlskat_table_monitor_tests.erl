@@ -99,7 +99,8 @@ start_with_leaver() ->
     process_flag(trap_exit, true),
     timer:sleep(110),
     flush(),
-    {ok, Pid} = erlskat_table_monitor:start_link([player(?LEAVING_PLAYER_ID, LeaverPid) | players(2)]),
+    {ok, Pid} = erlskat_table_monitor:start_link(
+                  [player(?LEAVING_PLAYER_ID, LeaverPid) | players(2)]),
     Pid.
 
 
@@ -128,7 +129,7 @@ receive_n(N) ->
 
       end,
       [],
-      lists:seq(1,N)).
+      lists:seq(1, N)).
 
 flush() ->
     receive
@@ -148,7 +149,7 @@ players(N) ->
 players(0, Acc) ->
     Acc;
 players(N, Acc) ->
-    players(N-1, [player(N) | Acc]).
+    players(N - 1, [player(N) | Acc]).
 
 player(N, Pid) ->
     #{id => N, socket => Pid}.

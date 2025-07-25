@@ -108,7 +108,7 @@ terminate(_Reason, _State, _Data) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec code_change(
-        OldVsn :: term() | {down,term()},
+        OldVsn :: term() | {down, term()},
         State :: term(), Data :: term(), Extra :: term()) ->
           {ok, NewState :: term(), NewData :: term()} |
           (Reason :: term()).

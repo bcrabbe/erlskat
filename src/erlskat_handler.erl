@@ -1,5 +1,5 @@
 -module(erlskat_handler).
--behavior(cowboy_handler).
+-behaviour(cowboy_handler).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -21,17 +21,17 @@ init(Req0, _) ->
     {PlayerId, Req1} = session(Req0),
     {cowboy_websocket,
      Req1,
-     #{playerId => PlayerId},
+     #{player_id => PlayerId},
      #{idle_timeout => infinity, max_frame_size => infinity}}.
 
-websocket_init(#{playerId := PlayerId} = State) ->
+websocket_init(#{player_id := PlayerId} = State) ->
     erlskat_manager:socket_message(
       #{id => PlayerId, socket => self()},
       #{}),
     {ok, State}.
 
 %% messages from client
-websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
+websocket_handle({text, Msg} = _Req0, #{player_id := PlayerId} = State) ->
     try jsx:decode(Msg, [return_maps]) of
         Json ->
             ?LOG_INFO(
@@ -53,13 +53,13 @@ websocket_handle({text, Msg} = _Req0, #{playerId := PlayerId} = State) ->
               to_json(
                 #{error => <<"invalid json">>,
                   msg => Msg,
-                  playerId => PlayerId,
+                  player_id => PlayerId,
                   event => decode_error})},
              State}
     end.
 
 %% messages from server
-websocket_info(Msg, #{playerId := PlayerId} = State) ->
+websocket_info(Msg, #{player_id := PlayerId} = State) ->
     ?LOG_INFO(
        #{module => ?MODULE,
          line => ?LINE,
@@ -107,7 +107,5 @@ encrypt_session(PlayerId) ->
 
 decrypt_session(Req, SessionHdr) ->
     DecodedCredentials = base64:decode(SessionHdr),
-    case binary:split(DecodedCredentials, <<$:>>) of
-        [?SESSION_SECRET, PlayerId] ->
-            {Req, PlayerId}
-    end.
+    [?SESSION_SECRET, PlayerId] = binary:split(DecodedCredentials, <<$:>>),
+    {Req, PlayerId}.
