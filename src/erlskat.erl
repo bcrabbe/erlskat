@@ -1,6 +1,6 @@
 -module(erlskat).
 -export([start/0]).
--export_type([player_id/0, player/0, suit/0, rank/0, card/0]).
+-export_type([player_id/0, player/0, suit/0, rank/0, card/0, cards/0, skat/0]).
 
 -type player_id() :: binary().
 
@@ -19,6 +19,8 @@
         king.
 
 -type card() :: {rank(), suit()}.
+-type cards() :: list(erlskat:card()).
+-type skat() :: cards().
 
 start() ->
     error_logger:info_report(

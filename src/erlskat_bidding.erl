@@ -35,15 +35,16 @@
 
 -type player_bidding_data() :: #{player := erlskat:player(),
                                  initial_role := initial_bidding_role(),
-                                 hand := list(erlskat:card())}.
+                                 hand := erlskat:cards(),
+                                 skat := erlskat:skat()}.
 
 -type initial_bidding_role() :: deals | listens | speaks.
 -type bidding_role() :: initial_bidding_role() | counter_speaks | passed.
 
 
--type playing_data() :: #{players => list(map()),
-                          skat => list(erlskat:card()),
-                          game_type => game_type() | undefined}.
+-type playing_data() :: #{players := list(map()),
+                          skat := erlskat:skat(),
+                          game_type := game_type() | undefined}.
 
 -type game_response() ::
         #{state => map(),
@@ -89,7 +90,7 @@ init(Players) ->
                                  end,
                         #{skat => Skat},
                         Hands),
-    [player_bidding_data_msg(PlayerBiddingData) ||
+    [player_bidding_data_msg(PlayerBiddingData, Skat) ||
         PlayerBiddingData <- maps:values(InitBiddingData)],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -125,23 +126,24 @@ terminate(_Reason, _State, _Data) ->
 %%%===================================================================
 %%% Socket messages
 %%%===================================================================
--spec player_bidding_data_msg(player_bidding_data()) -> done.
-player_bidding_data_msg(#{player := Player} = PlayerBiddingData) ->
-    player_bidding_data_msg(Player, PlayerBiddingData);
-player_bidding_data_msg(_) ->
+-spec player_bidding_data_msg(player_bidding_data(), erlskat:skat()) -> done.
+player_bidding_data_msg(#{player := Player} = PlayerBiddingData, Skat) ->
+    player_bidding_data_msg(Player, PlayerBiddingData, Skat);
+player_bidding_data_msg(_, _) ->
     done.
 
 
--spec player_bidding_data_msg(erlskat:player(), player_bidding_data()) -> done.
-player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
-    Socket ! maps:without([player], PlayerBiddingData),
+-spec player_bidding_data_msg(erlskat:player(), player_bidding_data(), erlskat:skat()) -> done.
+player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData, Skat) ->
+    Msg = maps:without([player], PlayerBiddingData),
+    Socket ! Msg#{ skat => Skat },
     done.
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec shuffled_deck() -> list(erlskat:card()).
+-spec shuffled_deck() -> erlskat:cards().
 shuffled_deck() ->
     Deck = [#{rank => Rank, suit => Suit} ||
                Rank <- [ace, seven, eight, nine,
@@ -153,8 +155,8 @@ shuffled_deck() ->
                                    Card <- Deck])].
 
 -spec deal(list(erlskat:players())) ->
-          #{hands => list({erlskat:player(), initial_bidding_role(), list(erlskat:card())}),
-            skat => list(erlskat:card())}.
+          #{hands => list({erlskat:player(), initial_bidding_role(), erlskat:cards()}),
+            skat => erlskat:skat()}.
 deal(Players) ->
     Shuffled = shuffled_deck(),
     Hands = [lists:sublist(Shuffled, 10),

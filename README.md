@@ -17,7 +17,7 @@ make shell
 players can connect to the server using websockets
 
 ```bash
-websocat ws://localhost:8080
+websocat ws://localhost:8080 | jq
 ```
 
 ## Build and Test
