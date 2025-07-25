@@ -83,8 +83,7 @@ init(Players) ->
     InitBiddingData = lists:foldl(
                         fun
                             ({Player, Role, Cards}, Acc) ->
-                                         Acc#{Role => #{
-                                                        player => Player,
+                                         Acc#{Role => #{player => Player,
                                                         initial_role => Role,
                                                         hand => Cards}}
                                  end,
@@ -119,7 +118,7 @@ handle_event(cast,
     end.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
-                       any().
+          any().
 terminate(_Reason, _State, _Data) ->
     void.
 
@@ -178,9 +177,9 @@ is_bidder(#{id := SenderId}, PlayerStatesIndexedByRole) ->
 -spec index_by_bidding_role(list(player_bidding_data())) ->
           #{bidding_role() => player_bidding_data()}.
 index_by_bidding_role(Players) ->
-     lists:foldl(
+    lists:foldl(
       fun (#{role := Role} = Player, Acc) -> Acc#{Role => Player} end,
-       #{}, Players).
+      #{}, Players).
 
 -spec which_role_bids(#{bidding_role() => player_bidding_data()}) ->
           bidding_role().
