@@ -83,11 +83,15 @@ init(Players) ->
     InitBiddingData = lists:foldl(
                         fun
                             ({Player, Role, Cards}, Acc) ->
-                                Acc#{Role => #{player => Player, initial_role => Role, hand => Cards}}
-                        end,
+                                         Acc#{Role => #{
+                                                        player => Player,
+                                                        initial_role => Role,
+                                                        hand => Cards}}
+                                 end,
                         #{skat => Skat},
                         Hands),
-    [player_bidding_data_msg(PlayerBiddingData) || PlayerBiddingData <- maps:values(InitBiddingData)],
+    [player_bidding_data_msg(PlayerBiddingData) ||
+        PlayerBiddingData <- maps:values(InitBiddingData)],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -171,7 +175,8 @@ is_bidder(#{id := SenderId}, PlayerStatesIndexedByRole) ->
         _ -> false
     end.
 
--spec index_by_bidding_role(list(player_bidding_data())) -> #{bidding_role() => player_bidding_data()}.
+-spec index_by_bidding_role(list(player_bidding_data())) ->
+          #{bidding_role() => player_bidding_data()}.
 index_by_bidding_role(Players) ->
      lists:foldl(
       fun (#{role := Role} = Player, Acc) -> Acc#{Role => Player} end,

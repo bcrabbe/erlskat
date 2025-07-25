@@ -79,22 +79,22 @@ websocket_info(Msg, #{playerId := PlayerId} = State) ->
 to_json(Reply) ->
     jsx:encode(Reply).
 
-session(Req@) ->
-    case cowboy_req:header(?SESSION_HEADER, Req@) of
+session(Req) ->
+    case cowboy_req:header(?SESSION_HEADER, Req) of
         undefined ->
-            set_session(Req@);
+            set_session(Req);
         SessionHdr ->
-            decrypt_session(Req@, SessionHdr)
+            decrypt_session(Req, SessionHdr)
     end.
 
-set_session(Req@) ->
+set_session(Req) ->
     quickrand:seed(),
     PlayerId = generate_session_id(),
     ?LOG_INFO(#{player_id => PlayerId}),
     {PlayerId, cowboy_req:set_resp_header(
                   ?SESSION_HEADER,
                   encrypt_session(PlayerId),
-                  Req@)}.
+                  Req)}.
 
 generate_session_id() -> uuid:get_v4().
 
