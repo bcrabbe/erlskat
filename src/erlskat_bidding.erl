@@ -30,12 +30,14 @@
 
 -type server_data() :: bidding_data().
 
--type bidding_data() :: #{bidding_role() => player_bidding_data(), bid := number, skat := erlskat:skat()}.
+-type bidding_data() :: #{hands := [player_bidding_data()], bid := number(), skat := erlskat:skat()}.
 
 -type player_bidding_data() :: #{player := erlskat:player(),
                                  initial_role := initial_bidding_role(),
+                                 current_role := bidding_role(),
                                  hand := erlskat:cards()}.
 
+-type hand_position() :: 0 | 1 | 2.  %% forehand, mittlehand, rearhand
 -type initial_bidding_role() :: deals | listens | speaks.
 -type bidding_role() :: initial_bidding_role() | counter_speaks | passed.
 
@@ -74,17 +76,9 @@ init(Players) ->
                 action => new_game_starting}),
     [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
     #{hands := Hands, skat := Skat} = deal(Players),
-    InitBiddingData = lists:foldl(
-                        fun
-                            ({Player, Role, Cards}, Acc) ->
-                                         Acc#{Role => #{player => Player,
-                                                        initial_role => Role,
-                                                        hand => Cards}}
-                                 end,
-                        #{skat => Skat, game_value => 0},
-                        Hands),
+    InitBiddingData = #{hands => Hands, skat => Skat, bid => 0},
     [player_bidding_data_msg(PlayerBiddingData) ||
-        PlayerBiddingData <- maps:values(InitBiddingData)],
+        PlayerBiddingData <- Hands],
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -146,39 +140,59 @@ shuffled_deck() ->
                                    Card <- Deck])].
 
 -spec deal(list(erlskat:players())) ->
-          #{hands => list({erlskat:player(), initial_bidding_role(), erlskat:cards()}),
+          #{hands => [player_bidding_data()],
             skat => erlskat:skat()}.
 deal(Players) ->
     Shuffled = shuffled_deck(),
-    Hands = [lists:sublist(Shuffled, 10),
-             lists:sublist(Shuffled, 11, 10),
-             lists:sublist(Shuffled, 21, 10)],
+    HandCards = [lists:sublist(Shuffled, 10),
+                 lists:sublist(Shuffled, 11, 10),
+                 lists:sublist(Shuffled, 21, 10)],
     Skat = lists:sublist(Shuffled, 31, 2),
-    HandsForRoles = lists:zip3(Players, [deals, listens, speaks], Hands),
-    #{hands => HandsForRoles,
+    InitialRoles = [deals, listens, speaks],
+    Hands = [#{player => Player,
+               initial_role => InitialRole,
+               current_role => InitialRole,
+               hand => Hand} ||
+             {Player, InitialRole, Hand} <- lists:zip3(Players, InitialRoles, HandCards)],
+    #{hands => Hands,
       skat => Skat}.
 
 -spec is_bidder(Sender :: erlskat:player(),
-                GameState :: #{bidding_role() => player_bidding_data()}) ->
+                GameState :: bidding_data()) ->
           boolean().
-is_bidder(#{id := SenderId}, PlayerStatesIndexedByRole) ->
-    case maps:get(which_role_bids(PlayerStatesIndexedByRole), PlayerStatesIndexedByRole) of
+is_bidder(#{id := SenderId}, #{hands := Hands}) ->
+    case get_current_bidder(Hands) of
         #{player := #{id := SenderId}} -> true;
         _ -> false
     end.
 
--spec index_by_bidding_role(list(player_bidding_data())) ->
-          #{bidding_role() => player_bidding_data()}.
-index_by_bidding_role(Players) ->
-    lists:foldl(
-      fun (#{role := Role} = Player, Acc) -> Acc#{Role => Player} end,
-      #{}, Players).
+-spec get_current_bidder([player_bidding_data()]) ->
+          player_bidding_data() | undefined.
+get_current_bidder(Hands) ->
+    case lists:filter(fun(#{current_role := Role}) -> 
+                        Role =:= speaks orelse Role =:= counter_speaks 
+                      end, Hands) of
+        [Bidder] -> Bidder;
+        [] -> undefined
+    end.
 
--spec which_role_bids(#{bidding_role() => player_bidding_data()}) ->
-          bidding_role().
-which_role_bids(#{speaks := _}) ->
-    speaks;
-which_role_bids(#{counter_speaks := _}) ->
-    counter_speaks;
-which_role_bids(_) ->
-    done.
+-spec get_hand_by_position(hand_position(), [player_bidding_data()]) ->
+          player_bidding_data() | undefined.
+get_hand_by_position(Position, Hands) when Position >= 0, Position =< 2 ->
+    case Position < length(Hands) of
+        true -> lists:nth(Position + 1, Hands);  %% lists:nth is 1-indexed
+        false -> undefined
+    end;
+get_hand_by_position(_, _) -> undefined.
+
+-spec update_hand_role(hand_position(), bidding_role(), [player_bidding_data()]) ->
+          [player_bidding_data()].
+update_hand_role(Position, NewRole, Hands) when Position >= 0, Position =< 2 ->
+    case Position < length(Hands) of
+        true ->
+            {Before, [Hand | After]} = lists:split(Position, Hands),
+            UpdatedHand = Hand#{current_role => NewRole},
+            Before ++ [UpdatedHand] ++ After;
+        false -> Hands
+    end;
+update_hand_role(_, _, Hands) -> Hands.
