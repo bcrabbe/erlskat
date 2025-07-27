@@ -23,14 +23,25 @@
 -define(SERVER, ?MODULE).
 -type color_game() :: erlskat:suit().
 -type game_type() :: color_game() | grand | null | ramsch.
-%% -type game_value() :: 18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36.
+-type game_value() ::
+    18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36 | 40 | 44 | 45 |
+    48 | 50 | 54 | 55 | 59 | 60 | 63 | 66 | 70 | 72 | 77 | 80 | 81 |
+    84 | 88 | 90 | 96 | 99 | 100 | 108 | 110 | 117 | 120 | 121 |
+    126 | 130 | 132 | 135 | 140 | 143 | 144 | 150 | 154 | 156 | 162 |
+    165 | 168 | 170 | 176 | 180 | 187 | 192 | 198 | 204 | 216 | 220 |
+    225 | 228 | 234 | 240 | 264 | 270 | 273 | 288 | 300 | 306 | 315 |
+    330 | 336 | 360 | 363 | 384 | 396 | 405 | 432 | 441 | 450 | 462 |
+    480 | 495 | 540 | 546 | 567 | 576 | 594 | 600 | 612 | 624 | 720 |
+    792 | 882 | 1080 | 1188 | 1200 | 1296 | 1320 | 1440 | 1584 | 1764.
 -type server_state() :: bidding_state() | playing_state() | finished.
 -type playing_state() :: map().
 -type bidding_state() :: bid | bid_response.
 
 -type server_data() :: bidding_data().
 
--type bidding_data() :: #{hands := [player_bidding_data()], bid := number(), skat := erlskat:skat()}.
+-type bidding_data() :: #{hands := [player_bidding_data()],
+                          bid := number(),
+                          skat := erlskat:skat()}.
 
 -type player_bidding_data() :: #{player := erlskat:player(),
                                  initial_role := initial_bidding_role(),
@@ -92,10 +103,11 @@ init(Players) ->
                    State :: server_state(),
                    Data :: server_data()) ->
           gen_statem:event_handler_result(term()).
+%% Handle yes response from speaks player in bid state
 handle_event(cast,
-             #{player := Player, msg := #{bid := Bid}} = Msg,
+             {socket_message, #{player := Player, msg := <<"yes">>} = Msg},
              bid,
-             BiddingData) ->
+             #{hands := Hands, bid := CurrentBid} = BiddingData) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -103,9 +115,99 @@ handle_event(cast,
                 state => bid,
                 data => BiddingData}),
     case is_bidder(Player, BiddingData) of
-        true -> {bid_response, BiddingData#{bid := Bid}};
-        false -> keep_state_and_data
-    end.
+        true ->
+            %% Get the next bid value from the game value ladder
+            NextBid = case CurrentBid of
+                0 -> 18;  %% First bid is always 18
+                _ -> get_next_game_value(CurrentBid)
+            end,
+            %% Broadcast bid to all players
+            broadcast_bid_to_all_players(Hands, Player, NextBid),
+            %% Update bid value and prompt listening player
+            UpdatedData = BiddingData#{bid := NextBid},
+            prompt_listening_player(Hands, NextBid),
+            {next_state, bid_response, UpdatedData};
+        false ->
+            keep_state_and_data
+    end;
+
+%% Handle pass response from speaks player in bid state
+handle_event(cast,
+             {socket_message, #{player := Player, msg := <<"pass">>} = Msg},
+             bid,
+             #{hands := Hands} = BiddingData) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                msg => Msg,
+                state => bid,
+                data => BiddingData}),
+    case is_bidder(Player, BiddingData) of
+        true ->
+            %% Broadcast pass to all players
+            broadcast_pass_to_all_players(Hands, Player),
+            %% TODO: Handle pass logic - transition roles or end bidding
+            keep_state_and_data;
+        false ->
+            keep_state_and_data
+    end;
+
+%% Handle yes response from listening player in bid_response state
+handle_event(cast,
+             {socket_message, #{player := Player, msg := <<"yes">>} = Msg},
+             bid_response,
+             #{hands := Hands, bid := CurrentBid} = BiddingData) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                msg => Msg,
+                state => bid_response,
+                data => BiddingData}),
+    case is_listener(Player, BiddingData) of
+        true ->
+            %% Get the next bid value from the game value ladder
+            NextBid = get_next_game_value(CurrentBid),
+            %% Broadcast bid response to all players
+            broadcast_bid_to_all_players(Hands, Player, NextBid),
+            %% Update bid value and continue bidding - back to speaks player
+            UpdatedData = BiddingData#{bid := NextBid},
+            prompt_speaks_player(Hands, NextBid),
+            {next_state, bid, UpdatedData};
+        false ->
+            keep_state_and_data
+    end;
+
+%% Handle pass response from listening player in bid_response state
+handle_event(cast,
+             {socket_message, #{player := Player, msg := <<"pass">>} = Msg},
+             bid_response,
+             #{hands := Hands} = BiddingData) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                msg => Msg,
+                state => bid_response,
+                data => BiddingData}),
+    case is_listener(Player, BiddingData) of
+        true ->
+            %% Broadcast pass to all players
+            broadcast_pass_to_all_players(Hands, Player),
+            %% TODO: Handle pass logic in bid_response
+            keep_state_and_data;
+        false ->
+            keep_state_and_data
+    end;
+
+%% Catch-all for unhandled events
+handle_event(EventType, Msg, State, Data) ->
+    ?LOG_WARNING(#{module => ?MODULE,
+                   line => ?LINE,
+                   function => ?FUNCTION_NAME,
+                   event_type => EventType,
+                   msg => Msg,
+                   state => State,
+                   action => unhandled_event}),
+    keep_state_and_data.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
           any().
@@ -156,6 +258,116 @@ send_bid_prompt_to_speaks_player(Hands) ->
             done
     end.
 
+-spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), game_value()) -> done.
+broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
+    BroadcastMsg = #{type => bid_broadcast,
+                     bidder => maps:without([socket], BiddingPlayer),
+                     bid_value => BidValue,
+                     message => iolist_to_binary(["Player ",
+                                                  maps:get(name, BiddingPlayer, "Unknown"),
+                                                  " bids ", integer_to_list(BidValue)])},
+    [begin
+         #{socket := Socket} = maps:get(player, Hand),
+         Socket ! BroadcastMsg
+     end || Hand <- Hands],
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                action => broadcast_bid,
+                bidder => maps:get(id, BiddingPlayer),
+                bid_value => BidValue}),
+    done.
+
+-spec broadcast_pass_to_all_players([player_bidding_data()], erlskat:player()) -> done.
+broadcast_pass_to_all_players(Hands, PassingPlayer) ->
+    BroadcastMsg = #{type => pass_broadcast,
+                     passer => maps:without([socket], PassingPlayer),
+                     message => iolist_to_binary(["Player ",
+                                                  maps:get(name, PassingPlayer, "Unknown"),
+                                                  " passes"])},
+    [begin
+         #{socket := Socket} = maps:get(player, Hand),
+         Socket ! BroadcastMsg
+     end || Hand <- Hands],
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                action => broadcast_pass,
+                passer => maps:get(id, PassingPlayer)}),
+    done.
+
+-spec prompt_listening_player([player_bidding_data()], game_value()) -> done.
+prompt_listening_player(Hands, CurrentBid) ->
+    case lists:filter(fun(#{current_role := Role}) -> Role =:= listens end, Hands) of
+        [#{player := #{socket := Socket}}] ->
+            NextBid = get_next_game_value(CurrentBid),
+            BidPrompt = #{type => bid_prompt,
+                          bid_value => NextBid,
+                          message => iolist_to_binary(["Do you want to bid ", integer_to_list(NextBid), "?"])},
+            Socket ! BidPrompt,
+            ?LOG_INFO(#{module => ?MODULE,
+                        line => ?LINE,
+                        function => ?FUNCTION_NAME,
+                        action => sent_bid_prompt_to_listener,
+                        bid_value => NextBid}),
+            done;
+        [] ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                           line => ?LINE,
+                           function => ?FUNCTION_NAME,
+                           error => no_listening_player_found}),
+            done;
+        Multiple ->
+            ?LOG_ERROR(#{module => ?MODULE,
+                         line => ?LINE,
+                         function => ?FUNCTION_NAME,
+                         error => multiple_listening_players,
+                         count => length(Multiple)}),
+            done
+    end.
+
+-spec prompt_speaks_player([player_bidding_data()], game_value()) -> done.
+prompt_speaks_player(Hands, CurrentBid) ->
+    case lists:filter(fun(#{current_role := Role}) -> Role =:= speaks end, Hands) of
+        [#{player := #{socket := Socket}}] ->
+            NextBid = get_next_game_value(CurrentBid),
+            BidPrompt = #{type => bid_prompt,
+                          bid_value => NextBid,
+                          message => iolist_to_binary(["Do you want to bid ", integer_to_list(NextBid), "?"])},
+            Socket ! BidPrompt,
+            ?LOG_INFO(#{module => ?MODULE,
+                        line => ?LINE,
+                        function => ?FUNCTION_NAME,
+                        action => sent_bid_prompt_to_speaker,
+                        bid_value => NextBid}),
+            done;
+        [] ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                           line => ?LINE,
+                           function => ?FUNCTION_NAME,
+                           error => no_speaks_player_found}),
+            done;
+        Multiple ->
+            ?LOG_ERROR(#{module => ?MODULE,
+                         line => ?LINE,
+                         function => ?FUNCTION_NAME,
+                         error => multiple_speaks_players,
+                         count => length(Multiple)}),
+            done
+    end.
+
+-spec get_next_game_value(game_value()) -> game_value().
+get_next_game_value(18) -> 20;
+get_next_game_value(20) -> 22;
+get_next_game_value(22) -> 23;
+get_next_game_value(23) -> 24;
+get_next_game_value(24) -> 27;
+get_next_game_value(27) -> 30;
+get_next_game_value(30) -> 33;
+get_next_game_value(33) -> 35;
+get_next_game_value(35) -> 36;
+get_next_game_value(36) -> 36.  %% Max value, stay at 36
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -194,6 +406,14 @@ deal(Players) ->
 is_bidder(#{id := SenderId}, #{hands := Hands}) ->
     case get_current_bidder(Hands) of
         #{player := #{id := SenderId}} -> true;
+        _ -> false
+    end.
+
+-spec is_listener(erlskat:player(), bidding_data()) ->
+          boolean().
+is_listener(#{id := SenderId}, #{hands := Hands}) ->
+    case lists:filter(fun(#{current_role := Role}) -> Role =:= listens end, Hands) of
+        [#{player := #{id := SenderId}}] -> true;
         _ -> false
     end.
 
