@@ -79,6 +79,8 @@ init(Players) ->
     InitBiddingData = #{hands => Hands, skat => Skat, bid => 0},
     [player_bidding_data_msg(PlayerBiddingData) ||
         PlayerBiddingData <- Hands],
+    %% Send bid prompt to speaks player
+    send_bid_prompt_to_speaks_player(Hands),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -125,6 +127,35 @@ player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
     Socket ! Msg,
     done.
 
+-spec send_bid_prompt_to_speaks_player([player_bidding_data()]) -> done.
+send_bid_prompt_to_speaks_player(Hands) ->
+    case lists:filter(fun(#{current_role := Role}) -> Role =:= speaks end, Hands) of
+        [#{player := #{socket := Socket}}] ->
+            BidPrompt = #{type => bid_prompt,
+                          bid_value => 18,
+                          message => <<"Do you want to bid 18?">>},
+            Socket ! BidPrompt,
+            ?LOG_INFO(#{module => ?MODULE,
+                        line => ?LINE,
+                        function => ?FUNCTION_NAME,
+                        action => sent_bid_prompt,
+                        bid_value => 18}),
+            done;
+        [] ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                           line => ?LINE,
+                           function => ?FUNCTION_NAME,
+                           error => no_speaks_player_found}),
+            done;
+        Multiple ->
+            ?LOG_ERROR(#{module => ?MODULE,
+                         line => ?LINE,
+                         function => ?FUNCTION_NAME,
+                         error => multiple_speaks_players,
+                         count => length(Multiple)}),
+            done
+    end.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -169,8 +200,8 @@ is_bidder(#{id := SenderId}, #{hands := Hands}) ->
 -spec get_current_bidder([player_bidding_data()]) ->
           player_bidding_data() | undefined.
 get_current_bidder(Hands) ->
-    case lists:filter(fun(#{current_role := Role}) -> 
-                        Role =:= speaks orelse Role =:= counter_speaks 
+    case lists:filter(fun(#{current_role := Role}) ->
+                        Role =:= speaks orelse Role =:= counter_speaks
                       end, Hands) of
         [Bidder] -> Bidder;
         [] -> undefined
