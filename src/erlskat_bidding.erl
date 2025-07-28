@@ -12,7 +12,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/1]).
+-export([start_link/2]).
 
 -export_type([game_response/0]).
 
@@ -62,12 +62,12 @@
 %%% API
 %%%===================================================================
 
--spec start_link(list(erlskat:players())) ->
+-spec start_link(pid(), list(erlskat:players())) ->
           {ok, Pid :: pid()} |
           ignore |
           {error, Error :: term()}.
-start_link(Players) ->
-    gen_statem:start_link(?MODULE, Players, []).
+start_link(CoordinatorPid, Players) ->
+    gen_statem:start_link(?MODULE, {CoordinatorPid, Players}, []).
 
 %%%===================================================================
 %%% gen_statem callbacks
@@ -78,7 +78,8 @@ callback_mode() -> handle_event_function.
 
 -spec init(list(Players :: list(erlskat:player()))) ->
           gen_statem:init_result(bid).
-init(Players) ->
+
+init({CoordinatorPid, Players}) ->
     process_flag(trap_exit, true),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -87,7 +88,10 @@ init(Players) ->
                 action => new_game_starting}),
     [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
     #{hands := Hands, skat := Skat} = deal(Players),
-    InitBiddingData = #{hands => Hands, skat => Skat, bid => 0},
+    InitBiddingData = #{hands => Hands,
+                        skat => Skat,
+                        bid => 0,
+                        coordinator_pid => CoordinatorPid},
     [player_bidding_data_msg(PlayerBiddingData) ||
         PlayerBiddingData <- Hands],
     %% Send bid prompt to speaks player

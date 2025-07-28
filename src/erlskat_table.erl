@@ -82,7 +82,7 @@ init(Players) ->
              start => {erlskat_hand, start_link, [Players]},
              restart => permanent,
              shutdown => 5000,
-             type => supervisor,
+             type => worker,  % Changed from supervisor to worker
              modules => [erlskat_hand]},
     {ok, {SupFlags, [Scorecard, Hand, Monitor]}}.
 
