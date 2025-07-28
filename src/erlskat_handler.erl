@@ -101,10 +101,11 @@ generate_session_id() -> uuid:get_v4().
 
 binary_uuid_to_hex(BinaryUuid) ->
     <<A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16>> = BinaryUuid,
-    FmtIolist = io_lib:format(
-      "~2.16.0b~2.16.0b~2.16.0b~2.16.0b-~2.16.0b~2.16.0b-~2.16.0b~2.16.0b-~2.16.0b~2.16.0b-~2.16.0b~2.16.0b~2.16.0b~2.16.0b~2.16.0b~2.16.0b",
-      [A1, A2, A3, A4, A5, A6, A7, A8,
-       A9, A10, A11, A12, A13, A14, A15, A16]),
+    FormatString = "~2.16.0b~2.16.0b~2.16.0b~2.16.0b-~2.16.0b~2.16.0b-~2.16.0b~2.16.0b-"
+                   "~2.16.0b~2.16.0b-~2.16.0b~2.16.0b~2.16.0b~2.16.0b~2.16.0b~2.16.0b",
+    FmtIolist = io_lib:format(FormatString,
+                              [A1, A2, A3, A4, A5, A6, A7, A8,
+                               A9, A10, A11, A12, A13, A14, A15, A16]),
     list_to_binary(FmtIolist).
 
 encrypt_session(PlayerId) ->

@@ -17,7 +17,7 @@
         queen |
         king.
 
--type card() :: {rank(), suit()}.
+-type card() :: #{rank => rank(), suit => suit()}.
 -type cards() :: list(erlskat:card()).
 -type skat() :: cards().
 

@@ -27,7 +27,7 @@
 %%%===================================================================
 -type player_message() :: #{player => elskat:player(), msg => map() | binary()}.
 
--spec socket_message(erlskat:player(), Msg :: map()) -> ok.
+-spec socket_message(erlskat:player(), Msg :: map() | binary()) -> ok.
 socket_message(Player, Msg) ->
     gen_statem:cast(?SERVER, {socket_message, Player, Msg}),
     ok.

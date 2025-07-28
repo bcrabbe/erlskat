@@ -136,17 +136,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 start_game_phase(Declarer, GameType, GameData, State) ->
-    GameModule = game_module_for_type(GameType),
-
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 declarer => Declarer,
                 game_type => GameType,
-                game_module => GameModule,
                 action => starting_game_phase}),
 
-    case GameModule:start_link(self(), Declarer, GameType, GameData, State#state.players) of
+    case start_game_module(Declarer, GameType, GameData, State#state.players) of
         {ok, GamePid} ->
             MonitorRef = erlang:monitor(process, GamePid),
             {noreply, State#state{
@@ -162,6 +159,19 @@ start_game_phase(Declarer, GameType, GameData, State) ->
                          action => failed_to_start_game}),
             {stop, {game_start_failed, Reason}, State}
     end.
+
+start_game_module(Declarer, clubs, GameData, Players) ->
+    erlskat_color_game:start_link(self(), Declarer, clubs, GameData, Players);
+start_game_module(Declarer, spades, GameData, Players) ->
+    erlskat_color_game:start_link(self(), Declarer, spades, GameData, Players);
+start_game_module(Declarer, hearts, GameData, Players) ->
+    erlskat_color_game:start_link(self(), Declarer, hearts, GameData, Players);
+start_game_module(Declarer, diamonds, GameData, Players) ->
+    erlskat_color_game:start_link(self(), Declarer, diamonds, GameData, Players);
+start_game_module(Declarer, grand, GameData, Players) ->
+    erlskat_grand_game:start_link(self(), Declarer, grand, GameData, Players);
+start_game_module(Declarer, null, GameData, Players) ->
+    erlskat_null_game:start_link(self(), Declarer, null, GameData, Players).
 
 start_ramsch_game(State) ->
     ?LOG_INFO(#{module => ?MODULE,

@@ -43,3 +43,6 @@ include erlang.mk
 
 # Convenience aggregate target
 all:: elvis eunit ct
+format:: elvis
+test:: eunit ct
+run:: deps shell
