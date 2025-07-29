@@ -71,7 +71,7 @@ receive_timeout_messages(_Pid) ->
           ({6, Resp6}) ->
               ?_assertMatch(game_closed, Resp6);
           ({7, Resp7}) ->
-              ?_assertMatch({'EXIT', Pid, player_disconnected}, Resp7)
+              ?_assertMatch({'EXIT', _, player_disconnected}, Resp7)
       end,
       Resps).
 

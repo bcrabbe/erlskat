@@ -13,14 +13,15 @@ dep_sync = hex 0.4.1
 LOCAL_DEPS = sasl
 
 # Release dependencies
-REL_DEPS = relx
+BUILD_DEPS += relx
+REL_DEPS += relx
 
 # Release configuration
 RELX_CONFIG = $(CURDIR)/relx.config
 RELX_OUTPUT_DIR = $(CURDIR)/_rel
 RELX_OPTS = -d true  # Enable dev_mode for development
 
-BUILD_DEPS = elvis_mk
+BUILD_DEPS += elvis_mk
 dep_elvis_mk = git https://github.com/inaka/elvis.mk.git
 
 DEPS = \
@@ -39,12 +40,10 @@ DEP_PLUGINS = elvis_mk cowboy
 
 EUNIT_OPTS  = verbose
 
-# Extra options for `make shell`
-SHELL_OPTS = \
-	-s $(PROJECT) \
-	-config dev.config \
-	-s sync \
-	+pc unicode
+SHELL_OPTS += +pc unicode
+SHELL_OPTS += -config dev.config
+SHELL_OPTS += -s $(PROJECT)
+SHELL_OPTS += -s sync
 
 include erlang.mk
 
