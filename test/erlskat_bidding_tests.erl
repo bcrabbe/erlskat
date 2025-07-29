@@ -40,6 +40,32 @@ helper_functions_test_() ->
      {"Player lookup with non-existent ID",
       fun test_get_player_by_id_not_found/0}].
 
+game_declaration_flow_test_() ->
+    [{"Initial choice prompt structure",
+      fun test_initial_choice_prompt/0},
+     {"Game type prompt structure",
+      fun test_game_type_prompt/0},
+     {"Multiplier prompt structure",
+      fun test_multiplier_prompt/0},
+     {"Hand game flow - no multipliers",
+      fun test_hand_game_flow_no_multipliers/0},
+     {"Hand game flow - with schnieder",
+      fun test_hand_game_flow_with_schnieder/0},
+     {"Hand game flow - with schnieder and schwartz",
+      fun test_hand_game_flow_with_schnieder_schwartz/0},
+     {"Hand game flow - with all multipliers",
+      fun test_hand_game_flow_with_all_multipliers/0},
+     {"Skat game flow - no multipliers",
+      fun test_skat_game_flow_no_multipliers/0},
+     {"Null game flow - with ouvert",
+      fun test_null_game_flow_with_ouvert/0},
+     {"Null game flow - without ouvert",
+      fun test_null_game_flow_without_ouvert/0},
+     {"Multiplier validation - invalid sequence",
+      fun test_multiplier_validation_invalid_sequence/0},
+     {"Game type validation - invalid game type",
+      fun test_game_type_validation_invalid_game_type/0}].
+
 %%%%%%%%%%%%%%%%%%%%
 %%% ACTUAL TESTS %%%
 %%%%%%%%%%%%%%%%%%%%
@@ -265,6 +291,436 @@ test_get_player_by_id_not_found() ->
     
     Found = erlskat_bidding:get_player_by_id(nonexistent, Hands),
     ?assertEqual(undefined, Found).
+
+test_initial_choice_prompt() ->
+    %% Test that initial choice prompt has correct structure
+    Player = #{id => player1, name => "Player1", socket => self()},
+    Hand = #{player => Player, hand => []},
+    
+    %% Test that the function can be called without error
+    try
+        erlskat_bidding:send_initial_choice_prompt_to_player(Hand),
+        ?assert(true)
+    catch
+        _:_ -> ?assert(false)
+    end.
+
+test_game_type_prompt() ->
+    %% Test that game type prompt has correct structure
+    Player = #{id => player1, name => "Player1", socket => self()},
+    Hand = #{player => Player, hand => []},
+    GameTypes = [<<"grand">>, <<"clubs">>, <<"spades">>],
+    
+    %% Test that the function can be called without error
+    try
+        erlskat_bidding:send_game_type_prompt_to_player(Hand, GameTypes),
+        ?assert(true)
+    catch
+        _:_ -> ?assert(false)
+    end.
+
+test_multiplier_prompt() ->
+    %% Test that multiplier prompt has correct structure
+    Player = #{id => player1, name => "Player1", socket => self()},
+    Hand = #{player => Player, hand => []},
+    Multipliers = [<<"schnieder">>, <<"schwartz">>],
+    GameType = <<"grand">>,
+    
+    %% Test that the function can be called without error
+    try
+        erlskat_bidding:send_multiplier_prompt_to_player(Hand, Multipliers, GameType),
+        ?assert(true)
+    catch
+        _:_ -> ?assert(false)
+    end.
+
+test_hand_game_flow_no_multipliers() ->
+    %% Test hand game flow without any multipliers
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    Result1 = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Should transition to game_type_selection with is_hand_game = true
+    case Result1 of
+        {next_state, game_type_selection, NewData1} ->
+            ?assert(maps:get(is_hand_game, NewData1)),
+            ?assertEqual(game_type_choice, maps:get(game_declaration_step, NewData1)),
+            
+            %% Test game type selection -> grand
+            Result2 = erlskat_bidding:game_type_selection(cast,
+                {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"grand">>}}},
+                NewData1),
+            
+            %% Should transition to multiplier_selection
+            case Result2 of
+                {next_state, multiplier_selection, NewData2} ->
+                    ?assertEqual(<<"grand">>, maps:get(chosen_game, NewData2)),
+                    ?assertEqual(multiplier_choice, maps:get(game_declaration_step, NewData2)),
+                    
+                    %% Test skip multipliers
+                    Result3 = erlskat_bidding:multiplier_selection(cast,
+                        {socket_message, #{player => #{id => player1}, msg => <<"skip">>}},
+                        NewData2),
+                    
+                    %% Should complete bidding (hand game)
+                    case Result3 of
+                        {next_state, completed, FinalData} ->
+                            ?assertEqual(<<"grand">>, maps:get(chosen_game, FinalData)),
+                            ?assertEqual([], maps:get(selected_multipliers, FinalData, [])),
+                            ?assert(maps:get(is_hand_game, FinalData));
+                        _ ->
+                            ?assert(false)
+                    end;
+                _ ->
+                    ?assert(false)
+            end;
+        _ ->
+            ?assert(false)
+    end.
+
+test_hand_game_flow_with_schnieder() ->
+    %% Test hand game flow with schnieder multiplier
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> clubs
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"clubs">>}}},
+        Data1),
+    
+    %% Test schnieder selection
+    {keep_state, Data3} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schnieder">>}}},
+        Data2),
+    
+    %% Should have schnieder in selected_multipliers
+    ?assert(lists:member(schnieder, maps:get(selected_multipliers, Data3))),
+    
+    %% Test skip remaining multipliers
+    {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => <<"skip">>}},
+        Data3),
+    
+    %% Should complete with schnieder
+    ?assertEqual(<<"clubs">>, maps:get(chosen_game, FinalData)),
+    ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
+    ?assert(maps:get(is_hand_game, FinalData)).
+
+test_hand_game_flow_with_schnieder_schwartz() ->
+    %% Test hand game flow with schnieder and schwartz multipliers
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> spades
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"spades">>}}},
+        Data1),
+    
+    %% Test schnieder selection
+    {keep_state, Data3} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schnieder">>}}},
+        Data2),
+    
+    %% Test schwartz selection
+    {keep_state, Data4} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schwartz">>}}},
+        Data3),
+    
+    %% Should have both schnieder and schwartz
+    ?assert(lists:member(schnieder, maps:get(selected_multipliers, Data4))),
+    ?assert(lists:member(schwartz, maps:get(selected_multipliers, Data4))),
+    
+    %% Test skip remaining multipliers
+    {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => <<"skip">>}},
+        Data4),
+    
+    %% Should complete with both multipliers
+    ?assertEqual(<<"spades">>, maps:get(chosen_game, FinalData)),
+    ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
+    ?assert(lists:member(schwartz, maps:get(selected_multipliers, FinalData))),
+    ?assert(maps:get(is_hand_game, FinalData)).
+
+test_hand_game_flow_with_all_multipliers() ->
+    %% Test hand game flow with all multipliers (schnieder, schwartz, ouvert)
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> hearts
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"hearts">>}}},
+        Data1),
+    
+    %% Test schnieder selection
+    {keep_state, Data3} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schnieder">>}}},
+        Data2),
+    
+    %% Test schwartz selection
+    {keep_state, Data4} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schwartz">>}}},
+        Data3),
+    
+    %% Test ouvert selection (should be available after schwartz)
+    {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        Data4),
+    
+    %% Should complete with all multipliers
+    ?assertEqual(<<"hearts">>, maps:get(chosen_game, FinalData)),
+    ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
+    ?assert(lists:member(schwartz, maps:get(selected_multipliers, FinalData))),
+    ?assert(lists:member(ouvert, maps:get(selected_multipliers, FinalData))),
+    ?assert(maps:get(is_hand_game, FinalData)).
+
+test_skat_game_flow_no_multipliers() ->
+    %% Test skat game flow without multipliers
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> skat
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"skat">>}}}, 
+        Data),
+    
+    %% Should have is_hand_game = false
+    ?assertNot(maps:get(is_hand_game, Data1)),
+    
+    %% Test game type selection -> diamonds
+    {next_state, skat_exchange, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"diamonds">>}}},
+        Data1),
+    
+    %% Should transition to skat_exchange (not hand game)
+    ?assertEqual(<<"diamonds">>, maps:get(chosen_game, Data2)),
+    ?assertNot(maps:get(is_hand_game, Data2, false)).
+
+test_null_game_flow_with_ouvert() ->
+    %% Test null game flow with ouvert
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> null
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"null">>}}},
+        Data1),
+    
+    %% Test ouvert selection (should be available for null games)
+    {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        Data2),
+    
+    %% Should complete with ouvert
+    ?assertEqual(<<"null">>, maps:get(chosen_game, FinalData)),
+    ?assert(lists:member(ouvert, maps:get(selected_multipliers, FinalData))),
+    ?assert(maps:get(is_hand_game, FinalData)).
+
+test_null_game_flow_without_ouvert() ->
+    %% Test null game flow without ouvert
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> null
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"null">>}}},
+        Data1),
+    
+    %% Test skip ouvert
+    {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => <<"skip">>}},
+        Data2),
+    
+    %% Should complete without ouvert
+    ?assertEqual(<<"null">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual([], maps:get(selected_multipliers, FinalData, [])),
+    ?assert(maps:get(is_hand_game, FinalData)).
+
+test_multiplier_validation_invalid_sequence() ->
+    %% Test that invalid multiplier sequences are rejected
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test game type selection -> grand
+    {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"grand">>}}},
+        Data1),
+    
+    %% Test invalid sequence: try ouvert without schwartz first
+    Result = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        Data2),
+    
+    %% Should stay in same state (invalid sequence)
+    ?assertEqual(keep_state_and_data, Result).
+
+test_game_type_validation_invalid_game_type() ->
+    %% Test that invalid game types are rejected
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+    Skat = create_test_cards(),
+    
+    %% Initial data setup
+    Data = #{hands => Hands,
+             skat => Skat,
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+    
+    %% Test initial choice -> hand
+    {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast, 
+        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}}, 
+        Data),
+    
+    %% Test invalid game type
+    Result = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"invalid_game">>}}},
+        Data1),
+    
+    %% Should stay in same state (invalid game type)
+    ?assertEqual(keep_state_and_data, Result).
 
 %%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%

@@ -20,7 +20,10 @@
          get_next_bidding_pair/2,
          shuffled_deck/0,
          deal/1,
-         get_player_by_id/2]).
+         get_player_by_id/2,
+         send_initial_choice_prompt_to_player/1,
+         send_game_type_prompt_to_player/2,
+         send_multiplier_prompt_to_player/3]).
 
 -export_type([game_response/0]).
 
@@ -28,7 +31,7 @@
 -export([callback_mode/0, init/1, terminate/3]).
 
 %% State callbacks
--export([bidding_phase/3, game_declaration/3, skat_exchange/3, completed/3]).
+-export([bidding_phase/3, game_declaration/3, skat_exchange/3, game_type_selection/3, multiplier_selection/3, completed/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -46,7 +49,7 @@
         480 | 495 | 540 | 546 | 567 | 576 | 594 | 600 | 612 | 624 | 720 |
         792 | 882 | 1080 | 1188 | 1200 | 1296 | 1320 | 1440 | 1584 | 1764.
 
--type server_state() :: bidding_phase | game_declaration | skat_exchange | completed.
+-type server_state() :: bidding_phase | game_declaration | skat_exchange | game_type_selection | multiplier_selection | completed.
 
 -type server_data() :: bidding_data().
 
@@ -60,7 +63,12 @@
                           bidding_order := [erlskat:player_id()],
                           highest_bidder => erlskat:player_id(),
                           chosen_game => game_type(),
-                          discarded_cards => erlskat:cards()}.
+                          discarded_cards => erlskat:cards(),
+                          game_declaration_step => initial_choice | game_type_choice | multiplier_choice,
+                          is_hand_game => boolean(),
+                          selected_multipliers => [multiplier()]}.
+
+-type multiplier() :: schnieder | schwartz | ouvert.
 
 -type player_bidding_data() :: #{player := erlskat:player(),
                                  initial_role := initial_bidding_role(),
@@ -90,6 +98,13 @@
                      <<"null">>,
                      <<"null_ouvert">>,
                      <<"hand_game">>]).
+
+-define(REGULAR_GAME_TYPES, [<<"grand">>,
+                             <<"clubs">>,
+                             <<"spades">>,
+                             <<"hearts">>,
+                             <<"diamonds">>,
+                             <<"null">>]).
 
 %% Skat card ordering: jacks first, then suits (clubs, spades, hearts, diamonds)
 %% Within suits: A, 10, K, Q, 9, 8, 7
@@ -227,30 +242,34 @@ bidding_phase(EventType, Event, Data) ->
 %% State: game_declaration
 game_declaration(cast,
                  {socket_message,
-                  #{player := Player, msg := #{<<"game_type">> := GameType}}},
+                  #{player := Player, msg := #{<<"initial_choice">> := Choice}}},
                  Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
         true ->
-            case lists:member(GameType, ?GAME_TYPES) of
-                true ->
-                    case GameType of
-                        hand_game ->
-                                                % Player chooses to play without skat
-                            complete_bidding(Data#{chosen_game => GameType});
-                        _ ->
-                                                % Player takes skat, move to exchange phase
-                            PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
-                            send_skat_cards_to_player(
-                              PlayerHand,
-                              maps:get(hand, PlayerHand),
-                              maps:get(skat, Data)),
-                            send_discard_prompt_to_player(
-                              get_player_by_id(PlayerId, maps:get(hands, Data)),
-                              2),
-                            {next_state, skat_exchange, Data#{chosen_game => GameType}}
-                    end;
-                false ->
+            case Choice of
+                <<"hand">> ->
+                    % Player chooses to play hand game
+                    send_game_type_prompt_to_player(
+                        get_player_by_id(PlayerId, maps:get(hands, Data)),
+                        ?REGULAR_GAME_TYPES),
+                    {next_state, game_type_selection, Data#{is_hand_game => true,
+                                                           game_declaration_step => game_type_choice,
+                                                           selected_multipliers => []}};
+                <<"skat">> ->
+                    % Player chooses to see skat
+                    PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
+                    send_skat_cards_to_player(
+                        PlayerHand,
+                        maps:get(hand, PlayerHand),
+                        maps:get(skat, Data)),
+                    send_game_type_prompt_to_player(
+                        get_player_by_id(PlayerId, maps:get(hands, Data)),
+                        ?REGULAR_GAME_TYPES),
+                    {next_state, game_type_selection, Data#{is_hand_game => false,
+                                                           game_declaration_step => game_type_choice,
+                                                           selected_multipliers => []}};
+                _ ->
                     keep_state_and_data
             end;
         false ->
@@ -289,6 +308,81 @@ skat_exchange(cast,
     end;
 
 skat_exchange(EventType, Event, Data) ->
+    handle_unexpected_event(EventType, Event, Data).
+
+%% State: game_type_selection
+game_type_selection(cast,
+                    {socket_message,
+                     #{player := Player, msg := #{<<"game_type">> := GameType}}},
+                    Data) ->
+    PlayerId = maps:get(id, Player),
+    case PlayerId =:= maps:get(highest_bidder, Data) of
+        true ->
+            case lists:member(GameType, ?REGULAR_GAME_TYPES) of
+                true ->
+                    case GameType of
+                        <<"null">> ->
+                            % For null games, offer ouvert option
+                            send_multiplier_prompt_to_player(
+                                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                                [<<"ouvert">>],
+                                <<"null">>),
+                            {next_state, multiplier_selection, Data#{chosen_game => GameType,
+                                                                   game_declaration_step => multiplier_choice}};
+                        _ ->
+                            % For other games, offer schnieder if hand game
+                            case maps:get(is_hand_game, Data, false) of
+                                true ->
+                                    send_multiplier_prompt_to_player(
+                                        get_player_by_id(PlayerId, maps:get(hands, Data)),
+                                        [<<"schnieder">>],
+                                        GameType),
+                                    {next_state, multiplier_selection, Data#{chosen_game => GameType,
+                                                                           game_declaration_step => multiplier_choice}};
+                                false ->
+                                    % Not hand game, complete with skat exchange
+                                    send_discard_prompt_to_player(
+                                        get_player_by_id(PlayerId, maps:get(hands, Data)),
+                                        2),
+                                    {next_state, skat_exchange, Data#{chosen_game => GameType}}
+                            end
+                    end;
+                false ->
+                    keep_state_and_data
+            end;
+        false ->
+            keep_state_and_data
+    end;
+
+game_type_selection(EventType, Event, Data) ->
+    handle_unexpected_event(EventType, Event, Data).
+
+%% State: multiplier_selection
+multiplier_selection(cast,
+                     {socket_message,
+                      #{player := Player, msg := #{<<"multiplier">> := Multiplier}}},
+                     Data) ->
+    PlayerId = maps:get(id, Player),
+    case PlayerId =:= maps:get(highest_bidder, Data) of
+        true ->
+            handle_multiplier_selection(Player, Multiplier, Data);
+        false ->
+            keep_state_and_data
+    end;
+
+multiplier_selection(cast,
+                     {socket_message,
+                      #{player := Player, msg := <<"skip">>}},
+                     Data) ->
+    PlayerId = maps:get(id, Player),
+    case PlayerId =:= maps:get(highest_bidder, Data) of
+        true ->
+            handle_multiplier_skip(Player, Data);
+        false ->
+            keep_state_and_data
+    end;
+
+multiplier_selection(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data).
 
 %% State: completed
@@ -373,16 +467,75 @@ transition_to_game_declaration(Winner, Data) ->
     Hands = maps:get(hands, Data),
     BidValue = maps:get(bid, Data),
 
-                                                % Send game declaration prompt to the winner
-    send_game_declaration_prompt_to_player(WinnerPlayer, ?GAME_TYPES),
+                                                % Send initial choice prompt to the winner
+    send_initial_choice_prompt_to_player(WinnerPlayer),
 
 % Send notification to non-playing players about the winner
     [send_bidding_winner_notification_to_player(Hand, Winner, BidValue) ||
         Hand <- Hands,
         maps:get(id, maps:get(player, Hand)) =/= Winner],
 
-    NewData = Data#{highest_bidder => Winner},
+    NewData = Data#{highest_bidder => Winner,
+                   game_declaration_step => initial_choice},
     {next_state, game_declaration, NewData}.
+
+handle_multiplier_selection(Player, Multiplier, Data) ->
+    PlayerId = maps:get(id, Player),
+    CurrentMultipliers = maps:get(selected_multipliers, Data, []),
+    GameType = maps:get(chosen_game, Data),
+    IsHandGame = maps:get(is_hand_game, Data, false),
+    
+    case Multiplier of
+        <<"ouvert">> ->
+            case GameType of
+                <<"null">> ->
+                    % For null games, ouvert completes the selection
+                    complete_game_declaration(Data#{selected_multipliers => [ouvert | CurrentMultipliers]});
+                _ ->
+                    % For other games, ouvert is only available after schwartz
+                    case lists:member(schwartz, CurrentMultipliers) of
+                        true ->
+                            complete_game_declaration(Data#{selected_multipliers => [ouvert | CurrentMultipliers]});
+                        false ->
+                            keep_state_and_data
+                    end
+            end;
+        <<"schnieder">> ->
+            % Offer schwartz next
+            send_multiplier_prompt_to_player(
+                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                [<<"schwartz">>],
+                GameType),
+            {keep_state, Data#{selected_multipliers => [schnieder | CurrentMultipliers]}};
+        <<"schwartz">> ->
+            % Offer ouvert next
+            send_multiplier_prompt_to_player(
+                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                [<<"ouvert">>],
+                GameType),
+            {keep_state, Data#{selected_multipliers => [schwartz | CurrentMultipliers]}};
+        _ ->
+            keep_state_and_data
+    end.
+
+handle_multiplier_skip(Player, Data) ->
+    % Complete the game declaration with current selections
+    complete_game_declaration(Data).
+
+complete_game_declaration(Data) ->
+    IsHandGame = maps:get(is_hand_game, Data, false),
+    case IsHandGame of
+        true ->
+            % Hand game - complete immediately
+            complete_bidding(Data);
+        false ->
+            % Not hand game - need to exchange skat
+            PlayerId = maps:get(highest_bidder, Data),
+            send_discard_prompt_to_player(
+                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                2),
+            {next_state, skat_exchange, Data}
+    end.
 
 get_next_bidding_pair([Middlehand, Rearhand, Forehand], PassedPlayers) ->
     ActivePlayers = [P || P <- [Middlehand, Rearhand, Forehand],
@@ -420,7 +573,9 @@ complete_bidding(Data) ->
                chosen_game => maps:get(chosen_game, Data),
                discarded_cards => maps:get(discarded_cards, Data, []),
                skat_cards => maps:get(skat, Data),
-               player_hands => maps:get(hands, Data)},
+               player_hands => maps:get(hands, Data),
+               is_hand_game => maps:get(is_hand_game, Data, false),
+               selected_multipliers => maps:get(selected_multipliers, Data, [])},
 
     CoordinatorPid = maps:get(coordinator_pid, Data),
     CoordinatorPid ! {bidding_complete, Result},
@@ -471,6 +626,31 @@ send_game_declaration_prompt_to_player(#{player := #{socket := Socket}}, GameTyp
                    game_types => GameTypes,
                    message => <<"Choose your game type">>},
     Socket ! GamePrompt,
+    done.
+
+-spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()]) -> done.
+send_game_type_prompt_to_player(#{player := #{socket := Socket}}, GameTypes) ->
+    GamePrompt = #{type => game_type_prompt,
+                   game_types => GameTypes,
+                   message => <<"Choose your game type">>},
+    Socket ! GamePrompt,
+    done.
+
+-spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary()) -> done.
+send_multiplier_prompt_to_player(#{player := #{socket := Socket}}, Multipliers, GameType) ->
+    MultiplierPrompt = #{type => multiplier_prompt,
+                         multipliers => Multipliers,
+                         game_type => GameType,
+                         message => <<"Choose additional multipliers (or skip)">>},
+    Socket ! MultiplierPrompt,
+    done.
+
+-spec send_initial_choice_prompt_to_player(player_bidding_data()) -> done.
+send_initial_choice_prompt_to_player(#{player := #{socket := Socket}}) ->
+    InitialPrompt = #{type => initial_choice_prompt,
+                      choices => [<<"hand">>, <<"skat">>],
+                      message => <<"Do you want to play hand or see the skat?">>},
+    Socket ! InitialPrompt,
     done.
 
 % Combine hand and skat, then order according to Skat rules
