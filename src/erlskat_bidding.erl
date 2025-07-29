@@ -14,6 +14,14 @@
 %% API
 -export([start_link/2]).
 
+%% Test exports
+-export([order_cards_for_skat/1,
+         get_next_valid_bid/1,
+         get_next_bidding_pair/2,
+         shuffled_deck/0,
+         deal/1,
+         get_player_by_id/2]).
+
 -export_type([game_response/0]).
 
 %% gen_statem callbacks
