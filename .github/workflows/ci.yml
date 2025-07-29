@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        erlang: ['26', '28']
+        erlang: ['28']
 
     container:
       image: erlang:${{ matrix.erlang }}-alpine
@@ -91,6 +91,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          build-image: erlang:25.1
+          build-image: erlang:28
           build-platforms: linux/amd64
           build-tags: ghcr.io/${{ github.repository }}:erlang.mk
