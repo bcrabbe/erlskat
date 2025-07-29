@@ -12,6 +12,13 @@ SHELL_DEPS = sync
 dep_sync = hex 0.4.1
 LOCAL_DEPS = sasl
 
+# Release dependencies
+REL_DEPS = relx
+
+# Release configuration
+RELX_CONFIG = $(CURDIR)/relx.config
+RELX_OUTPUT_DIR = $(CURDIR)/_rel
+RELX_OPTS = -d true  # Enable dev_mode for development
 
 BUILD_DEPS = elvis_mk
 dep_elvis_mk = git https://github.com/inaka/elvis.mk.git
@@ -46,3 +53,44 @@ all:: elvis eunit ct
 format:: elvis
 test:: eunit ct
 run:: deps shell
+
+# Release targets
+release:: deps
+	@echo "Building release..."
+	$(MAKE) rel
+
+release-run:: release
+	@echo "Running release..."
+	$(MAKE) run-release
+
+run-release::
+	@echo "Starting release in console mode..."
+	./_rel/$(PROJECT)/bin/$(PROJECT) console
+
+release-clean::
+	@echo "Cleaning release artifacts..."
+	rm -rf _rel/
+	rm -f $(PROJECT)-*.tar.gz
+
+# Integration tests
+integration::
+	@echo "Running integration tests..."
+	@if command -v bats >/dev/null 2>&1; then \
+		bats test/integration_happy_path.bats; \
+	else \
+		echo "BATS not found. Please install bats-core:"; \
+		echo "  brew install bats-core  # macOS"; \
+		echo "  sudo apt-get install bats  # Ubuntu/Debian"; \
+		exit 1; \
+	fi
+
+integration-verbose::
+	@echo "Running integration tests with verbose output..."
+	@if command -v bats >/dev/null 2>&1; then \
+		bats test/integration_happy_path.bats --verbose; \
+	else \
+		echo "BATS not found. Please install bats-core:"; \
+		echo "  brew install bats-core  # macOS"; \
+		echo "  sudo apt-get install bats  # Ubuntu/Debian"; \
+		exit 1; \
+	fi
