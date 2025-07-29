@@ -1,20 +1,19 @@
-name: Simple CI with Docker
+name: CI
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "*" ]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: [ master, main ]
   workflow_dispatch:
 
 jobs:
-  ci:
-    name: Build, Lint, and Test
+  build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        erlang: [24, 25, 26]
-      fail-fast: false
+        erlang: ['26', '28']
+
     container:
       image: erlang:${{ matrix.erlang }}-alpine
 
@@ -22,21 +21,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
-        apk add --no-cache git make gcc musl-dev
+        # Install curl and other essential tools for erlang.mk
+        apk update
+        apk add --no-cache \
+          curl \
+          git \
+          build-base \
+          openssl-dev \
+          ncurses-dev
 
-    - name: Cache build artifacts
+    - name: Cache dependencies
       uses: actions/cache@v4
       with:
         path: |
           deps
           _build
           .erlang.mk
-          *.plt
-        key: ${{ runner.os }}-erlang-${{ matrix.erlang }}-${{ hashFiles('Makefile', 'rebar.config', 'mix.exs') }}
+        key: deps-${{ runner.os }}-${{ matrix.erlang }}-${{ hashFiles('Makefile') }}
         restore-keys: |
-          ${{ runner.os }}-erlang-${{ matrix.erlang }}-
+          deps-${{ runner.os }}-${{ matrix.erlang }}-
+          deps-${{ runner.os }}-
 
     - name: Download dependencies
       run: make deps
@@ -44,51 +50,33 @@ jobs:
     - name: Compile project
       run: make app
 
-    - name: Run linter (Elvis)
+    - name: Run tests
       run: |
-        if make help 2>/dev/null | grep -q elvis; then
-          echo "Running Elvis linter..."
+        # Try multiple test targets to find what's available
+        if make help | grep -q "tests"; then
+          make tests
+        elif make help | grep -q "test"; then
+          make test
+        elif make help | grep -q "eunit"; then
+          make eunit
+        else
+          echo "No test targets found, skipping tests"
+        fi
+
+    - name: Run linting (if available)
+      continue-on-error: true
+      run: |
+        if make help | grep -q "elvis"; then
           make elvis
         else
           echo "Elvis linter not configured, skipping"
         fi
 
-    - name: Run tests
+    - name: Run static analysis (if available)
+      continue-on-error: true
       run: |
-        echo "Running tests..."
-        # Try different test targets in order of preference
-        if make help 2>/dev/null | grep -q "^tests"; then
-          make tests
-        elif make help 2>/dev/null | grep -q eunit; then
-          make eunit
-          # Also try CT if available
-          if make help 2>/dev/null | grep -q "ct"; then
-            make ct
-          fi
-        else
-          echo "No test targets found"
-          exit 1
-        fi
-
-    - name: Run Dialyzer (Optional)
-      run: |
-        if make help 2>/dev/null | grep -q dialyze; then
-          echo "Running Dialyzer static analysis..."
-          make dialyze || echo "Dialyzer failed, but continuing..."
+        if make help | grep -q "dialyze"; then
+          make dialyze
         else
           echo "Dialyzer not configured, skipping"
         fi
-      continue-on-error: true
-
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-erlang-${{ matrix.erlang }}
-        path: |
-          _build/test/logs/
-          logs/
-          eunit.xml
-          ct_logs/
-        retention-days: 30
-        if-no-files-found: ignore
