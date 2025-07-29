@@ -1,5 +1,4 @@
 -module(erlskat_handler).
--behaviour(cowboy_handler).
 
 -include_lib("kernel/include/logger.hrl").
 

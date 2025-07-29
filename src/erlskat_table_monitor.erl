@@ -109,12 +109,12 @@ handle_event(info,
 
 handle_event({timeout, player_timeout},
              {player_timeout, DisconnectedPlayerId} = Msg,
-             State,
+             _State,
              #{players := Players} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
-                state => State,
+                state => _State,
                 data => Data,
                 self => self(),
                 msg => Msg}),
@@ -124,8 +124,8 @@ handle_event({timeout, player_timeout},
 
 handle_event({timeout, game_closed},
              _Msg,
-             State,
-             #{players := RemainingPlayersByRef} = Data) ->
+             _State,
+             #{players := RemainingPlayersByRef} = _Data) ->
     [Socket ! game_closed() ||
         #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
     {stop, player_disconnected};

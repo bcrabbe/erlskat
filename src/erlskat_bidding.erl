@@ -23,7 +23,8 @@
          get_player_by_id/2,
          send_initial_choice_prompt_to_player/1,
          send_game_type_prompt_to_player/2,
-         send_multiplier_prompt_to_player/3]).
+         send_multiplier_prompt_to_player/3,
+         get_expected_message_format/1]).
 
 -export_type([game_response/0]).
 
@@ -31,7 +32,8 @@
 -export([callback_mode/0, init/1, terminate/3]).
 
 %% State callbacks
--export([bidding_phase/3, game_declaration/3, skat_exchange/3, game_type_selection/3, multiplier_selection/3, completed/3]).
+-export([bidding_phase/3, game_declaration/3, skat_exchange/3,
+         game_type_selection/3, multiplier_selection/3, completed/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -49,41 +51,22 @@
         480 | 495 | 540 | 546 | 567 | 576 | 594 | 600 | 612 | 624 | 720 |
         792 | 882 | 1080 | 1188 | 1200 | 1296 | 1320 | 1440 | 1584 | 1764.
 
--type server_state() :: bidding_phase | game_declaration | skat_exchange | game_type_selection | multiplier_selection | completed.
+-type server_state() :: bidding_phase | game_declaration | skat_exchange |
+                        game_type_selection | multiplier_selection | completed.
 
--type server_data() :: bidding_data().
 
--type bidding_data() :: #{hands := [player_bidding_data()],
-                          bid := game_value(),
-                          skat := erlskat:skat(),
-                          coordinator_pid := pid(),
-                          current_bidder := erlskat:player_id(),
-                          responding_player := erlskat:player_id(),
-                          passed_players := [erlskat:player_id()],
-                          bidding_order := [erlskat:player_id()],
-                          highest_bidder => erlskat:player_id(),
-                          chosen_game => game_type(),
-                          discarded_cards => erlskat:cards(),
-                          game_declaration_step => initial_choice | game_type_choice | multiplier_choice,
-                          is_hand_game => boolean(),
-                          selected_multipliers => [multiplier()]}.
-
--type multiplier() :: schnieder | schwartz | ouvert.
 
 -type player_bidding_data() :: #{player := erlskat:player(),
                                  initial_role := initial_bidding_role(),
                                  current_role := bidding_role(),
                                  hand := erlskat:cards()}.
 
--type hand_position() :: 0 | 1 | 2.  %% forehand, mittlehand, rearhand
 -type initial_bidding_role() :: deals | listens | speaks.
 -type bidding_role() :: initial_bidding_role() | counter_speaks | passed.
 
 -type game_response() ::
         #{state => map(),
           players => list(erlskat:player_id())}.
-
--type bid_message() :: #{bid => game_value() | pass}.
 
 %% Valid bid sequence for Skat
 -define(VALID_BIDS, [18, 20, 22, 23, 24, 27, 30, 33, 35, 36, 40, 44, 45, 46, 48,
@@ -177,8 +160,8 @@ init({CoordinatorPid, Players}) ->
                 action => new_game_starting}),
     [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
     #{hands := Hands, skat := Skat} = deal(Players),
-                                                % Determine bidding order based on dealer position
-                                                % (middlehand, rearhand, forehand)
+    % Determine bidding order based on dealer position
+    % (middlehand, rearhand, forehand)
     [Player1, Player2, Player3] = Players,
     BiddingOrder = [maps:get(id, Player2),
                     maps:get(id, Player3),
@@ -194,11 +177,11 @@ init({CoordinatorPid, Players}) ->
                         passed_players => [],
                         bidding_order => BiddingOrder},
 
-                                                % Send initial cards to players
+    % Send initial cards to players
     [player_bidding_data_msg(PlayerBiddingData) ||
         PlayerBiddingData <- Hands],
 
-                                                % Start bidding with middlehand vs forehand
+    % Start bidding with middlehand vs forehand
     send_bid_prompt_to_player(get_player_by_id(Middlehand, Hands), 18),
     send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18),
 
@@ -237,7 +220,7 @@ bidding_phase(cast, {socket_message, #{player := Player, msg := <<"pass">>}}, Da
     end;
 
 bidding_phase(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, bidding_phase).
 
 %% State: game_declaration
 game_declaration(cast,
@@ -253,9 +236,10 @@ game_declaration(cast,
                     send_game_type_prompt_to_player(
                         get_player_by_id(PlayerId, maps:get(hands, Data)),
                         ?REGULAR_GAME_TYPES),
-                    {next_state, game_type_selection, Data#{is_hand_game => true,
-                                                           game_declaration_step => game_type_choice,
-                                                           selected_multipliers => []}};
+                    {next_state, game_type_selection,
+                     Data#{is_hand_game => true,
+                           game_declaration_step => game_type_choice,
+                           selected_multipliers => []}};
                 <<"skat">> ->
                     % Player chooses to see skat
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
@@ -266,9 +250,10 @@ game_declaration(cast,
                     send_game_type_prompt_to_player(
                         get_player_by_id(PlayerId, maps:get(hands, Data)),
                         ?REGULAR_GAME_TYPES),
-                    {next_state, game_type_selection, Data#{is_hand_game => false,
-                                                           game_declaration_step => game_type_choice,
-                                                           selected_multipliers => []}};
+                    {next_state, game_type_selection,
+                     Data#{is_hand_game => false,
+                           game_declaration_step => game_type_choice,
+                           selected_multipliers => []}};
                 _ ->
                     keep_state_and_data
             end;
@@ -277,7 +262,7 @@ game_declaration(cast,
     end;
 
 game_declaration(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, game_declaration).
 
 %% State: skat_exchange
 skat_exchange(cast,
@@ -289,16 +274,17 @@ skat_exchange(cast,
         true ->
             case length(Indices) =:= 2 of
                 true ->
-                                                % Get the player's full hand (including skat)
+                    % Get the player's full hand (including skat)
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
                     FullHand = maps:get(hand, PlayerHand),
                     Skat = maps:get(skat, Data),
                     OrderedHand = order_cards_for_skat(FullHand ++ Skat),
 
-                                                % Extract the discarded cards by index
-                    DiscardedCards = [lists:nth(Index + 1, OrderedHand) || Index <- Indices],
+                    % Extract the discarded cards by index
+                    DiscardedCards = [lists:nth(Index + 1, OrderedHand) ||
+                                     Index <- Indices],
 
-                                                % Complete the bidding process
+                    % Complete the bidding process
                     complete_bidding(Data#{discarded_cards => DiscardedCards});
                 false ->
                     keep_state_and_data
@@ -308,7 +294,7 @@ skat_exchange(cast,
     end;
 
 skat_exchange(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, skat_exchange).
 
 %% State: game_type_selection
 game_type_selection(cast,
@@ -316,46 +302,16 @@ game_type_selection(cast,
                      #{player := Player, msg := #{<<"game_type">> := GameType}}},
                     Data) ->
     PlayerId = maps:get(id, Player),
-    case PlayerId =:= maps:get(highest_bidder, Data) of
+    case PlayerId =:= maps:get(highest_bidder, Data) andalso
+         lists:member(GameType, ?REGULAR_GAME_TYPES) of
         true ->
-            case lists:member(GameType, ?REGULAR_GAME_TYPES) of
-                true ->
-                    case GameType of
-                        <<"null">> ->
-                            % For null games, offer ouvert option
-                            send_multiplier_prompt_to_player(
-                                get_player_by_id(PlayerId, maps:get(hands, Data)),
-                                [<<"ouvert">>],
-                                <<"null">>),
-                            {next_state, multiplier_selection, Data#{chosen_game => GameType,
-                                                                   game_declaration_step => multiplier_choice}};
-                        _ ->
-                            % For other games, offer schnieder if hand game
-                            case maps:get(is_hand_game, Data, false) of
-                                true ->
-                                    send_multiplier_prompt_to_player(
-                                        get_player_by_id(PlayerId, maps:get(hands, Data)),
-                                        [<<"schnieder">>],
-                                        GameType),
-                                    {next_state, multiplier_selection, Data#{chosen_game => GameType,
-                                                                           game_declaration_step => multiplier_choice}};
-                                false ->
-                                    % Not hand game, complete with skat exchange
-                                    send_discard_prompt_to_player(
-                                        get_player_by_id(PlayerId, maps:get(hands, Data)),
-                                        2),
-                                    {next_state, skat_exchange, Data#{chosen_game => GameType}}
-                            end
-                    end;
-                false ->
-                    keep_state_and_data
-            end;
+            handle_game_type_selection(PlayerId, GameType, Data);
         false ->
             keep_state_and_data
     end;
 
 game_type_selection(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, game_type_selection).
 
 %% State: multiplier_selection
 multiplier_selection(cast,
@@ -383,11 +339,11 @@ multiplier_selection(cast,
     end;
 
 multiplier_selection(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, multiplier_selection).
 
 %% State: completed
 completed(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data).
+    handle_unexpected_event(EventType, Event, Data, completed).
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
           any().
@@ -403,17 +359,19 @@ handle_bidder_accept(Player, Data) ->
     NextBid = get_next_valid_bid(CurrentBid),
     case NextBid of
         none ->
-                                                % No higher bids possible, current bidder wins
+            % No higher bids possible, current bidder wins
             Winner = maps:get(current_bidder, Data),
             transition_to_game_declaration(Winner, Data);
         ValidNextBid ->
-                                                % Continue bidding
+            % Continue bidding
             broadcast_bid_to_all_players(maps:get(hands, Data), Player, ValidNextBid),
             send_bid_prompt_to_player(
-                get_player_by_id(maps:get(responding_player, Data), maps:get(hands, Data)),
+                get_player_by_id(maps:get(responding_player, Data),
+                                maps:get(hands, Data)),
                 ValidNextBid),
             send_awaiting_bid_to_player(
-                get_player_by_id(maps:get(current_bidder, Data), maps:get(hands, Data)),
+                get_player_by_id(maps:get(current_bidder, Data),
+                                maps:get(hands, Data)),
                 ValidNextBid),
             {keep_state, Data#{bid => ValidNextBid,
                                current_bidder => maps:get(responding_player, Data),
@@ -425,7 +383,7 @@ handle_bidder_pass(Player, Data) ->
     PassedPlayers = [maps:get(id, Player) | maps:get(passed_players, Data)],
     case get_next_bidding_pair(maps:get(bidding_order, Data), PassedPlayers) of
         {NewCurrentBidder, NewRespondingPlayer} ->
-                                                % Continue bidding with new pair
+            % Continue bidding with new pair
             send_bid_prompt_to_player(
                 get_player_by_id(NewCurrentBidder, maps:get(hands, Data)),
                 maps:get(bid, Data)),
@@ -436,7 +394,7 @@ handle_bidder_pass(Player, Data) ->
                                responding_player => NewRespondingPlayer,
                                passed_players => PassedPlayers}};
         no_more_bidders ->
-                                                % Only one player left, they win
+            % Only one player left, they win
             Winner = maps:get(responding_player, Data),
             transition_to_game_declaration(Winner, Data)
     end.
@@ -446,7 +404,7 @@ handle_responder_pass(Player, Data) ->
     PassedPlayers = [maps:get(id, Player) | maps:get(passed_players, Data)],
     case get_next_bidding_pair(maps:get(bidding_order, Data), PassedPlayers) of
         {NewCurrentBidder, NewRespondingPlayer} ->
-% Continue bidding with current bidder vs new responder
+            % Continue bidding with current bidder vs new responder
             send_bid_prompt_to_player(
                 get_player_by_id(NewCurrentBidder, maps:get(hands, Data)),
                 maps:get(bid, Data)),
@@ -457,7 +415,7 @@ handle_responder_pass(Player, Data) ->
                                responding_player => NewRespondingPlayer,
                                passed_players => PassedPlayers}};
         no_more_bidders ->
-                                                % Current bidder wins
+            % Current bidder wins
             Winner = maps:get(current_bidder, Data),
             transition_to_game_declaration(Winner, Data)
     end.
@@ -467,10 +425,10 @@ transition_to_game_declaration(Winner, Data) ->
     Hands = maps:get(hands, Data),
     BidValue = maps:get(bid, Data),
 
-                                                % Send initial choice prompt to the winner
+    % Send initial choice prompt to the winner
     send_initial_choice_prompt_to_player(WinnerPlayer),
 
-% Send notification to non-playing players about the winner
+    % Send notification to non-playing players about the winner
     [send_bidding_winner_notification_to_player(Hand, Winner, BidValue) ||
         Hand <- Hands,
         maps:get(id, maps:get(player, Hand)) =/= Winner],
@@ -483,19 +441,21 @@ handle_multiplier_selection(Player, Multiplier, Data) ->
     PlayerId = maps:get(id, Player),
     CurrentMultipliers = maps:get(selected_multipliers, Data, []),
     GameType = maps:get(chosen_game, Data),
-    IsHandGame = maps:get(is_hand_game, Data, false),
-    
+    _IsHandGame = maps:get(is_hand_game, Data, false),
+
     case Multiplier of
         <<"ouvert">> ->
             case GameType of
                 <<"null">> ->
                     % For null games, ouvert completes the selection
-                    complete_game_declaration(Data#{selected_multipliers => [ouvert | CurrentMultipliers]});
+                    complete_game_declaration(Data#{selected_multipliers =>
+                                                   [ouvert | CurrentMultipliers]});
                 _ ->
                     % For other games, ouvert is only available after schwartz
                     case lists:member(schwartz, CurrentMultipliers) of
                         true ->
-                            complete_game_declaration(Data#{selected_multipliers => [ouvert | CurrentMultipliers]});
+                            complete_game_declaration(Data#{selected_multipliers =>
+                                                           [ouvert | CurrentMultipliers]});
                         false ->
                             keep_state_and_data
                     end
@@ -518,9 +478,43 @@ handle_multiplier_selection(Player, Multiplier, Data) ->
             keep_state_and_data
     end.
 
-handle_multiplier_skip(Player, Data) ->
+handle_multiplier_skip(_Player, Data) ->
     % Complete the game declaration with current selections
     complete_game_declaration(Data).
+
+handle_game_type_selection(PlayerId, GameType, Data) ->
+    case GameType of
+        <<"null">> ->
+            % For null games, offer ouvert option
+            send_multiplier_prompt_to_player(
+                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                [<<"ouvert">>],
+                <<"null">>),
+            {next_state, multiplier_selection,
+             Data#{chosen_game => GameType,
+                   game_declaration_step => multiplier_choice}};
+        _ ->
+            % For other games, offer schnieder if hand game
+            case maps:get(is_hand_game, Data, false) of
+                true ->
+                    send_multiplier_prompt_to_player(
+                        get_player_by_id(PlayerId,
+                                        maps:get(hands, Data)),
+                        [<<"schnieder">>],
+                        GameType),
+                    {next_state, multiplier_selection,
+                     Data#{chosen_game => GameType,
+                           game_declaration_step => multiplier_choice}};
+                false ->
+                    % Not hand game, complete with skat exchange
+                    send_discard_prompt_to_player(
+                        get_player_by_id(PlayerId,
+                                        maps:get(hands, Data)),
+                        2),
+                    {next_state, skat_exchange,
+                     Data#{chosen_game => GameType}}
+            end
+    end.
 
 complete_game_declaration(Data) ->
     IsHandGame = maps:get(is_hand_game, Data, false),
@@ -544,8 +538,8 @@ get_next_bidding_pair([Middlehand, Rearhand, Forehand], PassedPlayers) ->
         0 -> no_more_bidders;
         1 -> no_more_bidders;
         2 ->
-% Standard Skat bidding logic: middlehand bids first against forehand,
-                                                % then winner against rearhand
+            % Standard Skat bidding logic: middlehand bids first against forehand,
+            % then winner against rearhand
             case {lists:member(Middlehand, ActivePlayers),
                   lists:member(Forehand, ActivePlayers),
                   lists:member(Rearhand, ActivePlayers)} of
@@ -555,7 +549,7 @@ get_next_bidding_pair([Middlehand, Rearhand, Forehand], PassedPlayers) ->
                 _ -> no_more_bidders
             end;
         3 ->
-% All players active, follow standard order: middlehand vs forehand first
+            % All players active, follow standard order: middlehand vs forehand first
             {Middlehand, Forehand}
     end.
 
@@ -567,7 +561,7 @@ get_next_valid_bid(CurrentBid) ->
     end.
 
 complete_bidding(Data) ->
-                                                % Send completion message to coordinator
+    % Send completion message to coordinator
     Result = #{winner => maps:get(highest_bidder, Data),
                final_bid => maps:get(bid, Data),
                chosen_game => maps:get(chosen_game, Data),
@@ -580,7 +574,7 @@ complete_bidding(Data) ->
     CoordinatorPid = maps:get(coordinator_pid, Data),
     CoordinatorPid ! {bidding_complete, Result},
 
-                                                % Notify all players of completion
+    % Notify all players of completion
     [send_bidding_complete_to_player(Hand, Result) || Hand <- maps:get(hands, Data)],
 
     {next_state, completed, Data}.
@@ -618,14 +612,6 @@ send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue) ->
                     message => iolist_to_binary(["Waiting for opponent to bid ",
                                                 integer_to_list(BidValue)])},
     Socket ! AwaitingMsg,
-    done.
-
--spec send_game_declaration_prompt_to_player(player_bidding_data(), [game_type()]) -> done.
-send_game_declaration_prompt_to_player(#{player := #{socket := Socket}}, GameTypes) ->
-    GamePrompt = #{type => game_declaration_prompt,
-                   game_types => GameTypes,
-                   message => <<"Choose your game type">>},
-    Socket ! GamePrompt,
     done.
 
 -spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()]) -> done.
@@ -722,16 +708,50 @@ send_broadcast_msg(#{player := #{socket := Socket}}, BroadcastMsg) ->
     Socket ! BroadcastMsg,
     done.
 
+-spec send_error_message_to_player(player_bidding_data(), binary(), map()) -> done.
+send_error_message_to_player(#{player := #{socket := Socket}}, ErrorMessage, ExpectedFormat) ->
+    ErrorMsg = #{type => error,
+                 message => ErrorMessage,
+                 expected_format => ExpectedFormat},
+    Socket ! ErrorMsg,
+    done.
+
+-spec send_error_message_to_player_by_id(erlskat:player_id(), [player_bidding_data()],
+                                        binary(), map()) -> done.
+send_error_message_to_player_by_id(PlayerId, Hands, ErrorMessage, ExpectedFormat) ->
+    case get_player_by_id(PlayerId, Hands) of
+        undefined -> done;
+        PlayerHand -> send_error_message_to_player(PlayerHand, ErrorMessage,
+                                                  ExpectedFormat)
+    end.
+
+-spec get_expected_message_format(server_state()) -> map().
+get_expected_message_format(bidding_phase) ->
+    #{<<"yes">> => <<"Accept the current bid">>,
+      <<"pass">> => <<"Pass on the current bid">>};
+get_expected_message_format(game_declaration) ->
+    #{<<"initial_choice">> => [<<"hand">>, <<"skat">>]};
+get_expected_message_format(skat_exchange) ->
+    #{<<"discard_cards">> => <<"Array of 2 card indices to discard">>};
+get_expected_message_format(game_type_selection) ->
+    #{<<"game_type">> => [<<"grand">>, <<"clubs">>, <<"spades">>,
+                          <<"hearts">>, <<"diamonds">>, <<"null">>]};
+get_expected_message_format(multiplier_selection) ->
+    #{<<"multiplier">> => [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>],
+      <<"skip">> => <<"Skip multiplier selection">>};
+get_expected_message_format(completed) ->
+    #{<<"message">> => <<"No messages expected in completed state">>}.
+
 %%%===================================================================
 %%% Helper functions
 %%%===================================================================
 
 -spec order_cards_for_skat(erlskat:cards()) -> erlskat:cards().
 order_cards_for_skat(Cards) ->
-% Sort cards according to their position in the ordering
+    % Sort cards according to their position in the ordering
     OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(?SKAT_ORDERING)]),
 
-% Sort cards according to their position in the ordering
+    % Sort cards according to their position in the ordering
     lists:sort(fun(Card1, Card2) ->
                        maps:get(Card1, OrderMap, 999) =< maps:get(Card2, OrderMap, 999)
                end, Cards).
@@ -770,9 +790,28 @@ deal(Players) ->
     #{hands => Hands,
       skat => Skat}.
 
--spec handle_unexpected_event(gen_statem:event_type(), term(), term()) ->
+-spec handle_unexpected_event(gen_statem:event_type(), term(), term(), server_state()) ->
           gen_statem:event_handler_result(term()).
-handle_unexpected_event(EventType, Event, Data) ->
+handle_unexpected_event(cast, {socket_message, #{player := Player, msg := _Msg} = SocketEvent},
+                        Data, StateName) ->
+    PlayerId = maps:get(id, Player),
+    ExpectedFormat = get_expected_message_format(StateName),
+    ErrorMessage = iolist_to_binary(["Unexpected message in state '",
+                                    atom_to_list(StateName),
+                                    "'. Please check the expected format."]),
+    send_error_message_to_player_by_id(PlayerId, maps:get(hands, Data),
+                                      ErrorMessage, ExpectedFormat),
+    ?LOG_WARNING(#{module => ?MODULE,
+                   line => ?LINE,
+                   function => ?FUNCTION_NAME,
+                   event_type => cast,
+                   event => SocketEvent,
+                   state => StateName,
+                   player_id => PlayerId,
+                   action => unexpected_socket_message}),
+    keep_state_and_data;
+
+handle_unexpected_event(EventType, Event, Data, _StateName) ->
     ?LOG_WARNING(#{module => ?MODULE,
                    line => ?LINE,
                    function => ?FUNCTION_NAME,

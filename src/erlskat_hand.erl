@@ -196,10 +196,4 @@ start_ramsch_game(State) ->
             {stop, {ramsch_start_failed, Reason}, State}
     end.
 
-% Map game types to their respective modules
-game_module_for_type(clubs) -> erlskat_color_game;
-game_module_for_type(spades) -> erlskat_color_game;
-game_module_for_type(hearts) -> erlskat_color_game;
-game_module_for_type(diamonds) -> erlskat_color_game;
-game_module_for_type(grand) -> erlskat_grand_game;
-game_module_for_type(null) -> erlskat_null_game.
+
