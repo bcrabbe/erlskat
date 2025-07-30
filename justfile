@@ -89,3 +89,8 @@ prod-full: clean compile test release-prod docker-build
 # Show rebar3 version
 version:
     rebar3 version
+
+# Starts local shell and 3 websocket clients
+# Requires itermocil
+manual-test:
+    itermocil erlskat
