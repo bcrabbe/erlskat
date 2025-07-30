@@ -49,29 +49,12 @@ just compile
 just test
 ```
 
-### Integration Tests
-
-The project includes integration tests using BATS (Bash Automated Testing System) to test the complete happy path:
-
-```bash
-# Run all tests including integration tests
-just test
-
-# Run only integration tests
-just integration
-
-# Run integration tests with verbose output
-just integration-verbose
-```
-
 For manual testing and debugging:
 
 ```bash
 # Start manual test script
 ./test/manual_test.sh
 ```
-
-See [test/README_integration.md](test/README_integration.md) for detailed information about integration testing.
 
 ## Releases
 

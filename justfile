@@ -63,14 +63,6 @@ dev: release run-dev
 # Build and run production release
 prod: release-prod run-prod
 
-# Integration tests (requires BATS, websocat, jq)
-integration:
-    make integration
-
-# Verbose integration tests
-integration-verbose:
-    make integration-verbose
-
 # Docker build
 docker-build:
     docker build -t erlskat .
@@ -87,6 +79,12 @@ dev-cycle: clean compile test release
 
 # Full production cycle
 prod-cycle: clean compile test release-prod
+
+# Full development cycle
+dev-full: clean compile test docker-build
+
+# Full production cycle
+prod-full: clean compile test release-prod docker-build
 
 # Show rebar3 version
 version:

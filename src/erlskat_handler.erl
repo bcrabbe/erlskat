@@ -117,4 +117,4 @@ encrypt_session(PlayerId) ->
 decrypt_session(Req, SessionHdr) ->
     DecodedCredentials = base64:decode(SessionHdr),
     [?SESSION_SECRET, PlayerId] = binary:split(DecodedCredentials, <<$:>>),
-    {Req, binary_uuid_to_hex(PlayerId)}.
+    {binary_uuid_to_hex(PlayerId), Req}.
