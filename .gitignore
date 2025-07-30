@@ -16,7 +16,6 @@ db
 xrefr
 *.d
 elvis
-elvis.config
 .fuse_hidden*
 *.log
 \#*\#
