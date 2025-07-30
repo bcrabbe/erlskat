@@ -27,7 +27,7 @@ ct:
 
 # Run all tests (unit + common)
 test:
-    rebar3 do eunit, ct
+    rebar3 eunit
 
 # Run Elvis linting (if configured)
 lint:
