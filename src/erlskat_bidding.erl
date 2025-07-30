@@ -597,46 +597,27 @@ player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
 
 -spec send_bid_prompt_to_player(player_bidding_data(), game_value()) -> done.
 send_bid_prompt_to_player(#{player := #{socket := Socket}}, BidValue) ->
-    BidPrompt = #{type => bid_prompt,
-                  bid_value => BidValue,
-                  message => iolist_to_binary(["Do you want to bid ",
-                                              integer_to_list(BidValue),
-                                              "?"])},
-    Socket ! BidPrompt,
+    Socket ! erlskat_client_responses:bid_prompt(BidValue),
     done.
 
 -spec send_awaiting_bid_to_player(player_bidding_data(), game_value()) -> done.
 send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue) ->
-    AwaitingMsg = #{type => awaiting_bid,
-                    bid_value => BidValue,
-                    message => iolist_to_binary(["Waiting for opponent to bid ",
-                                                integer_to_list(BidValue)])},
-    Socket ! AwaitingMsg,
+    Socket ! erlskat_client_responses:awaiting_bid(BidValue),
     done.
 
 -spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()]) -> done.
 send_game_type_prompt_to_player(#{player := #{socket := Socket}}, GameTypes) ->
-    GamePrompt = #{type => game_type_prompt,
-                   game_types => GameTypes,
-                   message => <<"Choose your game type">>},
-    Socket ! GamePrompt,
+    Socket ! erlskat_client_responses:game_type_prompt(GameTypes),
     done.
 
 -spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary()) -> done.
 send_multiplier_prompt_to_player(#{player := #{socket := Socket}}, Multipliers, GameType) ->
-    MultiplierPrompt = #{type => multiplier_prompt,
-                         multipliers => Multipliers,
-                         game_type => GameType,
-                         message => <<"Choose additional multipliers (or skip)">>},
-    Socket ! MultiplierPrompt,
+    Socket ! erlskat_client_responses:multiplier_prompt(Multipliers, GameType),
     done.
 
 -spec send_initial_choice_prompt_to_player(player_bidding_data()) -> done.
 send_initial_choice_prompt_to_player(#{player := #{socket := Socket}}) ->
-    InitialPrompt = #{type => initial_choice_prompt,
-                      choices => [<<"hand">>, <<"skat">>],
-                      message => <<"Do you want to play hand or see the skat?">>},
-    Socket ! InitialPrompt,
+    Socket ! erlskat_client_responses:initial_choice_prompt(),
     done.
 
 % Combine hand and skat, then order according to Skat rules
@@ -646,60 +627,33 @@ send_skat_cards_to_player(
   HandCards,
   SkatCards) ->
     FullHand = order_cards_for_skat(HandCards ++ SkatCards),
-    SkatMsg = #{type => skat_cards,
-                cards => FullHand,
-                message => <<"Here are your cards including skat">>},
-    Socket ! SkatMsg,
+    Socket ! erlskat_client_responses:skat_cards(FullHand),
     done.
 
 -spec send_discard_prompt_to_player(player_bidding_data(), non_neg_integer()) -> done.
 send_discard_prompt_to_player(#{player := #{socket := Socket}}, Count) ->
-    DiscardPrompt = #{type => discard_prompt,
-                      count => Count,
-                      message => iolist_to_binary(["Discard ",
-                                                  integer_to_list(Count),
-                                                  " cards"])},
-    Socket ! DiscardPrompt,
+    Socket ! erlskat_client_responses:discard_prompt(Count),
     done.
 
 -spec send_bidding_complete_to_player(player_bidding_data(), map()) -> done.
 send_bidding_complete_to_player(#{player := #{socket := Socket}}, Result) ->
-    CompleteMsg = #{type => bidding_complete,
-                    result => Result},
-    Socket ! CompleteMsg,
+    Socket ! erlskat_client_responses:bidding_complete(Result),
     done.
 
 % Create a map from card to its position in the ordering
 send_bidding_winner_notification_to_player(#{player := #{socket := Socket}}, WinnerId, BidValue) ->
-    NotificationMsg = #{type => bidding_winner_notification,
-                        winner_id => WinnerId,
-                        bid_value => BidValue,
-                        message => iolist_to_binary(["Player ",
-                                                    WinnerId,
-                                                    " won the bidding with ",
-                                                    integer_to_list(BidValue)])},
-    Socket ! NotificationMsg,
+    Socket ! erlskat_client_responses:bidding_winner_notification(WinnerId, BidValue),
     done.
 
 -spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), game_value()) -> done.
 broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
-    BroadcastMsg = #{type => bid_broadcast,
-                     bidder => maps:without([socket], BiddingPlayer),
-                     bid_value => BidValue,
-                     message => iolist_to_binary(["Player ",
-                                                  maps:get(name, BiddingPlayer, "Unknown"),
-                                                  " bids ",
-                                                  integer_to_list(BidValue)])},
+    BroadcastMsg = erlskat_client_responses:bid_broadcast(BiddingPlayer, BidValue),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 
 -spec broadcast_pass_to_all_players([player_bidding_data()], erlskat:player()) -> done.
 broadcast_pass_to_all_players(Hands, PassingPlayer) ->
-    BroadcastMsg = #{type => pass_broadcast,
-                     passer => maps:without([socket], PassingPlayer),
-                     message => iolist_to_binary(["Player ",
-                                                  maps:get(name, PassingPlayer, "Unknown"),
-                                                  " passes"])},
+    BroadcastMsg = erlskat_client_responses:pass_broadcast(PassingPlayer),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 
@@ -710,10 +664,7 @@ send_broadcast_msg(#{player := #{socket := Socket}}, BroadcastMsg) ->
 
 -spec send_error_message_to_player(player_bidding_data(), binary(), map()) -> done.
 send_error_message_to_player(#{player := #{socket := Socket}}, ErrorMessage, ExpectedFormat) ->
-    ErrorMsg = #{type => error,
-                 message => ErrorMessage,
-                 expected_format => ExpectedFormat},
-    Socket ! ErrorMsg,
+    Socket ! erlskat_client_responses:error_message(ErrorMessage, ExpectedFormat),
     done.
 
 -spec send_error_message_to_player_by_id(erlskat:player_id(), [player_bidding_data()],

@@ -35,7 +35,8 @@ can_start(#{lobby := Pid}) ->
 test_new_player(_) ->
     new_player(1),
     Resp = receive
-              #{state := waiting,
+              #{type := lobby_status,
+                state := waiting,
                 players := Players} when
                     length(Players) == 1 -> true
           after 2000 -> false
@@ -46,7 +47,8 @@ test_new_player(_) ->
 game_starts(_) ->
     new_players(3),
     Resp = receive
-              #{state := matched,
+              #{type := lobby_status,
+                state := matched,
                 players := Players} when
                     length(Players) == 3 -> true
           after 2000 -> false
@@ -58,7 +60,8 @@ player_leaves(_) ->
       fun() ->
               new_player(leaver),
               true = receive
-                  #{state := waiting,
+                  #{type := lobby_status,
+                    state := waiting,
                     players := [leaver]} ->
                              true
               after 2000 -> false
@@ -69,7 +72,8 @@ player_leaves(_) ->
     timer:sleep(500),
     new_player(1),
     BeforeLeaving = receive
-               #{state := waiting,
+               #{type := lobby_status,
+                 state := waiting,
                  players := [1]}
                                ->
                             true
@@ -78,7 +82,8 @@ player_leaves(_) ->
     timer:sleep(2000),
     new_player(2),
     AfterLeaving = receive
-               #{state := waiting,
+               #{type := lobby_status,
+                 state := waiting,
                  players := PlayersAfterLeaving} when
                      length(PlayersAfterLeaving) == 2 ->
                             lists:any(
@@ -111,7 +116,8 @@ player_leaves_after_game_started(_) ->
       fun() ->
               new_player(leaver),
               true = receive
-                         #{players := [leaver, 2, 1]} -> true
+                         #{type := lobby_status,
+                           players := [leaver, 2, 1]} -> true
                      after 2000 -> false
                      end,
               timer:sleep(100),
@@ -131,15 +137,20 @@ player_leaves_after_game_started(_) ->
                 Msg6 -> Msg6
             after 2000 -> received_nothing
             end,
-    [?_assertEqual(#{state => waiting,
+    [?_assertEqual(#{type => lobby_status,
+                    state => waiting,
                     players => [1]}, Resp1),
-     ?_assertEqual(#{state => waiting,
+     ?_assertEqual(#{type => lobby_status,
+                     state => waiting,
                      players => [2, 1]}, Resp2),
-     ?_assertEqual(#{state => waiting, % two players receive this msg
+     ?_assertEqual(#{type => lobby_status,
+                     state => waiting, % two players receive this msg
                      players => [2, 1]}, Resp3),
-     ?_assertEqual(#{state => matched,
+     ?_assertEqual(#{type => lobby_status,
+                     state => matched,
                      players => [leaver, 2, 1]}, Resp4),
-     ?_assertEqual(#{state => matched,
+     ?_assertEqual(#{type => lobby_status,
+                     state => matched,
                      players => [leaver, 2, 1]}, Resp5),
      ?_assertEqual(received_nothing, Resp6)].
 

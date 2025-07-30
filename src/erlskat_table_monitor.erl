@@ -49,14 +49,13 @@ stop(Pid) ->
 %%%===================================================================
 
 player_disconnected(DisconnectedPlayerId) ->
-    #{player_disconnected => DisconnectedPlayerId,
-      reconnection_deadline_ms => ?RECONNECT_DEADLINE_MS}.
+    erlskat_client_responses:player_disconnected(DisconnectedPlayerId, ?RECONNECT_DEADLINE_MS).
 
 player_timed_out(DisconnectedPlayerId) ->
-    #{player_timed_out => DisconnectedPlayerId}.
+    erlskat_client_responses:player_timed_out(DisconnectedPlayerId).
 
 game_closed() ->
-    game_closed.
+    erlskat_client_responses:game_closed().
 
 %%%===================================================================
 %%% gen_statem callbacks

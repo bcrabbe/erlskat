@@ -147,10 +147,8 @@ notify_players_waiting(WaitingPlayers) ->
     lists:map(
       fun
           (#{socket := PlayerSocket}) ->
-              PlayerSocket ! #{state => waiting,
-                               players => lists:map(
-                                            fun player_id/1,
-                                            WaitingPlayers)}
+              PlayerSocket ! erlskat_client_responses:lobby_waiting(
+                                lists:map(fun player_id/1, WaitingPlayers))
       end,
       WaitingPlayers),
     done.
@@ -160,10 +158,8 @@ notify_players_of_game(WaitingPlayers) ->
     lists:map(
       fun
           (#{socket := PlayerSocket}) ->
-              PlayerSocket ! #{state => matched,
-                               players => lists:map(
-                                            fun player_id/1,
-                                            WaitingPlayers)}
+              PlayerSocket ! erlskat_client_responses:lobby_matched(
+                                lists:map(fun player_id/1, WaitingPlayers))
       end,
       WaitingPlayers),
     done.

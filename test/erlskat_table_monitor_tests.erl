@@ -48,8 +48,8 @@ receive_disconnect_messages(Pid) ->
            after 2000 -> received_nothing
            end,
     [?_assert(erlang:is_process_alive(Pid)),
-     ?_assertMatch(#{player_disconnected := ?LEAVING_PLAYER_ID}, Resp1),
-     ?_assertMatch(#{player_disconnected := ?LEAVING_PLAYER_ID}, Resp2)].
+     ?_assertMatch(#{type := player_disconnected, player_id := ?LEAVING_PLAYER_ID}, Resp1),
+     ?_assertMatch(#{type := player_disconnected, player_id := ?LEAVING_PLAYER_ID}, Resp2)].
 
 
 receive_timeout_messages(_Pid) ->
@@ -59,17 +59,17 @@ receive_timeout_messages(_Pid) ->
     lists:map(
       fun
           ({1, Resp1}) ->
-              ?_assertMatch(#{player_disconnected := ?LEAVING_PLAYER_ID}, Resp1);
+              ?_assertMatch(#{type := player_disconnected, player_id := ?LEAVING_PLAYER_ID}, Resp1);
           ({2, Resp2}) ->
-              ?_assertMatch(#{player_disconnected := ?LEAVING_PLAYER_ID}, Resp2);
+              ?_assertMatch(#{type := player_disconnected, player_id := ?LEAVING_PLAYER_ID}, Resp2);
           ({3, Resp3}) ->
-              ?_assertMatch(#{player_timed_out := ?LEAVING_PLAYER_ID}, Resp3);
+              ?_assertMatch(#{type := player_timed_out, player_id := ?LEAVING_PLAYER_ID}, Resp3);
           ({4, Resp4}) ->
-              ?_assertMatch(#{player_timed_out := ?LEAVING_PLAYER_ID}, Resp4);
+              ?_assertMatch(#{type := player_timed_out, player_id := ?LEAVING_PLAYER_ID}, Resp4);
           ({5, Resp5}) ->
-              ?_assertMatch(game_closed, Resp5);
+              ?_assertMatch(#{type := game_closed}, Resp5);
           ({6, Resp6}) ->
-              ?_assertMatch(game_closed, Resp6);
+              ?_assertMatch(#{type := game_closed}, Resp6);
           ({7, Resp7}) ->
               ?_assertMatch({'EXIT', _, player_disconnected}, Resp7)
       end,
