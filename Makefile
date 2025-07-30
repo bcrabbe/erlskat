@@ -1,6 +1,6 @@
 # Makefile (erlang.mk) — fixed for modern Erlang.mk
 PROJECT             = erlskat
-PROJECT_DESCRIPTION = New project
+PROJECT_DESCRIPTION = Websocket-based multiplayer Skat card game server
 PROJECT_VERSION     = 0.1.0
 RELX_TAR            = 0
 

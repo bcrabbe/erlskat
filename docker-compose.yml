@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  erlskat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: erlskat-server
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_NAME=erlskat@erlskat-server
+      - COOKIE=erlskat_secure_cookie
+    volumes:
+      - ./logs:/opt/erlskat/log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "./bin/erlskat", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - erlskat-net
+
+networks:
+  erlskat-net:
+    driver: bridge

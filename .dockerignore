@@ -1,0 +1,43 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts (keep _rel for now in case needed)
+_build/
+*.tar.gz
+*.beam
+*.o
+*.so
+# deps/ - need deps for Docker build
+
+# Test and coverage
+cover/
+*.coverdata
+*.COVER.html
+test/*.beam
+logs/
+
+# Development files
+server.pid
+session.txt
+*.log
+*~undo-tree~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation (not needed in container)
+README*.md
+*.md
