@@ -181,6 +181,9 @@ init({CoordinatorPid, Players}) ->
     [player_bidding_data_msg(PlayerBiddingData) ||
         PlayerBiddingData <- Hands],
 
+    % Send bidding role announcements to all players
+    send_bidding_roles_to_all_players(Hands, BiddingOrder),
+
     % Start bidding with middlehand vs forehand
     send_bid_prompt_to_player(get_player_by_id(Middlehand, Hands), 18),
     send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18),
@@ -660,6 +663,16 @@ broadcast_pass_to_all_players(Hands, PassingPlayer) ->
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.
 send_broadcast_msg(#{player := #{socket := Socket}}, BroadcastMsg) ->
     Socket ! BroadcastMsg,
+    done.
+
+-spec send_bidding_roles_to_all_players([player_bidding_data()], [erlskat:player_id()]) -> done.
+send_bidding_roles_to_all_players(Hands, BiddingOrder) ->
+    [Middlehand, Rearhand, Forehand] = BiddingOrder,
+    RoleMap = #{Middlehand => speaking,
+                Rearhand => waiting,
+                Forehand => listening},
+    RoleMsg = erlskat_client_responses:bidding_roles(RoleMap),
+    [send_broadcast_msg(Hand, RoleMsg) || Hand <- Hands],
     done.
 
 -spec send_error_message_to_player(player_bidding_data(), binary(), map()) -> done.
