@@ -18,7 +18,7 @@ just shell
 
 Run `just` to see all available commands, or use these common ones:
 
-- `just deps` - Downloads and compiles dependencies  
+- `just deps` - Downloads and compiles dependencies
 - `just shell` - Starts an Erlang shell with the project loaded
 - `just compile` - Compile the application
 - `just test` - Run all tests
@@ -56,6 +56,35 @@ For manual testing and debugging:
 ./test/manual_test.sh
 ```
 
+### Manual Testing with Multiple Clients (macOS)
+
+For testing with 3 simultaneous websocket clients, you can use itermocil to automatically start the server and connect 3 clients:
+
+1. Install itermocil:
+```bash
+brew install TomAnthony/brews/itermocil   # or: pip install itomate2
+```
+
+2. Create window configuration:
+```bash
+mkdir ~/.itermocil
+echo 'windows:
+- name: erlskat
+  root: ~/p/erlskat
+  layout: main-vertical          # big pane on the left, three on the right
+  panes:
+    - just shell
+    - sleep 2; websocat ws://localhost:8080
+    - sleep 2; websocat ws://localhost:8080
+    - sleep 2; websocat ws://localhost:8080
+' >> ~/.itermocil/erlskat.yml
+```
+
+3. Start server and connect 3 clients:
+```bash
+itermocil erlskat
+```
+
 ## Releases
 
 This project uses rebar3/relx for building releases. The release configuration is in `rebar.config`.
@@ -66,7 +95,7 @@ This project uses rebar3/relx for building releases. The release configuration i
 # Build development release
 just release
 
-# Build production release  
+# Build production release
 just release-prod
 
 # Build and run development release
@@ -82,7 +111,7 @@ just prod
 # Run development release
 just run-dev
 
-# Run production release  
+# Run production release
 just run-prod
 ```
 
@@ -90,7 +119,7 @@ just run-prod
 
 The release is built in the `_build/` directory with the following structure:
 - `_build/default/rel/erlskat/` - Development release
-- `_build/prod/rel/erlskat/` - Production release  
+- `_build/prod/rel/erlskat/` - Production release
 - `_build/*/rel/erlskat/bin/` - Executable scripts
 - `_build/*/rel/erlskat/lib/` - Application libraries
 - `_build/*/rel/erlskat/releases/` - Release versions
@@ -106,5 +135,3 @@ just docker
 just docker-build
 just docker-run
 ```
-
-
