@@ -228,7 +228,7 @@ bidding_phase(EventType, Event, Data) ->
 %% State: game_declaration winning bidder chooses to see skat or play hand
 game_declaration(cast,
                  {socket_message,
-                  #{player := Player, msg := Choice}} = Event,
+                  #{player := Player, msg := Choice}} = Msg,
                  Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
@@ -258,7 +258,7 @@ game_declaration(cast,
                            game_declaration_step => game_type_choice,
                            selected_multipliers => []}};
                 _ ->
-                    handle_unexpected_event(cast, Event, Data, game_declaration),
+                    handle_unexpected_event(cast, Msg, Data, game_declaration),
                     keep_state_and_data
             end;
         false ->
@@ -271,12 +271,12 @@ game_declaration(EventType, Event, Data) ->
 %% State: skat_exchange
 skat_exchange(cast,
               {socket_message,
-               #{player := Player, msg := #{<<"discard_cards">> := Indices}}},
+               #{player := Player, msg := Indices}} = Msg,
               Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
         true ->
-            case length(Indices) =:= 2 of
+            case is_list(Indices) andalso length(Indices) =:= 2 of
                 true ->
                     % Get the player's full hand (including skat)
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
@@ -291,6 +291,7 @@ skat_exchange(cast,
                     % Complete the bidding process
                     complete_bidding(Data#{discarded_cards => DiscardedCards});
                 false ->
+                    handle_unexpected_event(cast, Msg, Data, skat_exchange),
                     keep_state_and_data
             end;
         false ->
@@ -303,7 +304,7 @@ skat_exchange(EventType, Event, Data) ->
 %% State: game_type_selection
 game_type_selection(cast,
                     {socket_message,
-                     #{player := Player, msg := #{<<"game_type">> := GameType}}},
+                     #{player := Player, msg := GameType}} = Msg,
                     Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) andalso
@@ -311,6 +312,7 @@ game_type_selection(cast,
         true ->
             handle_game_type_selection(PlayerId, GameType, Data);
         false ->
+            handle_unexpected_event(cast, Msg, Data, game_type_selection),
             keep_state_and_data
     end;
 
@@ -320,24 +322,24 @@ game_type_selection(EventType, Event, Data) ->
 %% State: multiplier_selection
 multiplier_selection(cast,
                      {socket_message,
-                      #{player := Player, msg := #{<<"multiplier">> := Multiplier}}},
+                      #{player := Player, msg := Multiplier}} = Msg,
                      Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
         true ->
-            handle_multiplier_selection(Player, Multiplier, Data);
-        false ->
-            keep_state_and_data
-    end;
-
-multiplier_selection(cast,
-                     {socket_message,
-                      #{player := Player, msg := <<"skip">>}},
-                     Data) ->
-    PlayerId = maps:get(id, Player),
-    case PlayerId =:= maps:get(highest_bidder, Data) of
-        true ->
-            handle_multiplier_skip(Player, Data);
+            ValidMultipliers = [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>, <<"skip">>],
+            case lists:member(Multiplier, ValidMultipliers) of
+                true ->
+                    case Multiplier of
+                        <<"skip">> ->
+                            handle_multiplier_skip(Player, Data);
+                        _ ->
+                            handle_multiplier_selection(Player, Multiplier, Data)
+                    end;
+                false ->
+                    handle_unexpected_event(cast, Msg, Data, multiplier_selection),
+                    keep_state_and_data
+            end;
         false ->
             keep_state_and_data
     end;
@@ -698,13 +700,12 @@ get_expected_message_format(game_declaration) ->
     #{<<"hand">> => <<"leave the skat face down and recieve an extra multiplier">>,
       <<"skat">> => <<"see the skat and then discard 2 cards of your choice">>};
 get_expected_message_format(skat_exchange) ->
-    #{<<"discard_cards">> => <<"Array of 2 card indices to discard">>};
+    <<"Array of 2 card indices to discard">>;
 get_expected_message_format(game_type_selection) ->
-    #{<<"game_type">> => [<<"grand">>, <<"clubs">>, <<"spades">>,
-                          <<"hearts">>, <<"diamonds">>, <<"null">>]};
+     [<<"grand">>, <<"clubs">>, <<"spades">>,
+      <<"hearts">>, <<"diamonds">>, <<"null">>];
 get_expected_message_format(multiplier_selection) ->
-    #{<<"multiplier">> => [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>],
-      <<"skip">> => <<"Skip multiplier selection">>};
+    [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>, <<"skip">>];
 get_expected_message_format(completed) ->
     #{<<"message">> => <<"No messages expected in completed state">>}.
 

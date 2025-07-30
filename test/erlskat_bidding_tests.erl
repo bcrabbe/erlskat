@@ -381,7 +381,7 @@ test_hand_game_flow_no_multipliers() ->
             %% Test game type selection -> grand
             Result2 = erlskat_bidding:game_type_selection(cast,
                 {socket_message, #{player => #{id => player1},
-                                  msg => #{<<"game_type">> => <<"grand">>}}},
+                                  msg => <<"grand">>}},
                 NewData1),
 
             %% Should transition to multiplier_selection
@@ -439,13 +439,13 @@ test_hand_game_flow_with_schnieder() ->
     %% Test game type selection -> clubs
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
         {socket_message, #{player => #{id => player1},
-                          msg => #{<<"game_type">> => <<"clubs">>}}},
+                          msg => <<"clubs">>}},
         Data1),
 
     %% Test schnieder selection
     {keep_state, Data3} = erlskat_bidding:multiplier_selection(cast,
         {socket_message, #{player => #{id => player1},
-                          msg => #{<<"multiplier">> => <<"schnieder">>}}},
+                          msg => <<"schnieder">>}},
         Data2),
 
     %% Should have schnieder in selected_multipliers
@@ -493,7 +493,7 @@ test_hand_game_flow_with_schnieder_schwartz() ->
                                                   cast,
                                                   {socket_message,
                                                    #{player => #{id => player1},
-                                                     msg => #{<<"game_type">> => <<"spades">>}}},
+                                                     msg => <<"spades">>}},
                                                   Data1),
 
     %% Test schnieder selection
@@ -501,7 +501,7 @@ test_hand_game_flow_with_schnieder_schwartz() ->
                             cast,
                             {socket_message,
                              #{player => #{id => player1},
-                               msg => #{<<"multiplier">> => <<"schnieder">>}}},
+                               msg => <<"schnieder">>}},
                             Data2),
 
     %% Test schwartz selection
@@ -509,7 +509,7 @@ test_hand_game_flow_with_schnieder_schwartz() ->
                             cast,
                             {socket_message,
                              #{player => #{id => player1},
-                               msg => #{<<"multiplier">> => <<"schwartz">>}}},
+                               msg => <<"schwartz">>}},
                             Data3),
 
     %% Should have both schnieder and schwartz
@@ -552,22 +552,22 @@ test_hand_game_flow_with_all_multipliers() ->
 
     %% Test game type selection -> hearts
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"hearts">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hearts">>}},
         Data1),
 
     %% Test schnieder selection
     {keep_state, Data3} = erlskat_bidding:multiplier_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schnieder">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"schnieder">>}},
         Data2),
 
     %% Test schwartz selection
     {keep_state, Data4} = erlskat_bidding:multiplier_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"schwartz">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"schwartz">>}},
         Data3),
 
     %% Test ouvert selection (should be available after schwartz)
     {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"ouvert">>}},
         Data4),
 
     %% Should complete with all multipliers
@@ -605,7 +605,7 @@ test_skat_game_flow_no_multipliers() ->
 
     %% Test game type selection -> diamonds
     {next_state, skat_exchange, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"diamonds">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"diamonds">>}},
         Data1),
 
     %% Should transition to skat_exchange (not hand game)
@@ -637,12 +637,12 @@ test_null_game_flow_with_ouvert() ->
 
     %% Test game type selection -> null
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"null">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"null">>}},
         Data1),
 
     %% Test ouvert selection (should be available for null games)
     {next_state, completed, FinalData} = erlskat_bidding:multiplier_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"ouvert">>}},
         Data2),
 
     %% Should complete with ouvert
@@ -675,7 +675,7 @@ test_null_game_flow_without_ouvert() ->
 
     %% Test game type selection -> null
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"null">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"null">>}},
         Data1),
 
     %% Test skip ouvert
@@ -713,12 +713,12 @@ test_multiplier_validation_invalid_sequence() ->
 
     %% Test game type selection -> grand
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"grand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"grand">>}},
         Data1),
 
     %% Test invalid sequence: try ouvert without schwartz first
     Result = erlskat_bidding:multiplier_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"multiplier">> => <<"ouvert">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"ouvert">>}},
         Data2),
 
     %% Should stay in same state (invalid sequence)
@@ -749,7 +749,7 @@ test_game_type_validation_invalid_game_type() ->
 
     %% Test invalid game type
     Result = erlskat_bidding:game_type_selection(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"game_type">> => <<"invalid_game">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"invalid_game">>}},
         Data1),
 
     %% Should stay in same state (invalid game type)
@@ -916,10 +916,10 @@ test_unexpected_message_skat_exchange() ->
              chosen_game => <<"clubs">>,
              is_hand_game => false},
 
-    %% Test with invalid message format (should be "discard_cards")
+    %% Test with invalid message format (should be array of indices)
     Result = erlskat_bidding:skat_exchange(cast,
         {socket_message, #{player => #{id => player1, socket => self()},
-                          msg => #{<<"invalid_discard">> => [1, 2]}}},
+                          msg => <<"invalid_discard">>}},
         Data),
 
     %% Should keep state and send error message
@@ -932,7 +932,7 @@ test_unexpected_message_skat_exchange() ->
             ?assert(maps:is_key(message, ErrorMsg)),
             ?assert(maps:is_key(expected_format, ErrorMsg)),
             ExpectedFormat = maps:get(expected_format, ErrorMsg),
-            ?assert(maps:is_key(<<"discard_cards">>, ExpectedFormat))
+            ?assertEqual(<<"Array of 2 card indices to discard">>, ExpectedFormat)
     after 100 ->
         ?assert(false) % Should have received an error message
     end.
@@ -957,10 +957,10 @@ test_unexpected_message_game_type_selection() ->
              game_declaration_step => game_type_choice,
              is_hand_game => true},
 
-    %% Test with invalid message format (should be "game_type")
+    %% Test with invalid message format (should be valid game type)
     Result = erlskat_bidding:game_type_selection(cast,
         {socket_message, #{player => #{id => player1, socket => self()},
-                          msg => #{<<"invalid_game">> => <<"clubs">>}}},
+                          msg => <<"invalid_game">>}},
         Data),
 
     %% Should keep state and send error message
@@ -973,7 +973,8 @@ test_unexpected_message_game_type_selection() ->
             ?assert(maps:is_key(message, ErrorMsg)),
             ?assert(maps:is_key(expected_format, ErrorMsg)),
             ExpectedFormat = maps:get(expected_format, ErrorMsg),
-            ?assert(maps:is_key(<<"game_type">>, ExpectedFormat))
+            ?assert(is_list(ExpectedFormat)),
+            ?assert(lists:member(<<"grand">>, ExpectedFormat))
     after 100 ->
         ?assert(false) % Should have received an error message
     end.
@@ -1000,10 +1001,10 @@ test_unexpected_message_multiplier_selection() ->
              is_hand_game => true,
              selected_multipliers => []},
 
-    %% Test with invalid message format (should be "multiplier" or "skip")
+    %% Test with invalid message format (should be valid multiplier or "skip")
     Result = erlskat_bidding:multiplier_selection(cast,
         {socket_message, #{player => #{id => player1, socket => self()},
-                          msg => #{<<"invalid_multiplier">> => <<"schnieder">>}}},
+                          msg => <<"invalid_multiplier">>}},
         Data),
 
     %% Should keep state and send error message
@@ -1016,8 +1017,9 @@ test_unexpected_message_multiplier_selection() ->
             ?assert(maps:is_key(message, ErrorMsg)),
             ?assert(maps:is_key(expected_format, ErrorMsg)),
             ExpectedFormat = maps:get(expected_format, ErrorMsg),
-            ?assert(maps:is_key(<<"multiplier">>, ExpectedFormat)),
-            ?assert(maps:is_key(<<"skip">>, ExpectedFormat))
+            ?assert(is_list(ExpectedFormat)),
+            ?assert(lists:member(<<"schnieder">>, ExpectedFormat)),
+            ?assert(lists:member(<<"skip">>, ExpectedFormat))
     after 100 ->
         ?assert(false) % Should have received an error message
     end.
