@@ -2,17 +2,37 @@
 
 ## Running
 
-This project uses erlang.mk for building. For detailed information about erlang.mk and its usage, please refer to the [erlang.mk getting started guide](https://erlang.mk/guide/getting_started.html).
+This project uses rebar3 for building. For detailed information about rebar3 installation and usage, please refer to the [rebar3 getting started guide](https://rebar3.org/docs/getting-started/).
 
-To build and run the project:
+We recommend using [just](https://github.com/casey/just) to run common build commands.
+
+### Quick Start
 
 ```bash
-make deps
-make shell
+# Install dependencies and start development shell
+just deps
+just shell
 ```
 
-- `make deps` - Downloads and compiles dependencies
-- `make shell` - Starts an Erlang shell with the project loaded
+### Available Commands
+
+Run `just` to see all available commands, or use these common ones:
+
+- `just deps` - Downloads and compiles dependencies  
+- `just shell` - Starts an Erlang shell with the project loaded
+- `just compile` - Compile the application
+- `just test` - Run all tests
+- `just release` - Build development release
+- `just release-prod` - Build production release
+
+### Manual rebar3 Commands
+
+If you prefer to use rebar3 directly:
+
+```bash
+rebar3 get-deps
+rebar3 shell
+```
 
 players can connect to the server using websockets
 
@@ -23,7 +43,10 @@ websocat ws://localhost:8080 | jq
 ## Build and Test
 
 ```bash
-make all
+just dev-cycle  # Clean, compile, test, and build release
+# Or use individual commands:
+just compile
+just test
 ```
 
 ### Integration Tests
@@ -32,13 +55,13 @@ The project includes integration tests using BATS (Bash Automated Testing System
 
 ```bash
 # Run all tests including integration tests
-make test
+just test
 
 # Run only integration tests
-make integration
+just integration
 
 # Run integration tests with verbose output
-make integration-verbose
+just integration-verbose
 ```
 
 For manual testing and debugging:
@@ -52,39 +75,53 @@ See [test/README_integration.md](test/README_integration.md) for detailed inform
 
 ## Releases
 
-This project uses Relx for building releases. The release configuration is in `relx.config`.
+This project uses rebar3/relx for building releases. The release configuration is in `rebar.config`.
 
 ### Building Releases
 
 ```bash
-# Build development release (with dev_mode enabled)
-make release
+# Build development release
+just release
 
-# Build production release (without dev_mode)
-make release-prod
+# Build production release  
+just release-prod
 
-# Build release tarball
-make release-tar
+# Build and run development release
+just dev
+
+# Build and run production release
+just prod
 ```
 
 ### Running Releases
 
 ```bash
-# Build and run release in console mode
-make release-run
+# Run development release
+just run-dev
 
-# Run existing release
-make run-release
+# Run production release  
+just run-prod
 ```
 
 ### Release Structure
 
-The release is built in the `_rel/` directory with the following structure:
-- `_rel/erlskat/bin/` - Executable scripts
-- `_rel/erlskat/lib/` - Application libraries
-- `_rel/erlskat/releases/` - Release versions
-- `_rel/erlskat/log/` - Log directories
+The release is built in the `_build/` directory with the following structure:
+- `_build/default/rel/erlskat/` - Development release
+- `_build/prod/rel/erlskat/` - Production release  
+- `_build/*/rel/erlskat/bin/` - Executable scripts
+- `_build/*/rel/erlskat/lib/` - Application libraries
+- `_build/*/rel/erlskat/releases/` - Release versions
+- `_build/*/rel/erlskat/log/` - Log directories
 
-The release tarball is created at `_rel/erlskat/erlskat-0.1.0.tar.gz` and can be deployed to production servers.
+### Docker
+
+```bash
+# Build and run with Docker
+just docker
+
+# Or step by step:
+just docker-build
+just docker-run
+```
 
 

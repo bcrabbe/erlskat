@@ -1,4 +1,4 @@
-# Multi-stage build for Erlang/OTP application using erlang.mk
+# Multi-stage build for Erlang/OTP application using rebar3
 FROM erlang:28-alpine AS builder
 
 # Install build dependencies
@@ -12,12 +12,18 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# Copy everything needed for build
+# Copy rebar3 config and source files
+COPY rebar.config ./
+COPY src/ ./src/
+COPY config/ ./config/
+COPY elvis.config ./
+
+# Download dependencies
+RUN rebar3 get-deps
+
+# Copy remaining files and build release
 COPY . ./
-
-# Build the application and release
-RUN make deps app rel
-
+RUN rebar3 as prod release
 
 # Runtime stage
 FROM erlang:28-alpine AS runtime
@@ -36,7 +42,7 @@ RUN addgroup -g 1000 erlskat && \
 WORKDIR /opt/erlskat
 
 # Copy the release from builder stage
-COPY --from=builder /app/_rel/erlskat/ .
+COPY --from=builder /app/_build/prod/rel/erlskat/ .
 
 # Fix ownership and permissions
 RUN chown -R erlskat:erlskat /opt/erlskat && \

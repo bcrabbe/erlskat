@@ -26,46 +26,54 @@ jobs:
 
     - name: Install system dependencies
       run: |
-        # Install curl and other essential tools for erlang.mk
+        # Install curl and other essential tools for rebar3
         apk update
         apk add --no-cache \
           curl \
           git \
           build-base \
           openssl-dev \
-          ncurses-dev
+          ncurses-dev \
+          wget
 
+    - name: Install rebar3
+      run: |
+        wget https://s3.amazonaws.com/rebar3/rebar3 && chmod a+x rebar3
+        mv rebar3 /usr/local/bin/
+
+    - name: Install just
+      uses: extractions/setup-just@v3
+        
     - name: Cache dependencies
       uses: actions/cache@v4
       with:
         path: |
-          deps
           _build
-          .erlang.mk
-        key: deps-${{ runner.os }}-${{ matrix.erlang }}-${{ hashFiles('Makefile') }}
+          ~/.cache/rebar3
+        key: deps-${{ runner.os }}-${{ matrix.erlang }}-${{ hashFiles('rebar.config', 'rebar.lock') }}
         restore-keys: |
           deps-${{ runner.os }}-${{ matrix.erlang }}-
           deps-${{ runner.os }}-
 
     - name: Download dependencies
-      run: make deps
+      run: just deps
 
     - name: Compile project
-      run: make app
+      run: just compile
 
     - name: Run tests
-      run: make test
+      run: just test
 
     - name: Run linting (if available)
       continue-on-error: true
-      run: make elvis
+      run: just lint
 
     - name: Run static analysis (if available)
       continue-on-error: true
-      run: make dialyze
+      run: rebar3 dialyzer
 
     - name: Run release
-      run: make release
+      run: just release-prod
 
   build:
     runs-on: ubuntu-latest
