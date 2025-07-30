@@ -13,7 +13,6 @@ dep_sync = hex 0.4.1
 LOCAL_DEPS = sasl
 
 # Release dependencies
-BUILD_DEPS += relx
 REL_DEPS += relx
 
 # Release configuration

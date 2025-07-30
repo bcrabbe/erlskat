@@ -51,35 +51,18 @@ jobs:
       run: make app
 
     - name: Run tests
-      run: |
-        # Try multiple test targets to find what's available
-        if make help | grep -q "tests"; then
-          make tests
-        elif make help | grep -q "test"; then
-          make test
-        elif make help | grep -q "eunit"; then
-          make eunit
-        else
-          echo "No test targets found, skipping tests"
-        fi
+      run: make test
 
     - name: Run linting (if available)
       continue-on-error: true
-      run: |
-        if make help | grep -q "elvis"; then
-          make elvis
-        else
-          echo "Elvis linter not configured, skipping"
-        fi
+      run: make elvis
 
     - name: Run static analysis (if available)
       continue-on-error: true
-      run: |
-        if make help | grep -q "dialyze"; then
-          make dialyze
-        else
-          echo "Dialyzer not configured, skipping"
-        fi
+      run: make dialyzep
+
+    - name: Run release
+      run: make release
 
   build:
     runs-on: ubuntu-latest
