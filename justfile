@@ -29,9 +29,9 @@ ct:
 test:
     rebar3 eunit
 
-# Run Elvis linting (if configured)
+# Run Elvis linting
 lint:
-    rebar3 elvis rock
+    rebar3 lint
 
 # Build development release
 release:
