@@ -67,18 +67,18 @@ game_declaration_flow_test_() ->
       fun test_game_type_validation_invalid_game_type/0}].
 
 error_handling_test_() ->
-    [{"Expected message format for bidding phase",
-      fun test_expected_message_format_bidding_phase/0},
-     {"Expected message format for game declaration",
-      fun test_expected_message_format_game_declaration/0},
-     {"Expected message format for skat exchange",
-      fun test_expected_message_format_skat_exchange/0},
-     {"Expected message format for game type selection",
-      fun test_expected_message_format_game_type_selection/0},
-     {"Expected message format for multiplier selection",
-      fun test_expected_message_format_multiplier_selection/0},
-     {"Expected message format for completed state",
-      fun test_expected_message_format_completed/0}].
+    [{"Unexpected message format in bidding phase returns error",
+      fun test_unexpected_message_bidding_phase/0},
+     {"Unexpected message format in game declaration returns error",
+      fun test_unexpected_message_game_declaration/0},
+     {"Unexpected message format in skat exchange returns error",
+      fun test_unexpected_message_skat_exchange/0},
+     {"Unexpected message format in game type selection returns error",
+      fun test_unexpected_message_game_type_selection/0},
+     {"Unexpected message format in multiplier selection returns error",
+      fun test_unexpected_message_multiplier_selection/0},
+     {"Unexpected message format in completed state returns error",
+      fun test_unexpected_message_completed/0}].
 
 %%%%%%%%%%%%%%%%%%%%
 %%% ACTUAL TESTS %%%
@@ -369,7 +369,7 @@ test_hand_game_flow_no_multipliers() ->
     %% Test initial choice -> hand
     Result1 = erlskat_bidding:game_declaration(cast,
         {socket_message, #{player => #{id => player1},
-                          msg => #{<<"initial_choice">> => <<"hand">>}}},
+                          msg => <<"hand">>}},
         Data),
 
     %% Should transition to game_type_selection with is_hand_game = true
@@ -433,7 +433,7 @@ test_hand_game_flow_with_schnieder() ->
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
         {socket_message, #{player => #{id => player1},
-                          msg => #{<<"initial_choice">> => <<"hand">>}}},
+                          msg => <<"hand">>}},
         Data),
 
     %% Test game type selection -> clubs
@@ -485,7 +485,7 @@ test_hand_game_flow_with_schnieder_schwartz() ->
                                                  cast,
                                                  {socket_message,
                                                   #{player => #{id => player1},
-                                                    msg => #{<<"initial_choice">> => <<"hand">>}}},
+                                                    msg => <<"hand">>}},
                                                  Data),
 
     %% Test game type selection -> spades
@@ -547,7 +547,7 @@ test_hand_game_flow_with_all_multipliers() ->
 
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hand">>}},
         Data),
 
     %% Test game type selection -> hearts
@@ -597,7 +597,7 @@ test_skat_game_flow_no_multipliers() ->
 
     %% Test initial choice -> skat
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"skat">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"skat">>}},
         Data),
 
     %% Should have is_hand_game = false
@@ -632,7 +632,7 @@ test_null_game_flow_with_ouvert() ->
 
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hand">>}},
         Data),
 
     %% Test game type selection -> null
@@ -670,7 +670,7 @@ test_null_game_flow_without_ouvert() ->
 
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hand">>}},
         Data),
 
     %% Test game type selection -> null
@@ -708,7 +708,7 @@ test_multiplier_validation_invalid_sequence() ->
 
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hand">>}},
         Data),
 
     %% Test game type selection -> grand
@@ -744,7 +744,7 @@ test_game_type_validation_invalid_game_type() ->
 
     %% Test initial choice -> hand
     {next_state, game_type_selection, Data1} = erlskat_bidding:game_declaration(cast,
-        {socket_message, #{player => #{id => player1}, msg => #{<<"initial_choice">> => <<"hand">>}}},
+        {socket_message, #{player => #{id => player1}, msg => <<"hand">>}},
         Data),
 
     %% Test invalid game type
@@ -805,48 +805,261 @@ verify_card_ordering_consistency() ->
     JackSuits = [maps:get(suit, Card) || Card <- FirstFour],
     ?assertEqual(ExpectedJackOrder, JackSuits).
 
+%% Helper function to flush all messages from the test process mailbox
+flush_messages() ->
+    receive
+        _ -> flush_messages()
+    after 0 ->
+        ok
+    end.
+
 %%%%%%%%%%%%%%%%%%%%%%
 %%% ERROR HANDLING TESTS %%%
 %%%%%%%%%%%%%%%%%%%%%%
 
-test_expected_message_format_bidding_phase() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(bidding_phase),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"yes">>, ExpectedFormat)),
-    ?assert(maps:is_key(<<"pass">>, ExpectedFormat)),
-    ?assertEqual(<<"Accept the current bid">>, maps:get(<<"yes">>, ExpectedFormat)),
-    ?assertEqual(<<"Pass on the current bid">>, maps:get(<<"pass">>, ExpectedFormat)).
+%% Test for unexpected message formats that should return error messages
+test_unexpected_message_bidding_phase() ->
+    %% Flush any existing messages
+    flush_messages(),
 
-test_expected_message_format_game_declaration() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(game_declaration),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"initial_choice">>, ExpectedFormat)),
-    ?assertEqual([<<"hand">>, <<"skat">>], maps:get(<<"initial_choice">>, ExpectedFormat)).
+    %% Set up test data for bidding phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
 
-test_expected_message_format_skat_exchange() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(skat_exchange),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"discard_cards">>, ExpectedFormat)),
-    ?assertEqual(<<"Array of 2 card indices to discard">>, maps:get(<<"discard_cards">>, ExpectedFormat)).
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1},
 
-test_expected_message_format_game_type_selection() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(game_type_selection),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"game_type">>, ExpectedFormat)),
-    ExpectedGameTypes = [<<"grand">>, <<"clubs">>, <<"spades">>, <<"hearts">>, <<"diamonds">>, <<"null">>],
-    ?assertEqual(ExpectedGameTypes, maps:get(<<"game_type">>, ExpectedFormat)).
+    %% Test with invalid message format (should be "hold" or "pass")
+    Result = erlskat_bidding:bidding_phase(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => <<"invalid_bid_message">>}},
+        Data),
 
-test_expected_message_format_multiplier_selection() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(multiplier_selection),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"multiplier">>, ExpectedFormat)),
-    ?assert(maps:is_key(<<"skip">>, ExpectedFormat)),
-    ExpectedMultipliers = [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>],
-    ?assertEqual(ExpectedMultipliers, maps:get(<<"multiplier">>, ExpectedFormat)),
-    ?assertEqual(<<"Skip multiplier selection">>, maps:get(<<"skip">>, ExpectedFormat)).
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
 
-test_expected_message_format_completed() ->
-    ExpectedFormat = erlskat_bidding:get_expected_message_format(completed),
-    ?assert(is_map(ExpectedFormat)),
-    ?assert(maps:is_key(<<"message">>, ExpectedFormat)),
-    ?assertEqual(<<"No messages expected in completed state">>, maps:get(<<"message">>, ExpectedFormat)).
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg)),
+            ExpectedFormat = maps:get(expected_format, ErrorMsg),
+            ?assert(maps:is_key(<<"hold">>, ExpectedFormat)),
+            ?assert(maps:is_key(<<"pass">>, ExpectedFormat))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.
+
+test_unexpected_message_game_declaration() ->
+    %% Flush any existing messages
+    flush_messages(),
+
+    %% Set up test data for game declaration phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => initial_choice},
+
+    %% Test with invalid message format (should be "hand" or "skat")
+    Result = erlskat_bidding:game_declaration(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => <<"invalid_choice">>}},
+        Data),
+
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
+
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.
+
+test_unexpected_message_skat_exchange() ->
+    %% Flush any existing messages
+    flush_messages(),
+
+    %% Set up test data for skat exchange phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             chosen_game => <<"clubs">>,
+             is_hand_game => false},
+
+    %% Test with invalid message format (should be "discard_cards")
+    Result = erlskat_bidding:skat_exchange(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => #{<<"invalid_discard">> => [1, 2]}}},
+        Data),
+
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
+
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg)),
+            ExpectedFormat = maps:get(expected_format, ErrorMsg),
+            ?assert(maps:is_key(<<"discard_cards">>, ExpectedFormat))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.
+
+test_unexpected_message_game_type_selection() ->
+    %% Flush any existing messages
+    flush_messages(),
+
+    %% Set up test data for game type selection phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => game_type_choice,
+             is_hand_game => true},
+
+    %% Test with invalid message format (should be "game_type")
+    Result = erlskat_bidding:game_type_selection(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => #{<<"invalid_game">> => <<"clubs">>}}},
+        Data),
+
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
+
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg)),
+            ExpectedFormat = maps:get(expected_format, ErrorMsg),
+            ?assert(maps:is_key(<<"game_type">>, ExpectedFormat))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.
+
+test_unexpected_message_multiplier_selection() ->
+    %% Flush any existing messages
+    flush_messages(),
+
+    %% Set up test data for multiplier selection phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             game_declaration_step => multiplier_choice,
+             chosen_game => <<"clubs">>,
+             is_hand_game => true,
+             selected_multipliers => []},
+
+    %% Test with invalid message format (should be "multiplier" or "skip")
+    Result = erlskat_bidding:multiplier_selection(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => #{<<"invalid_multiplier">> => <<"schnieder">>}}},
+        Data),
+
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
+
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg)),
+            ExpectedFormat = maps:get(expected_format, ErrorMsg),
+            ?assert(maps:is_key(<<"multiplier">>, ExpectedFormat)),
+            ?assert(maps:is_key(<<"skip">>, ExpectedFormat))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.
+
+test_unexpected_message_completed() ->
+    %% Flush any existing messages
+    flush_messages(),
+
+    %% Set up test data for completed phase
+    Players = create_test_players(),
+    Hands = [#{player => Player, hand => create_test_cards()} || Player <- Players],
+
+    Data = #{hands => Hands,
+             skat => create_test_cards(),
+             bid => 20,
+             coordinator_pid => self(),
+             current_bidder => player1,
+             responding_player => player2,
+             passed_players => [],
+             bidding_order => [player1, player2, player3],
+             highest_bidder => player1,
+             chosen_game => <<"clubs">>,
+             is_hand_game => true,
+             selected_multipliers => []},
+
+    %% Test with any message (no messages should be accepted in completed state)
+    Result = erlskat_bidding:completed(cast,
+        {socket_message, #{player => #{id => player1, socket => self()},
+                          msg => <<"any_message">>}},
+        Data),
+
+    %% Should keep state and send error message
+    ?assertEqual(keep_state_and_data, Result),
+
+    %% Check that we received an error message
+    receive
+        ErrorMsg ->
+            ?assertEqual(error, maps:get(type, ErrorMsg)),
+            ?assert(maps:is_key(message, ErrorMsg)),
+            ?assert(maps:is_key(expected_format, ErrorMsg)),
+            ExpectedFormat = maps:get(expected_format, ErrorMsg),
+            ?assert(maps:is_key(<<"message">>, ExpectedFormat))
+    after 100 ->
+        ?assert(false) % Should have received an error message
+    end.

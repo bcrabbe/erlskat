@@ -225,10 +225,10 @@ bidding_phase(cast, {socket_message, #{player := Player, msg := <<"pass">>}}, Da
 bidding_phase(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, bidding_phase).
 
-%% State: game_declaration
+%% State: game_declaration winning bidder chooses to see skat or play hand
 game_declaration(cast,
                  {socket_message,
-                  #{player := Player, msg := #{<<"initial_choice">> := Choice}}},
+                  #{player := Player, msg := Choice}} = Event,
                  Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
@@ -258,14 +258,15 @@ game_declaration(cast,
                            game_declaration_step => game_type_choice,
                            selected_multipliers => []}};
                 _ ->
+                    handle_unexpected_event(cast, Event, Data, game_declaration),
                     keep_state_and_data
             end;
         false ->
             keep_state_and_data
     end;
-
 game_declaration(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, game_declaration).
+
 
 %% State: skat_exchange
 skat_exchange(cast,
@@ -622,14 +623,15 @@ send_initial_choice_prompt_to_player(#{player := #{socket := Socket}}) ->
     Socket ! erlskat_client_responses:initial_choice_prompt(),
     done.
 
-% Combine hand and skat, then order according to Skat rules
+% First show skat cards, then send combined hand
 -spec send_skat_cards_to_player(player_bidding_data(), erlskat:cards(), erlskat:skat()) -> done.
 send_skat_cards_to_player(
   #{player := #{socket := Socket}, hand := HandCards},
   HandCards,
   SkatCards) ->
+    Socket ! erlskat_client_responses:skat_flipped(SkatCards),
     FullHand = order_cards_for_skat(HandCards ++ SkatCards),
-    Socket ! erlskat_client_responses:skat_cards(FullHand),
+    Socket ! erlskat_client_responses:hand_with_skat(FullHand),
     done.
 
 -spec send_discard_prompt_to_player(player_bidding_data(), non_neg_integer()) -> done.
@@ -690,10 +692,11 @@ send_error_message_to_player_by_id(PlayerId, Hands, ErrorMessage, ExpectedFormat
 
 -spec get_expected_message_format(server_state()) -> map().
 get_expected_message_format(bidding_phase) ->
-    #{<<"yes">> => <<"Accept the current bid">>,
+    #{<<"hold">> => <<"Accept the current bid">>,
       <<"pass">> => <<"Pass on the current bid">>};
 get_expected_message_format(game_declaration) ->
-    #{<<"initial_choice">> => [<<"hand">>, <<"skat">>]};
+    #{<<"hand">> => <<"leave the skat face down and recieve an extra multiplier">>,
+      <<"skat">> => <<"see the skat and then discard 2 cards of your choice">>};
 get_expected_message_format(skat_exchange) ->
     #{<<"discard_cards">> => <<"Array of 2 card indices to discard">>};
 get_expected_message_format(game_type_selection) ->
@@ -758,12 +761,6 @@ deal(Players) ->
 handle_unexpected_event(cast, {socket_message, #{player := Player, msg := _Msg} = SocketEvent},
                         Data, StateName) ->
     PlayerId = maps:get(id, Player),
-    ExpectedFormat = get_expected_message_format(StateName),
-    ErrorMessage = iolist_to_binary(["Unexpected message in state '",
-                                    atom_to_list(StateName),
-                                    "'. Please check the expected format."]),
-    send_error_message_to_player_by_id(PlayerId, maps:get(hands, Data),
-                                      ErrorMessage, ExpectedFormat),
     ?LOG_WARNING(#{module => ?MODULE,
                    line => ?LINE,
                    function => ?FUNCTION_NAME,
@@ -772,6 +769,12 @@ handle_unexpected_event(cast, {socket_message, #{player := Player, msg := _Msg} 
                    state => StateName,
                    player_id => PlayerId,
                    action => unexpected_socket_message}),
+    ExpectedFormat = get_expected_message_format(StateName),
+    ErrorMessage = iolist_to_binary(["Unexpected message in state '",
+                                    atom_to_list(StateName),
+                                    "'. Please check the expected format."]),
+    send_error_message_to_player_by_id(PlayerId, maps:get(hands, Data),
+                                      ErrorMessage, ExpectedFormat),
     keep_state_and_data;
 
 handle_unexpected_event(EventType, Event, Data, _StateName) ->

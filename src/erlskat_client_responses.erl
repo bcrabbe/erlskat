@@ -16,7 +16,8 @@
     game_type_prompt/1,
     multiplier_prompt/2,
     initial_choice_prompt/0,
-    skat_cards/1,
+    skat_flipped/1,
+    hand_with_skat/1,
     discard_prompt/1,
     bidding_complete/1,
     bidding_winner_notification/2,
@@ -51,7 +52,8 @@
     game_type_prompt_msg/0,
     multiplier_prompt_msg/0,
     initial_choice_prompt_msg/0,
-    skat_cards_msg/0,
+    skat_flipped_msg/0,
+    hand_with_skat_msg/0,
     discard_prompt_msg/0,
     bidding_complete_msg/0,
     bidding_winner_notification_msg/0,
@@ -72,7 +74,7 @@
 -type message_type() ::
     %% Bidding phase messages
     bid_prompt | awaiting_bid | game_type_prompt | multiplier_prompt |
-    initial_choice_prompt | skat_cards | discard_prompt | bidding_complete |
+    initial_choice_prompt | skat_flipped | hand_with_skat | discard_prompt | bidding_complete |
     bidding_winner_notification | bid_broadcast | pass_broadcast | bidding_roles |
     cards_dealt |
     %% Connection management messages
@@ -134,8 +136,14 @@
     message := binary()
 }.
 
--type skat_cards_msg() :: #{
-    type := skat_cards,
+-type skat_flipped_msg() :: #{
+    type := skat_flipped,
+    cards := erlskat:skat(),
+    message := binary()
+}.
+
+-type hand_with_skat_msg() :: #{
+    type := hand_with_skat,
     cards := erlskat:cards(),
     message := binary()
 }.
@@ -226,9 +234,10 @@
 -type client_message() ::
     %% Bidding messages (all have type field)
     bid_prompt_msg() | awaiting_bid_msg() | game_type_prompt_msg() |
-    multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_cards_msg() |
-    discard_prompt_msg() | bidding_complete_msg() | bidding_winner_notification_msg() |
-    bid_broadcast_msg() | pass_broadcast_msg() | bidding_roles_msg() | cards_dealt_msg() | error_msg() |
+    multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_flipped_msg() |
+    hand_with_skat_msg() | discard_prompt_msg() | bidding_complete_msg() |
+    bidding_winner_notification_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
+    bidding_roles_msg() | cards_dealt_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
@@ -282,9 +291,15 @@ initial_choice_prompt() ->
       choices => [<<"hand">>, <<"skat">>],
       message => <<"Do you want to play hand or see the skat?">>}.
 
--spec skat_cards(erlskat:cards()) -> skat_cards_msg().
-skat_cards(Cards) ->
-    #{type => skat_cards,
+-spec skat_flipped(erlskat:skat()) -> skat_flipped_msg().
+skat_flipped(SkatCards) ->
+    #{type => skat_flipped,
+      cards => SkatCards,
+      message => <<"The skat has been flipped">>}.
+
+-spec hand_with_skat(erlskat:cards()) -> hand_with_skat_msg().
+hand_with_skat(Cards) ->
+    #{type => hand_with_skat,
       cards => Cards,
       message => <<"Here are your cards including skat">>}.
 
@@ -301,7 +316,8 @@ bidding_complete(Result) ->
     #{type => bidding_complete,
       result => Result}.
 
--spec bidding_winner_notification(erlskat:player_id(), integer()) -> bidding_winner_notification_msg().
+-spec bidding_winner_notification(erlskat:player_id(), integer()) ->
+          bidding_winner_notification_msg().
 bidding_winner_notification(WinnerId, BidValue) ->
     #{type => bidding_winner_notification,
       winner_id => WinnerId,
@@ -329,7 +345,8 @@ pass_broadcast(PassingPlayer) ->
                                   maps:get(name, PassingPlayer, <<"Unknown">>),
                                   <<" passes">>])}.
 
--spec bidding_roles(#{erlskat:player_id() => speaking | listening | waiting}) -> bidding_roles_msg().
+-spec bidding_roles(#{erlskat:player_id() => speaking | listening | waiting}) ->
+          bidding_roles_msg().
 bidding_roles(RoleMap) ->
     #{type => bidding_roles,
       roles => RoleMap}.
@@ -340,7 +357,8 @@ cards_dealt(Hand) ->
       hand => Hand}.
 
 %% Connection management message constructors
--spec player_disconnected(erlskat:player_id(), integer()) -> player_disconnected_msg().
+-spec player_disconnected(erlskat:player_id(), integer()) ->
+          player_disconnected_msg().
 player_disconnected(PlayerId, ReconnectionDeadlineMs) ->
     #{type => player_disconnected,
       player_id => PlayerId,
