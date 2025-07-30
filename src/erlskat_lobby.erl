@@ -85,7 +85,7 @@ handle_event(info,
     {keep_state, #{players => StillWaiting}};
 
 handle_event(cast,
-             {new_player, #{socket := Socket} = NewPlayer},
+             {new_player, #{socket := Socket, id := PlayerId} = NewPlayer},
              ready,
              #{players := WaitingPlayers}) when length(WaitingPlayers) < 2 ->
     ?LOG_INFO(#{module => ?MODULE,
@@ -93,12 +93,13 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer}),
     Ref = erlang:monitor(process, Socket),
+    Socket ! erlskat_client_responses:player_joined(PlayerId),
     NewWaitingPlayers = [NewPlayer#{ ref => Ref } | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
 
 handle_event(cast,
-             {new_player, NewPlayer},
+             {new_player, #{socket := Socket, id := PlayerId} = NewPlayer},
              ready,
              #{players := WaitingPlayers}) when length(WaitingPlayers) == 2 ->
     ?LOG_INFO(#{module => ?MODULE,
@@ -106,6 +107,7 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer,
                 action => starting_new_game}),
+    Socket ! erlskat_client_responses:player_joined(PlayerId),
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
     erlskat_floor_manager:new_table(NewGamePlayers),

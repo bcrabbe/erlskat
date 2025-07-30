@@ -31,6 +31,7 @@
     %% Lobby messages
     lobby_waiting/1,
     lobby_matched/1,
+    player_joined/1,
     %% Error messages
     error_message/2
 ]).
@@ -60,6 +61,7 @@
     player_timed_out_msg/0,
     game_closed_msg/0,
     lobby_status_msg/0,
+    player_joined_msg/0,
     error_msg/0
 ]).
 
@@ -73,7 +75,7 @@
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
     %% Lobby messages
-    lobby_status |
+    lobby_status | player_joined |
     %% Error messages
     error.
 
@@ -196,6 +198,11 @@
     players := [erlskat:player_id()]
 }.
 
+-type player_joined_msg() :: #{
+    type := player_joined,
+    player_id := erlskat:player_id()
+}.
+
 %% Error Messages
 -type error_msg() :: #{
     type := error,
@@ -213,7 +220,7 @@
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
-    lobby_status_msg().
+    lobby_status_msg() | player_joined_msg().
 
 %% Helper type for player bidding data with hand information
 -type player_bidding_data() :: #{
@@ -345,6 +352,11 @@ lobby_matched(PlayerIds) ->
     #{type => lobby_status,
       state => matched,
       players => PlayerIds}.
+
+-spec player_joined(erlskat:player_id()) -> player_joined_msg().
+player_joined(PlayerId) ->
+    #{type => player_joined,
+      player_id => PlayerId}.
 
 %% Error message constructor
 -spec error_message(binary(), map()) -> error_msg().
