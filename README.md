@@ -56,9 +56,9 @@ For manual testing and debugging:
 ./test/manual_test.sh
 ```
 
-### Manual Testing with Multiple Clients (macOS)
+### Manual Testing with Multiple Clients (macOS, iterm)
 
-For testing with 3 simultaneous websocket clients, you can use itermocil to automatically start the server and connect 3 clients:
+A little hack for quickly testing with 3 simultaneous websocket clients, you can use itermocil to automatically start the server and connect 3 clients in one cmd: 
 
 1. Install itermocil:
 ```bash
@@ -68,7 +68,8 @@ brew install TomAnthony/brews/itermocil   # or: pip install itomate2
 2. Create window configuration:
 ```bash
 mkdir ~/.itermocil
-echo 'windows:
+echo '
+windows:
 - name: erlskat
   root: ~/p/erlskat
   layout: main-vertical          # big pane on the left, three on the right

@@ -90,7 +90,6 @@ prod-full: clean compile test release-prod docker-build
 version:
     rebar3 version
 
-# Starts local shell and 3 websocket clients
-# Requires itermocil
-manual-test:
-    itermocil erlskat
+# Starts local shell and 3 websocket clients (Requires itermocil) --here to using the current window
+manual-test FLAGS="": clean compile
+    itermocil erlskat {{FLAGS}}
