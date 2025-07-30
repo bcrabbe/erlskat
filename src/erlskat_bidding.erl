@@ -178,7 +178,7 @@ init({CoordinatorPid, Players}) ->
                         bidding_order => BiddingOrder},
 
     % Send initial cards to players
-    [player_bidding_data_msg(PlayerBiddingData) ||
+    [send_hands_to_players(PlayerBiddingData) ||
         PlayerBiddingData <- Hands],
 
     % Send bidding role announcements to all players
@@ -586,16 +586,15 @@ complete_bidding(Data) ->
 %%% Socket messages
 %%%===================================================================
 
--spec player_bidding_data_msg(player_bidding_data()) -> done.
-player_bidding_data_msg(#{player := Player} = PlayerBiddingData) ->
-    player_bidding_data_msg(Player, PlayerBiddingData);
-player_bidding_data_msg(_) ->
+-spec send_hands_to_players(player_bidding_data()) -> done.
+send_hands_to_players(#{player := Player} = PlayerBiddingData) ->
+    send_hands_to_players(Player, PlayerBiddingData);
+send_hands_to_players(_) ->
     done.
 
--spec player_bidding_data_msg(erlskat:player(), player_bidding_data()) -> done.
-player_bidding_data_msg(#{socket := Socket}, PlayerBiddingData) ->
-    Msg = maps:without([player], PlayerBiddingData),
-    Socket ! Msg,
+-spec send_hands_to_players(erlskat:player(), player_bidding_data()) -> done.
+send_hands_to_players(#{socket := Socket}, #{hand := Hand}) ->
+    Socket ! erlskat_client_responses:cards_dealt(Hand),
     done.
 
 -spec send_bid_prompt_to_player(player_bidding_data(), game_value()) -> done.

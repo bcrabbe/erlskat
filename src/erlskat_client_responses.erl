@@ -23,6 +23,7 @@
     bid_broadcast/2,
     pass_broadcast/1,
     bidding_roles/1,
+    cards_dealt/1,
     %% Connection management messages
     player_disconnected/2,
     player_timed_out/1,
@@ -54,6 +55,7 @@
     bid_broadcast_msg/0,
     pass_broadcast_msg/0,
     bidding_roles_msg/0,
+    cards_dealt_msg/0,
     player_disconnected_msg/0,
     player_timed_out_msg/0,
     game_closed_msg/0,
@@ -67,6 +69,7 @@
     bid_prompt | awaiting_bid | game_type_prompt | multiplier_prompt |
     initial_choice_prompt | skat_cards | discard_prompt | bidding_complete |
     bidding_winner_notification | bid_broadcast | pass_broadcast | bidding_roles |
+    cards_dealt |
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
     %% Lobby messages
@@ -165,6 +168,11 @@
     roles := #{erlskat:player_id() => speaking | listening | waiting}
 }.
 
+-type cards_dealt_msg() :: #{
+    type := cards_dealt,
+    hand := erlskat:cards()
+}.
+
 %% Connection Management Messages
 -type player_disconnected_msg() :: #{
     type := player_disconnected,
@@ -201,7 +209,7 @@
     bid_prompt_msg() | awaiting_bid_msg() | game_type_prompt_msg() |
     multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_cards_msg() |
     discard_prompt_msg() | bidding_complete_msg() | bidding_winner_notification_msg() |
-    bid_broadcast_msg() | pass_broadcast_msg() | bidding_roles_msg() | error_msg() |
+    bid_broadcast_msg() | pass_broadcast_msg() | bidding_roles_msg() | cards_dealt_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
@@ -303,6 +311,11 @@ pass_broadcast(PassingPlayer) ->
 bidding_roles(RoleMap) ->
     #{type => bidding_roles,
       roles => RoleMap}.
+
+-spec cards_dealt(erlskat:cards()) -> cards_dealt_msg().
+cards_dealt(Hand) ->
+    #{type => cards_dealt,
+      hand => Hand}.
 
 %% Connection management message constructors
 -spec player_disconnected(erlskat:player_id(), integer()) -> player_disconnected_msg().
