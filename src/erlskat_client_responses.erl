@@ -32,6 +32,8 @@
     lobby_waiting/1,
     lobby_matched/1,
     player_joined/1,
+    %% Table messages
+    table_started/1,
     %% Error messages
     error_message/2
 ]).
@@ -62,6 +64,7 @@
     game_closed_msg/0,
     lobby_status_msg/0,
     player_joined_msg/0,
+    table_started_msg/0,
     error_msg/0
 ]).
 
@@ -76,6 +79,8 @@
     player_disconnected | player_timed_out | game_closed |
     %% Lobby messages
     lobby_status | player_joined |
+    %% Table messages
+    table_started |
     %% Error messages
     error.
 
@@ -100,7 +105,8 @@
 -type bid_prompt_msg() :: #{
     type := bid_prompt,
     bid_value := integer(),
-    message := binary()
+    message := binary(),
+    choices := [hold | pass]
 }.
 
 -type awaiting_bid_msg() :: #{
@@ -203,6 +209,12 @@
     player_id := erlskat:player_id()
 }.
 
+%% Table Messages
+-type table_started_msg() :: #{
+    type := table_started,
+    players := [erlskat:player_id()]
+}.
+
 %% Error Messages
 -type error_msg() :: #{
     type := error,
@@ -220,7 +232,9 @@
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
-    lobby_status_msg() | player_joined_msg().
+    lobby_status_msg() | player_joined_msg() |
+    %% Table messages
+    table_started_msg().
 
 %% Helper type for player bidding data with hand information
 -type player_bidding_data() :: #{
@@ -239,7 +253,8 @@ bid_prompt(BidValue) ->
       bid_value => BidValue,
       message => iolist_to_binary([<<"Do you want to bid ">>,
                                   integer_to_list(BidValue),
-                                  <<"?">>])}.
+                                  <<"?">>]),
+      choices => [hold, pass]}.
 
 -spec awaiting_bid(integer()) -> awaiting_bid_msg().
 awaiting_bid(BidValue) ->
@@ -357,6 +372,12 @@ lobby_matched(PlayerIds) ->
 player_joined(PlayerId) ->
     #{type => player_joined,
       player_id => PlayerId}.
+
+%% Table message constructors
+-spec table_started([erlskat:player_id()]) -> table_started_msg().
+table_started(PlayerIds) ->
+    #{type => table_started,
+      players => PlayerIds}.
 
 %% Error message constructor
 -spec error_message(binary(), map()) -> error_msg().

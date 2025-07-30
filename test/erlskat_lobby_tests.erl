@@ -101,15 +101,15 @@ player_leaves_after_game_started(_) ->
     new_players(2),
     timer:sleep(5),
     Resp1 = receive
-                Msg1 -> Msg1
+                #{type := lobby_status} = Msg1 -> Msg1
            after 2000 -> received_nothing
            end,
     Resp2 = receive
-               Msg2 -> Msg2
+               #{type := lobby_status} = Msg2 -> Msg2
            after 2000 -> received_nothing
            end,
     Resp3 = receive
-               Msg3 -> Msg3
+               #{type := lobby_status} = Msg3 -> Msg3
            after 2000 -> received_nothing
            end,
     spawn(
@@ -125,16 +125,16 @@ player_leaves_after_game_started(_) ->
       end),
     timer:sleep(5),
     Resp4 = receive
-                Msg4 -> Msg4
+                #{type := lobby_status} = Msg4 -> Msg4
             after 2000 -> received_nothing
             end,
     Resp5 = receive
-                Msg5 -> Msg5
+                #{type := lobby_status} = Msg5 -> Msg5
             after 2000 -> received_nothing
             end,
     timer:sleep(500),
     Resp6 = receive
-                Msg6 -> Msg6
+                #{type := lobby_status} = Msg6 -> Msg6
             after 2000 -> received_nothing
             end,
     [?_assertEqual(#{type => lobby_status,

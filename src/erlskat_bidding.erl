@@ -199,7 +199,7 @@ init({CoordinatorPid, Players}) ->
 %%%===================================================================
 
 %% State: bidding_phase
-bidding_phase(cast, {socket_message, #{player := Player, msg := <<"yes">>}}, Data) ->
+bidding_phase(cast, {socket_message, #{player := Player, msg := <<"hold">>}}, Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(current_bidder, Data) of
         true ->

@@ -1,4 +1,5 @@
 # erlskat
+Websocket-based multiplayer Skat card game server ([Rules](./docs/scat_rules.md)) written in Erlang OTP.
 
 ## Running
 

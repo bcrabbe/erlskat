@@ -82,8 +82,14 @@ init(Players) ->
              start => {erlskat_hand, start_link, [Players]},
              restart => permanent,
              shutdown => 5000,
-             type => worker,  % Changed from supervisor to worker
+             type => worker,
              modules => [erlskat_hand]},
+
+    % Send table_started message to all players
+    PlayerIds = [maps:get(id, Player) || Player <- Players],
+    TableStartedMsg = erlskat_client_responses:table_started(PlayerIds),
+    [maps:get(socket, Player) ! TableStartedMsg || Player <- Players],
+
     {ok, {SupFlags, [Scorecard, Hand, Monitor]}}.
 
 %%%===================================================================
