@@ -284,7 +284,10 @@ skat_exchange(cast,
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) of
         true ->
-            case is_list(Indices) andalso length(Indices) =:= 2 of
+            case is_list(Indices) andalso length(Indices) =:= 2 andalso
+                 lists:all(
+                   fun(I) -> is_integer(I) andalso I >= 0 andalso I =< 11 end,
+                   Indices) of
                 true ->
                     % Get the player's full hand (including skat)
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
