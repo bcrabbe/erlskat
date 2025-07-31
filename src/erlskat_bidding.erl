@@ -296,6 +296,12 @@ skat_exchange(cast,
                     DiscardedCards = [lists:nth(Index + 1, OrderedHand) ||
                                      Index <- Indices],
 
+                    % Calculate the remaining hand after discarding
+                    RemainingHand = OrderedHand -- DiscardedCards,
+
+                    % Send the updated hand to the player
+                    send_hand_after_discard_to_player(PlayerHand, RemainingHand),
+
                     % Complete the bidding process
                     complete_bidding(Data#{discarded_cards => DiscardedCards});
                 false ->
@@ -660,6 +666,11 @@ send_skat_cards_to_player(
 -spec send_discard_prompt_to_player(player_bidding_data(), non_neg_integer()) -> done.
 send_discard_prompt_to_player(#{player := #{socket := Socket}}, Count) ->
     Socket ! erlskat_client_responses:discard_prompt(Count),
+    done.
+
+-spec send_hand_after_discard_to_player(player_bidding_data(), erlskat:cards()) -> done.
+send_hand_after_discard_to_player(#{player := #{socket := Socket}}, Hand) ->
+    Socket ! erlskat_client_responses:hand_after_discard(Hand),
     done.
 
 -spec send_bidding_complete_to_player(player_bidding_data(), map()) -> done.

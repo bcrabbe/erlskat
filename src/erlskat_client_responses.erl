@@ -18,6 +18,7 @@
     initial_choice_prompt/0,
     skat_flipped/1,
     hand_with_skat/1,
+    hand_after_discard/1,
     discard_prompt/1,
     bidding_complete/1,
     bidding_winner_notification/2,
@@ -57,6 +58,7 @@
     initial_choice_prompt_msg/0,
     skat_flipped_msg/0,
     hand_with_skat_msg/0,
+    hand_after_discard_msg/0,
     discard_prompt_msg/0,
     bidding_complete_msg/0,
     bidding_winner_notification_msg/0,
@@ -152,6 +154,12 @@
 -type hand_with_skat_msg() :: #{
     type := hand_with_skat,
     cards := erlskat:cards(),
+    message := binary()
+}.
+
+-type hand_after_discard_msg() :: #{
+    type := hand_after_discard,
+    hand := erlskat:cards(),
     message := binary()
 }.
 
@@ -265,7 +273,8 @@
     %% Bidding messages (all have type field)
     bid_prompt_msg() | awaiting_bid_msg() | game_type_prompt_msg() |
     multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_flipped_msg() |
-    hand_with_skat_msg() | discard_prompt_msg() | bidding_complete_msg() |
+    hand_with_skat_msg() | hand_after_discard_msg() | discard_prompt_msg() |
+    bidding_complete_msg() |
     bidding_winner_notification_msg() | game_declaration_broadcast_msg() |
     game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
     pass_broadcast_msg() |
@@ -334,6 +343,12 @@ hand_with_skat(Cards) ->
     #{type => hand_with_skat,
       cards => Cards,
       message => <<"Here are your cards including skat">>}.
+
+-spec hand_after_discard(erlskat:cards()) -> hand_after_discard_msg().
+hand_after_discard(Hand) ->
+    #{type => hand_after_discard,
+      hand => Hand,
+      message => <<"Here is your hand after discarding">>}.
 
 -spec discard_prompt(non_neg_integer()) -> discard_prompt_msg().
 discard_prompt(Count) ->
