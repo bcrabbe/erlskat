@@ -716,9 +716,14 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
 -spec broadcast_hand_reorder_to_all_players(
     [player_bidding_data()], erlskat:player_id(), binary(), erlskat:skat(), boolean()) -> done.
 broadcast_hand_reorder_to_all_players(Hands, WinnerId, GameType, Skat, IsHandGame) ->
-    BroadcastMsg = erlskat_client_responses:hand_reorder_broadcast(
-        WinnerId, GameType, Hands, Skat, IsHandGame),
-    [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
+    % Send individual messages to each player with only their own hand
+    SendIndividualMessage = fun(Hand) ->
+        PlayerId = maps:get(id, maps:get(player, Hand)),
+        IndividualMsg = erlskat_client_responses:hand_reorder_broadcast(
+            WinnerId, GameType, Hands, Skat, IsHandGame, PlayerId),
+        send_broadcast_msg(Hand, IndividualMsg)
+    end,
+    [SendIndividualMessage(Hand) || Hand <- Hands],
     done.
 
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.
