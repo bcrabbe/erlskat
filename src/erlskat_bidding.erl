@@ -24,6 +24,7 @@
          send_initial_choice_prompt_to_player/1,
          send_game_type_prompt_to_player/2,
          send_multiplier_prompt_to_player/3,
+         broadcast_game_declaration_to_other_players/3,
          get_expected_message_format/1]).
 
 -export_type([game_response/0]).
@@ -236,6 +237,8 @@ game_declaration(cast,
             case Choice of
                 <<"hand">> ->
                     % Player chooses to play hand game
+                    broadcast_game_declaration_to_other_players(
+                        maps:get(hands, Data), PlayerId, <<"hand">>),
                     send_game_type_prompt_to_player(
                         get_player_by_id(PlayerId, maps:get(hands, Data)),
                         ?REGULAR_GAME_TYPES),
@@ -245,6 +248,8 @@ game_declaration(cast,
                            selected_multipliers => []}};
                 <<"skat">> ->
                     % Player chooses to see skat
+                    broadcast_game_declaration_to_other_players(
+                        maps:get(hands, Data), PlayerId, <<"skat">>),
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
                     send_skat_cards_to_player(
                         PlayerHand,
@@ -661,6 +666,14 @@ broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
 broadcast_pass_to_all_players(Hands, PassingPlayer) ->
     BroadcastMsg = erlskat_client_responses:pass_broadcast(PassingPlayer),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
+    done.
+
+-spec broadcast_game_declaration_to_other_players([player_bidding_data()], erlskat:player_id(), binary()) -> done.
+broadcast_game_declaration_to_other_players(Hands, WinnerId, Choice) ->
+    BroadcastMsg = erlskat_client_responses:game_declaration_broadcast(WinnerId, Choice),
+    [send_broadcast_msg(Hand, BroadcastMsg) || 
+        Hand <- Hands,
+        maps:get(id, maps:get(player, Hand)) =/= WinnerId],
     done.
 
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.

@@ -21,6 +21,7 @@
     discard_prompt/1,
     bidding_complete/1,
     bidding_winner_notification/2,
+    game_declaration_broadcast/2,
     bid_broadcast/2,
     pass_broadcast/1,
     bidding_roles/1,
@@ -57,6 +58,7 @@
     discard_prompt_msg/0,
     bidding_complete_msg/0,
     bidding_winner_notification_msg/0,
+    game_declaration_broadcast_msg/0,
     bid_broadcast_msg/0,
     pass_broadcast_msg/0,
     bidding_roles_msg/0,
@@ -75,7 +77,7 @@
     %% Bidding phase messages
     bid_prompt | awaiting_bid | game_type_prompt | multiplier_prompt |
     initial_choice_prompt | skat_flipped | hand_with_skat | discard_prompt | bidding_complete |
-    bidding_winner_notification | bid_broadcast | pass_broadcast | bidding_roles |
+    bidding_winner_notification | game_declaration_broadcast | bid_broadcast | pass_broadcast | bidding_roles |
     cards_dealt |
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
@@ -166,6 +168,13 @@
     message := binary()
 }.
 
+-type game_declaration_broadcast_msg() :: #{
+    type := game_declaration_broadcast,
+    winner_id := erlskat:player_id(),
+    choice := binary(),
+    message := binary()
+}.
+
 -type bid_broadcast_msg() :: #{
     type := bid_broadcast,
     bidder := erlskat:player(),
@@ -236,7 +245,7 @@
     bid_prompt_msg() | awaiting_bid_msg() | game_type_prompt_msg() |
     multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_flipped_msg() |
     hand_with_skat_msg() | discard_prompt_msg() | bidding_complete_msg() |
-    bidding_winner_notification_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
+    bidding_winner_notification_msg() | game_declaration_broadcast_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
     bidding_roles_msg() | cards_dealt_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
@@ -326,6 +335,21 @@ bidding_winner_notification(WinnerId, BidValue) ->
                                   WinnerId,
                                   <<" won the bidding with ">>,
                                   integer_to_list(BidValue)])}.
+
+-spec game_declaration_broadcast(erlskat:player_id(), binary()) ->
+          game_declaration_broadcast_msg().
+game_declaration_broadcast(WinnerId, Choice) ->
+    WinnerIdBin = case is_atom(WinnerId) of
+        true -> atom_to_binary(WinnerId, utf8);
+        false -> WinnerId
+    end,
+    #{type => game_declaration_broadcast,
+      winner_id => WinnerId,
+      choice => Choice,
+      message => iolist_to_binary([<<"Player ">>,
+                                  WinnerIdBin,
+                                  <<" chose to play ">>,
+                                  Choice])}.
 
 -spec bid_broadcast(erlskat:player(), integer()) -> bid_broadcast_msg().
 bid_broadcast(BiddingPlayer, BidValue) ->
