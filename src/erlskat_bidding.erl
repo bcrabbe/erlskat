@@ -504,10 +504,12 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
     % Reorder all hands according to the chosen game type
     CurrentHands = maps:get(hands, Data),
     ReorderedHands = reorder_all_hands_for_game_type(CurrentHands, GameType),
-    
+
     % Broadcast the reordered hands to all players
-    broadcast_hand_reorder_to_all_players(ReorderedHands, PlayerId, GameType),
-    
+    Skat = maps:get(skat, Data),
+    IsHandGame = maps:get(is_hand_game, Data, false),
+    broadcast_hand_reorder_to_all_players(ReorderedHands, PlayerId, GameType, Skat, IsHandGame),
+
     UpdatedData = Data#{hands => ReorderedHands},
 
     case GameType of
@@ -701,9 +703,10 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
     done.
 
 -spec broadcast_hand_reorder_to_all_players(
-    [player_bidding_data()], erlskat:player_id(), binary()) -> done.
-broadcast_hand_reorder_to_all_players(Hands, WinnerId, GameType) ->
-    BroadcastMsg = erlskat_client_responses:hand_reorder_broadcast(WinnerId, GameType, Hands),
+    [player_bidding_data()], erlskat:player_id(), binary(), erlskat:skat(), boolean()) -> done.
+broadcast_hand_reorder_to_all_players(Hands, WinnerId, GameType, Skat, IsHandGame) ->
+    BroadcastMsg = erlskat_client_responses:hand_reorder_broadcast(
+        WinnerId, GameType, Hands, Skat, IsHandGame),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 

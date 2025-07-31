@@ -23,7 +23,7 @@
     bidding_winner_notification/2,
     game_declaration_broadcast/2,
     game_type_broadcast/2,
-    hand_reorder_broadcast/3,
+    hand_reorder_broadcast/5,
     bid_broadcast/2,
     pass_broadcast/1,
     bidding_roles/1,
@@ -192,6 +192,7 @@
     winner_id := erlskat:player_id(),
     game_type := binary(),
     hands := [#{player_id => erlskat:player_id(), hand => erlskat:cards()}],
+    skat => erlskat:skat(),
     message := binary()
 }.
 
@@ -266,7 +267,8 @@
     multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_flipped_msg() |
     hand_with_skat_msg() | discard_prompt_msg() | bidding_complete_msg() |
     bidding_winner_notification_msg() | game_declaration_broadcast_msg() |
-    game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
+    game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
+    pass_broadcast_msg() |
     bidding_roles_msg() | cards_dealt_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
@@ -388,15 +390,19 @@ game_type_broadcast(WinnerId, GameType) ->
                                   GameType,
                                   <<" game">>])}.
 
--spec hand_reorder_broadcast(erlskat:player_id(), binary(), [player_bidding_data()]) ->
-          hand_reorder_broadcast_msg().
-hand_reorder_broadcast(WinnerId, GameType, PlayerHands) ->
+-spec hand_reorder_broadcast(erlskat:player_id(), binary(), [player_bidding_data()],
+                             erlskat:skat(), boolean()) -> hand_reorder_broadcast_msg().
+hand_reorder_broadcast(WinnerId, GameType, PlayerHands, Skat, IsHandGame) ->
     FormattedHands = [#{player_id => maps:get(id, maps:get(player, Hand)),
-                        hand => maps:get(hand, Hand)} || Hand <- PlayerHands],
+                        hand => case maps:get(id, maps:get(player, Hand)) of
+                                   WinnerId when not IsHandGame -> maps:get(hand, Hand) ++ Skat;
+                                   _ -> maps:get(hand, Hand)
+                               end} || Hand <- PlayerHands],
     #{type => hand_reorder_broadcast,
       winner_id => WinnerId,
       game_type => GameType,
       hands => FormattedHands,
+      skat => Skat,
       message => iolist_to_binary([<<"Hands reordered for ">>,
                                   GameType,
                                   <<" game">>])}.
