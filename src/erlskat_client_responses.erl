@@ -23,6 +23,7 @@
     bidding_winner_notification/2,
     game_declaration_broadcast/2,
     game_type_broadcast/2,
+    hand_reorder_broadcast/3,
     bid_broadcast/2,
     pass_broadcast/1,
     bidding_roles/1,
@@ -61,6 +62,7 @@
     bidding_winner_notification_msg/0,
     game_declaration_broadcast_msg/0,
     game_type_broadcast_msg/0,
+    hand_reorder_broadcast_msg/0,
     bid_broadcast_msg/0,
     pass_broadcast_msg/0,
     bidding_roles_msg/0,
@@ -80,7 +82,7 @@
     bid_prompt | awaiting_bid | game_type_prompt | multiplier_prompt |
     initial_choice_prompt | skat_flipped | hand_with_skat | discard_prompt | bidding_complete |
     bidding_winner_notification | game_declaration_broadcast | game_type_broadcast |
-    bid_broadcast | pass_broadcast | bidding_roles |
+    hand_reorder_broadcast | bid_broadcast | pass_broadcast | bidding_roles |
     cards_dealt |
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
@@ -185,6 +187,14 @@
     message := binary()
 }.
 
+-type hand_reorder_broadcast_msg() :: #{
+    type := hand_reorder_broadcast,
+    winner_id := erlskat:player_id(),
+    game_type := binary(),
+    hands := [#{player_id => erlskat:player_id(), hand => erlskat:cards()}],
+    message := binary()
+}.
+
 -type bid_broadcast_msg() :: #{
     type := bid_broadcast,
     bidder := erlskat:player(),
@@ -256,7 +266,7 @@
     multiplier_prompt_msg() | initial_choice_prompt_msg() | skat_flipped_msg() |
     hand_with_skat_msg() | discard_prompt_msg() | bidding_complete_msg() |
     bidding_winner_notification_msg() | game_declaration_broadcast_msg() |
-    game_type_broadcast_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
+    game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() | pass_broadcast_msg() |
     bidding_roles_msg() | cards_dealt_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
@@ -375,6 +385,19 @@ game_type_broadcast(WinnerId, GameType) ->
       message => iolist_to_binary([<<"Player ">>,
                                   WinnerIdBin,
                                   <<" chose ">>,
+                                  GameType,
+                                  <<" game">>])}.
+
+-spec hand_reorder_broadcast(erlskat:player_id(), binary(), [player_bidding_data()]) ->
+          hand_reorder_broadcast_msg().
+hand_reorder_broadcast(WinnerId, GameType, PlayerHands) ->
+    FormattedHands = [#{player_id => maps:get(id, maps:get(player, Hand)),
+                        hand => maps:get(hand, Hand)} || Hand <- PlayerHands],
+    #{type => hand_reorder_broadcast,
+      winner_id => WinnerId,
+      game_type => GameType,
+      hands => FormattedHands,
+      message => iolist_to_binary([<<"Hands reordered for ">>,
                                   GameType,
                                   <<" game">>])}.
 

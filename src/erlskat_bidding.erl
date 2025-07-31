@@ -16,6 +16,8 @@
 
 %% Test exports
 -export([order_cards_for_skat/1,
+         order_cards_for_game_type/2,
+         reorder_all_hands_for_game_type/2,
          get_next_valid_bid/1,
          get_next_bidding_pair/2,
          shuffled_deck/0,
@@ -498,36 +500,44 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
     % Broadcast the game type choice to other players
     broadcast_game_type_to_other_players(
         maps:get(hands, Data), PlayerId, GameType),
+
+    % Reorder all hands according to the chosen game type
+    CurrentHands = maps:get(hands, Data),
+    ReorderedHands = reorder_all_hands_for_game_type(CurrentHands, GameType),
+    
+    % Broadcast the reordered hands to all players
+    broadcast_hand_reorder_to_all_players(ReorderedHands, PlayerId, GameType),
+    
+    UpdatedData = Data#{hands => ReorderedHands},
+
     case GameType of
         <<"null">> ->
             % For null games, offer ouvert option
             send_multiplier_prompt_to_player(
-                get_player_by_id(PlayerId, maps:get(hands, Data)),
+                get_player_by_id(PlayerId, ReorderedHands),
                 [<<"ouvert">>],
                 <<"null">>),
             {next_state, multiplier_selection,
-             Data#{chosen_game => GameType,
-                   game_declaration_step => multiplier_choice}};
+             UpdatedData#{chosen_game => GameType,
+                          game_declaration_step => multiplier_choice}};
         _ ->
             % For other games, offer schnieder if hand game
             case maps:get(is_hand_game, Data, false) of
                 true ->
                     send_multiplier_prompt_to_player(
-                        get_player_by_id(PlayerId,
-                                        maps:get(hands, Data)),
+                        get_player_by_id(PlayerId, ReorderedHands),
                         [<<"schnieder">>],
                         GameType),
                     {next_state, multiplier_selection,
-                     Data#{chosen_game => GameType,
-                           game_declaration_step => multiplier_choice}};
+                     UpdatedData#{chosen_game => GameType,
+                                  game_declaration_step => multiplier_choice}};
                 false ->
                     % Not hand game, complete with skat exchange
                     send_discard_prompt_to_player(
-                        get_player_by_id(PlayerId,
-                                        maps:get(hands, Data)),
+                        get_player_by_id(PlayerId, ReorderedHands),
                         2),
                     {next_state, skat_exchange,
-                     Data#{chosen_game => GameType}}
+                     UpdatedData#{chosen_game => GameType}}
             end
     end.
 
@@ -690,6 +700,13 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
         maps:get(id, maps:get(player, Hand)) =/= WinnerId],
     done.
 
+-spec broadcast_hand_reorder_to_all_players(
+    [player_bidding_data()], erlskat:player_id(), binary()) -> done.
+broadcast_hand_reorder_to_all_players(Hands, WinnerId, GameType) ->
+    BroadcastMsg = erlskat_client_responses:hand_reorder_broadcast(WinnerId, GameType, Hands),
+    [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
+    done.
+
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.
 send_broadcast_msg(#{player := #{socket := Socket}}, BroadcastMsg) ->
     Socket ! BroadcastMsg,
@@ -749,6 +766,95 @@ order_cards_for_skat(Cards) ->
     lists:sort(fun(Card1, Card2) ->
                        maps:get(Card1, OrderMap, 999) =< maps:get(Card2, OrderMap, 999)
                end, Cards).
+
+-spec order_cards_for_game_type(erlskat:cards(), binary()) -> erlskat:cards().
+order_cards_for_game_type(Cards, GameType) ->
+    Ordering = get_card_ordering_for_game_type(GameType),
+    OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(Ordering)]),
+    lists:sort(fun(Card1, Card2) ->
+                       maps:get(Card1, OrderMap, 999) =< maps:get(Card2, OrderMap, 999)
+               end, Cards).
+
+-spec get_card_ordering_for_game_type(binary()) -> [erlskat:card()].
+get_card_ordering_for_game_type(<<"clubs">>) ->
+    get_suit_game_ordering(clubs);
+get_card_ordering_for_game_type(<<"spades">>) ->
+    get_suit_game_ordering(spades);
+get_card_ordering_for_game_type(<<"hearts">>) ->
+    get_suit_game_ordering(hearts);
+get_card_ordering_for_game_type(<<"diamonds">>) ->
+    get_suit_game_ordering(diamonds);
+get_card_ordering_for_game_type(<<"grand">>) ->
+    get_grand_game_ordering();
+get_card_ordering_for_game_type(<<"null">>) ->
+    get_null_game_ordering().
+
+-spec get_suit_game_ordering(erlskat:suit()) -> [erlskat:card()].
+get_suit_game_ordering(TrumpSuit) ->
+    % Jacks are always trumps (highest), then trump suit cards, then other suits
+    Jacks = [#{rank => jack, suit => clubs},
+             #{rank => jack, suit => spades},
+             #{rank => jack, suit => hearts},
+             #{rank => jack, suit => diamonds}],
+
+    TrumpCards = [#{rank => ace, suit => TrumpSuit},
+                  #{rank => ten, suit => TrumpSuit},
+                  #{rank => king, suit => TrumpSuit},
+                  #{rank => queen, suit => TrumpSuit},
+                  #{rank => nine, suit => TrumpSuit},
+                  #{rank => eight, suit => TrumpSuit},
+                  #{rank => seven, suit => TrumpSuit}],
+
+    OtherSuits = [clubs, spades, hearts, diamonds] -- [TrumpSuit],
+    NonTrumpCards = lists:flatmap(fun(Suit) ->
+        [#{rank => ace, suit => Suit},
+         #{rank => ten, suit => Suit},
+         #{rank => king, suit => Suit},
+         #{rank => queen, suit => Suit},
+         #{rank => nine, suit => Suit},
+         #{rank => eight, suit => Suit},
+         #{rank => seven, suit => Suit}]
+    end, OtherSuits),
+
+    Jacks ++ TrumpCards ++ NonTrumpCards.
+
+-spec get_grand_game_ordering() -> [erlskat:card()].
+get_grand_game_ordering() ->
+    % Only Jacks are trumps, all other cards in normal suit order
+    Jacks = [#{rank => jack, suit => clubs},
+             #{rank => jack, suit => spades},
+             #{rank => jack, suit => hearts},
+             #{rank => jack, suit => diamonds}],
+
+    NonTrumpCards = lists:flatmap(fun(Suit) ->
+        [#{rank => ace, suit => Suit},
+         #{rank => ten, suit => Suit},
+         #{rank => king, suit => Suit},
+         #{rank => queen, suit => Suit},
+         #{rank => nine, suit => Suit},
+         #{rank => eight, suit => Suit},
+         #{rank => seven, suit => Suit}]
+    end, [clubs, spades, hearts, diamonds]),
+
+    Jacks ++ NonTrumpCards.
+
+-spec get_null_game_ordering() -> [erlskat:card()].
+get_null_game_ordering() ->
+    % No trumps, Jacks are regular cards with different ranking: A > K > Q > J > 10 > 9 > 8 > 7
+    lists:flatmap(fun(Suit) ->
+        [#{rank => ace, suit => Suit},
+         #{rank => king, suit => Suit},
+         #{rank => queen, suit => Suit},
+         #{rank => jack, suit => Suit},
+         #{rank => ten, suit => Suit},
+         #{rank => nine, suit => Suit},
+         #{rank => eight, suit => Suit},
+         #{rank => seven, suit => Suit}]
+    end, [clubs, spades, hearts, diamonds]).
+
+-spec reorder_all_hands_for_game_type([player_bidding_data()], binary()) -> [player_bidding_data()].
+reorder_all_hands_for_game_type(Hands, GameType) ->
+    [Hand#{hand => order_cards_for_game_type(maps:get(hand, Hand), GameType)} || Hand <- Hands].
 
 -spec get_player_by_id(erlskat:player_id(), [player_bidding_data()]) ->
           player_bidding_data() | undefined.
