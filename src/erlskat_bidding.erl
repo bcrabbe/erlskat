@@ -25,6 +25,7 @@
          send_game_type_prompt_to_player/2,
          send_multiplier_prompt_to_player/3,
          broadcast_game_declaration_to_other_players/3,
+         broadcast_game_type_to_other_players/3,
          get_expected_message_format/1]).
 
 -export_type([game_response/0]).
@@ -494,6 +495,9 @@ handle_multiplier_skip(_Player, Data) ->
     complete_game_declaration(Data).
 
 handle_game_type_selection(PlayerId, GameType, Data) ->
+    % Broadcast the game type choice to other players
+    broadcast_game_type_to_other_players(
+        maps:get(hands, Data), PlayerId, GameType),
     case GameType of
         <<"null">> ->
             % For null games, offer ouvert option
@@ -668,10 +672,20 @@ broadcast_pass_to_all_players(Hands, PassingPlayer) ->
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 
--spec broadcast_game_declaration_to_other_players([player_bidding_data()], erlskat:player_id(), binary()) -> done.
+-spec broadcast_game_declaration_to_other_players(
+    [player_bidding_data()], erlskat:player_id(), binary()) -> done.
 broadcast_game_declaration_to_other_players(Hands, WinnerId, Choice) ->
     BroadcastMsg = erlskat_client_responses:game_declaration_broadcast(WinnerId, Choice),
-    [send_broadcast_msg(Hand, BroadcastMsg) || 
+    [send_broadcast_msg(Hand, BroadcastMsg) ||
+        Hand <- Hands,
+        maps:get(id, maps:get(player, Hand)) =/= WinnerId],
+    done.
+
+-spec broadcast_game_type_to_other_players(
+    [player_bidding_data()], erlskat:player_id(), binary()) -> done.
+broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
+    BroadcastMsg = erlskat_client_responses:game_type_broadcast(WinnerId, GameType),
+    [send_broadcast_msg(Hand, BroadcastMsg) ||
         Hand <- Hands,
         maps:get(id, maps:get(player, Hand)) =/= WinnerId],
     done.
