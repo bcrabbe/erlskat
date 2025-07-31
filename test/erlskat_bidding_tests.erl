@@ -66,6 +66,26 @@ game_declaration_flow_test_() ->
      {"Game type validation - invalid game type",
       fun test_game_type_validation_invalid_game_type/0}].
 
+card_reordering_test_() ->
+    [{"Reorder all hands for suit game (clubs)",
+      fun test_reorder_all_hands_clubs/0},
+     {"Reorder all hands for suit game (spades)",
+      fun test_reorder_all_hands_spades/0},
+     {"Reorder all hands for suit game (hearts)",
+      fun test_reorder_all_hands_hearts/0},
+     {"Reorder all hands for suit game (diamonds)",
+      fun test_reorder_all_hands_diamonds/0},
+     {"Reorder all hands for grand game",
+      fun test_reorder_all_hands_grand/0},
+     {"Reorder all hands for null game",
+      fun test_reorder_all_hands_null/0},
+     {"Reorder preserves hand structure",
+      fun test_reorder_preserves_structure/0},
+     {"Reorder with empty hands",
+      fun test_reorder_empty_hands/0},
+     {"Order cards for specific game types",
+      fun test_order_cards_for_game_type/0}].
+
 error_handling_test_() ->
     [{"Unexpected message format in bidding phase returns error",
       fun test_unexpected_message_bidding_phase/0},
@@ -812,6 +832,291 @@ flush_messages() ->
     after 0 ->
         ok
     end.
+
+%% Helper function to get the position of a card in a list (1-indexed)
+get_card_position(Card, CardList) ->
+    get_card_position_helper(Card, CardList, 1).
+
+get_card_position_helper(_, [], _) ->
+    not_found;
+get_card_position_helper(Card, [Card | _], Pos) ->
+    Pos;
+get_card_position_helper(Card, [_ | Rest], Pos) ->
+    get_card_position_helper(Card, Rest, Pos + 1).
+
+%%%%%%%%%%%%%%%%%%%%%%
+%%% CARD REORDERING TESTS %%%
+%%%%%%%%%%%%%%%%%%%%%%
+
+test_reorder_all_hands_clubs() ->
+    %% Test reordering hands for clubs suit game
+    Players = create_test_players(),
+    TestCards = [#{rank => ace, suit => clubs},      % Trump (after jacks)
+                 #{rank => jack, suit => hearts},    % Trump (3rd jack)
+                 #{rank => ten, suit => spades},     % Non-trump spades
+                 #{rank => king, suit => diamonds},  % Non-trump diamonds
+                 #{rank => queen, suit => clubs}],   % Trump (after A, 10, K of clubs)
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"clubs">>),
+
+    %% Check that structure is preserved
+    ?assertEqual(3, length(ReorderedHands)),
+
+    %% Check first hand ordering (jacks first, then trump suit, then others)
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+    ?assertEqual(5, length(FirstHand)),
+
+    %% Jack of hearts should come before ace of clubs (trumps)
+    JackHeartsPos = get_card_position(#{rank => jack, suit => hearts}, FirstHand),
+    AceClubsPos = get_card_position(#{rank => ace, suit => clubs}, FirstHand),
+    ?assert(JackHeartsPos < AceClubsPos),
+
+    %% Ace of clubs should come before queen of clubs
+    QueenClubsPos = get_card_position(#{rank => queen, suit => clubs}, FirstHand),
+    ?assert(AceClubsPos < QueenClubsPos).
+
+test_reorder_all_hands_spades() ->
+    %% Test reordering hands for spades suit game
+    Players = create_test_players(),
+    TestCards = [#{rank => ace, suit => spades},     % Trump (after jacks)
+                 #{rank => jack, suit => clubs},     % Trump (1st jack)
+                 #{rank => ten, suit => hearts},     % Non-trump hearts
+                 #{rank => king, suit => diamonds},  % Non-trump diamonds
+                 #{rank => nine, suit => spades}],   % Trump (after A, 10, K, Q of spades)
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"spades">>),
+
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+
+    %% Jack of clubs should be first (highest trump)
+    ?assertEqual(#{rank => jack, suit => clubs}, hd(FirstHand)),
+
+    %% Ace of spades should come before nine of spades
+    AceSpadesPos = get_card_position(#{rank => ace, suit => spades}, FirstHand),
+    NineSpadesPos = get_card_position(#{rank => nine, suit => spades}, FirstHand),
+    ?assert(AceSpadesPos < NineSpadesPos).
+
+test_reorder_all_hands_hearts() ->
+    %% Test reordering hands for hearts suit game
+    Players = create_test_players(),
+    TestCards = [#{rank => jack, suit => diamonds},  % Trump (4th jack)
+                 #{rank => ten, suit => hearts},     % Trump (after jacks and ace)
+                 #{rank => ace, suit => clubs},      % Non-trump clubs
+                 #{rank => king, suit => hearts},    % Trump (after A, 10 of hearts)
+                 #{rank => seven, suit => hearts}],  % Trump (lowest)
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"hearts">>),
+
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+
+    %% Jack of diamonds should come before ten of hearts
+    JackDiamondsPos = get_card_position(#{rank => jack, suit => diamonds}, FirstHand),
+    TenHeartsPos = get_card_position(#{rank => ten, suit => hearts}, FirstHand),
+    ?assert(JackDiamondsPos < TenHeartsPos),
+
+    %% Ten of hearts should come before king of hearts
+    KingHeartsPos = get_card_position(#{rank => king, suit => hearts}, FirstHand),
+    ?assert(TenHeartsPos < KingHeartsPos),
+
+    %% Seven of hearts should be last among hearts trumps
+    SevenHeartsPos = get_card_position(#{rank => seven, suit => hearts}, FirstHand),
+    ?assert(KingHeartsPos < SevenHeartsPos).
+
+test_reorder_all_hands_diamonds() ->
+    %% Test reordering hands for diamonds suit game
+    Players = create_test_players(),
+    TestCards = [#{rank => jack, suit => spades},    % Trump (2nd jack)
+                 #{rank => queen, suit => diamonds}, % Trump (after A, 10, K of diamonds)
+                 #{rank => ace, suit => hearts},     % Non-trump hearts
+                 #{rank => eight, suit => diamonds}, % Trump (after Q, 9 of diamonds)
+                 #{rank => king, suit => clubs}],    % Non-trump clubs
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"diamonds">>),
+
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+
+    %% Jack of spades should come first (trump)
+    JackSpadesPos = get_card_position(#{rank => jack, suit => spades}, FirstHand),
+    QueenDiamondsPos = get_card_position(#{rank => queen, suit => diamonds}, FirstHand),
+    ?assert(JackSpadesPos < QueenDiamondsPos),
+
+    %% Queen of diamonds should come before eight of diamonds
+    EightDiamondsPos = get_card_position(#{rank => eight, suit => diamonds}, FirstHand),
+    ?assert(QueenDiamondsPos < EightDiamondsPos).
+
+test_reorder_all_hands_grand() ->
+    %% Test reordering hands for grand game (only jacks are trumps)
+    Players = create_test_players(),
+    TestCards = [#{rank => jack, suit => clubs},     % Trump (highest)
+                 #{rank => ace, suit => clubs},      % Non-trump (highest in clubs)
+                 #{rank => jack, suit => hearts},    % Trump (3rd jack)
+                 #{rank => ten, suit => clubs},      % Non-trump (2nd in clubs)
+                 #{rank => king, suit => spades}],   % Non-trump spades
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"grand">>),
+
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+
+    %% Jack of clubs should be first (highest trump)
+    ?assertEqual(#{rank => jack, suit => clubs}, hd(FirstHand)),
+
+    %% Jack of hearts should come before ace of clubs
+    JackHeartsPos = get_card_position(#{rank => jack, suit => hearts}, FirstHand),
+    AceClubsPos = get_card_position(#{rank => ace, suit => clubs}, FirstHand),
+    ?assert(JackHeartsPos < AceClubsPos),
+
+    %% Ace of clubs should come before ten of clubs (within same suit)
+    TenClubsPos = get_card_position(#{rank => ten, suit => clubs}, FirstHand),
+    ?assert(AceClubsPos < TenClubsPos).
+
+test_reorder_all_hands_null() ->
+    %% Test reordering hands for null game (no trumps, jacks are regular)
+    Players = create_test_players(),
+    TestCards = [#{rank => jack, suit => clubs},     % Regular card (between Q and 10)
+                 #{rank => ace, suit => clubs},      % Highest in clubs
+                 #{rank => queen, suit => clubs},    % Higher than jack in clubs
+                 #{rank => ten, suit => clubs},      % Lower than jack in clubs
+                 #{rank => king, suit => spades}],   % 2nd highest in spades
+
+    Hands = [#{player => Player, hand => TestCards} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(Hands, <<"null">>),
+
+    FirstHand = maps:get(hand, hd(ReorderedHands)),
+
+    %% In null games: A > K > Q > J > 10 > 9 > 8 > 7
+    AceClubsPos = get_card_position(#{rank => ace, suit => clubs}, FirstHand),
+    QueenClubsPos = get_card_position(#{rank => queen, suit => clubs}, FirstHand),
+    JackClubsPos = get_card_position(#{rank => jack, suit => clubs}, FirstHand),
+    TenClubsPos = get_card_position(#{rank => ten, suit => clubs}, FirstHand),
+
+    %% Verify null game ordering within clubs suit
+    ?assert(AceClubsPos < QueenClubsPos),
+    ?assert(QueenClubsPos < JackClubsPos),
+    ?assert(JackClubsPos < TenClubsPos).
+
+test_reorder_preserves_structure() ->
+    %% Test that reordering preserves the hand structure (player info etc.)
+    Players = create_test_players(),
+    TestCards = create_test_cards(),
+
+    OriginalHands = [#{player => Player, hand => TestCards, extra_field => some_value}
+                     || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(OriginalHands, <<"clubs">>),
+
+    %% Check that all non-hand fields are preserved
+    [begin
+         ?assert(maps:is_key(player, Hand)),
+         ?assert(maps:is_key(hand, Hand)),
+         ?assert(maps:is_key(extra_field, Hand)),
+         ?assertEqual(some_value, maps:get(extra_field, Hand))
+     end || Hand <- ReorderedHands],
+
+    %% Check that players are preserved
+    OriginalPlayerIds = [maps:get(id, maps:get(player, Hand)) || Hand <- OriginalHands],
+    ReorderedPlayerIds = [maps:get(id, maps:get(player, Hand)) || Hand <- ReorderedHands],
+    ?assertEqual(lists:sort(OriginalPlayerIds), lists:sort(ReorderedPlayerIds)).
+
+test_reorder_empty_hands() ->
+    %% Test reordering with empty hands
+    Players = create_test_players(),
+    EmptyHands = [#{player => Player, hand => []} || Player <- Players],
+
+    ReorderedHands = erlskat_bidding:reorder_all_hands_for_game_type(EmptyHands, <<"grand">>),
+
+    %% Check that structure is preserved
+    ?assertEqual(3, length(ReorderedHands)),
+
+    %% Check that hands remain empty
+    [begin
+         Hand = maps:get(hand, PlayerHand),
+         ?assertEqual([], Hand)
+     end || PlayerHand <- ReorderedHands].
+
+test_order_cards_for_game_type() ->
+    %% Test the underlying order_cards_for_game_type function directly
+    %% Include jack, 10, and king of each suit for comprehensive testing
+    TestCards = [#{rank => ten, suit => clubs},
+                 #{rank => jack, suit => clubs},
+                 #{rank => king, suit => clubs},
+                 #{rank => ten, suit => spades},
+                 #{rank => jack, suit => spades},
+                 #{rank => king, suit => spades},
+                 #{rank => ten, suit => hearts},
+                 #{rank => jack, suit => hearts},
+                 #{rank => king, suit => hearts},
+                 #{rank => ten, suit => diamonds},
+                 #{rank => jack, suit => diamonds},
+                 #{rank => king, suit => diamonds}],
+
+    %% Test clubs game ordering
+    ClubsOrdered = erlskat_bidding:order_cards_for_game_type(TestCards, <<"clubs">>),
+    ?assertEqual(12, length(ClubsOrdered)),
+
+    %% In clubs game: Jacks first (C♣ > J♠ > J♥ > J♦), then trump clubs (A, 10, K, Q, 9, 8, 7), then other suits
+    %% First 4 should be jacks in order: clubs, spades, hearts, diamonds
+    ?assertEqual(#{rank => jack, suit => clubs}, lists:nth(1, ClubsOrdered)),
+    ?assertEqual(#{rank => jack, suit => spades}, lists:nth(2, ClubsOrdered)),
+    ?assertEqual(#{rank => jack, suit => hearts}, lists:nth(3, ClubsOrdered)),
+    ?assertEqual(#{rank => jack, suit => diamonds}, lists:nth(4, ClubsOrdered)),
+
+    %% Next should be clubs trump cards: 10, K (no Ace in our test set)
+    ClubsTrumpPos = get_card_position(#{rank => ten, suit => clubs}, ClubsOrdered),
+    ClubsKingPos = get_card_position(#{rank => king, suit => clubs}, ClubsOrdered),
+    ?assert(ClubsTrumpPos < ClubsKingPos), % 10 > K in trump suit
+    ?assert(ClubsTrumpPos > 4), % Should come after all jacks
+
+    %% Test grand game ordering
+    GrandOrdered = erlskat_bidding:order_cards_for_game_type(TestCards, <<"grand">>),
+    ?assertEqual(12, length(GrandOrdered)),
+
+    %% In grand: Only jacks are trumps, then regular suit ordering
+    ?assertEqual(#{rank => jack, suit => clubs}, lists:nth(1, GrandOrdered)),
+    ?assertEqual(#{rank => jack, suit => spades}, lists:nth(2, GrandOrdered)),
+    ?assertEqual(#{rank => jack, suit => hearts}, lists:nth(3, GrandOrdered)),
+    ?assertEqual(#{rank => jack, suit => diamonds}, lists:nth(4, GrandOrdered)),
+
+    %% After jacks, cards should be ordered by suit, then by rank within suit (A > 10 > K > Q)
+    %% In Grand, jacks are trumps so they don't appear in their original suits
+    %% Within each non-trump suit: 10 > K (since we don't have Ace or Queen in our test)
+    ClubsTenPos = get_card_position(#{rank => ten, suit => clubs}, GrandOrdered),
+    ClubsKingPosGrand = get_card_position(#{rank => king, suit => clubs}, GrandOrdered),
+    ?assert(ClubsTenPos < ClubsKingPosGrand), % 10 > K in non-trump suits
+
+    %% Test null game ordering
+    NullOrdered = erlskat_bidding:order_cards_for_game_type(TestCards, <<"null">>),
+    ?assertEqual(12, length(NullOrdered)),
+
+    %% In null games: no trumps, suits ordered clubs > spades > hearts > diamonds
+    %% Within each suit: K > J > 10 (since we don't have A or Q in our test)
+
+    %% Check clubs suit ordering: K♣ > J♣ > 10♣
+    ClubsKingPosNull = get_card_position(#{rank => king, suit => clubs}, NullOrdered),
+    ClubsJackPosNull = get_card_position(#{rank => jack, suit => clubs}, NullOrdered),
+    ClubsTenPosNull = get_card_position(#{rank => ten, suit => clubs}, NullOrdered),
+    ?assert(ClubsKingPosNull < ClubsJackPosNull),
+    ?assert(ClubsJackPosNull < ClubsTenPosNull),
+
+    %% Check that clubs cards come before spades cards
+    SpadesKingPos = get_card_position(#{rank => king, suit => spades}, NullOrdered),
+    ?assert(ClubsTenPosNull < SpadesKingPos), % Last clubs card before first spades card
+
+    %% Check spades suit ordering: K♠ > J♠ > 10♠
+    SpadesJackPos = get_card_position(#{rank => jack, suit => spades}, NullOrdered),
+    SpadesTenPos = get_card_position(#{rank => ten, suit => spades}, NullOrdered),
+    ?assert(SpadesKingPos < SpadesJackPos),
+    ?assert(SpadesJackPos < SpadesTenPos).
 
 %%%%%%%%%%%%%%%%%%%%%%
 %%% ERROR HANDLING TESTS %%%
