@@ -81,7 +81,7 @@ handle_info({bidding_complete, BiddingPid, BiddingResult},
     % Extract winner and game info from bidding result
     Winner = maps:get(winner, BiddingResult),
     ChosenGame = maps:get(chosen_game, BiddingResult),
-    
+
     % Start the game phase with the new unified game server
     case start_game_phase(Winner, ChosenGame, BiddingResult, State) of
         {noreply, NewState} ->
@@ -157,6 +157,3 @@ start_game_phase(Declarer, GameType, BiddingResult, State) ->
                          action => failed_to_start_game}),
             {stop, {game_start_failed, Reason}, State}
     end.
-
-
-

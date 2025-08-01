@@ -348,7 +348,7 @@
     bidding_winner_notification_msg() | game_declaration_broadcast_msg() |
     game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
     pass_broadcast_msg() |
-    bidding_roles_msg() | cards_dealt_msg() | 
+    bidding_roles_msg() | cards_dealt_msg() |
     card_play_prompt_msg() | game_start_broadcast_msg() | card_played_broadcast_msg() |
     trick_won_broadcast_msg() | game_complete_broadcast_msg() | invalid_card_error_msg() |
     card_play_error_msg() | error_msg() |
@@ -604,7 +604,7 @@ card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering) ->
           _ -> <<"Play a card to follow">>
       end}.
 
--spec game_start_broadcast(erlskat:player_id(), binary(), boolean(), [atom()]) -> 
+-spec game_start_broadcast(erlskat:player_id(), binary(), boolean(), [atom()]) ->
           game_start_broadcast_msg().
 game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
     HandGameText = case IsHandGame of
@@ -613,7 +613,7 @@ game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
     end,
     MultiplierText = case SelectedMultipliers of
         [] -> <<"">>;
-        _ -> iolist_to_binary([<<" with ">>, 
+        _ -> iolist_to_binary([<<" with ">>,
                                lists:join(<<", ">>, [atom_to_binary(M, utf8) || M <- SelectedMultipliers])])
     end,
     DeclarerBin = case is_atom(Declarer) of
@@ -632,7 +632,7 @@ game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
                                   HandGameText,
                                   MultiplierText])}.
 
--spec card_played_broadcast(erlskat:player_id(), erlskat:card(), integer()) -> 
+-spec card_played_broadcast(erlskat:player_id(), erlskat:card(), integer()) ->
           card_played_broadcast_msg().
 card_played_broadcast(PlayerId, Card, CardIndex) ->
     CardText = iolist_to_binary([
@@ -661,14 +661,14 @@ game_complete_broadcast(GameResult) ->
     DeclarerWon = maps:get(declarer_won, GameResult),
     DeclarerPoints = maps:get(declarer_points, GameResult),
     GameType = maps:get(game_type, GameResult),
-    
+
     ResultText = case DeclarerWon of
-        true -> iolist_to_binary([Declarer, <<" won the ">>, GameType, 
+        true -> iolist_to_binary([Declarer, <<" won the ">>, GameType,
                                  <<" game with ">>, integer_to_list(DeclarerPoints), <<" points">>]);
-        false -> iolist_to_binary([Declarer, <<" lost the ">>, GameType, 
+        false -> iolist_to_binary([Declarer, <<" lost the ">>, GameType,
                                   <<" game with only ">>, integer_to_list(DeclarerPoints), <<" points">>])
     end,
-    
+
     #{type => game_complete_broadcast,
       result => GameResult,
       message => ResultText}.
