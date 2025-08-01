@@ -87,7 +87,8 @@ const App = () => {
         setPrompt({
           type: 'game_type_prompt',
           message: data.message,
-          choices: data.game_types || []
+          choices: data.game_types || [],
+          gameTypeValues: data.game_type_values || []
         });
         break;
 
@@ -148,9 +149,8 @@ const App = () => {
           bidValue: data.bid_value,
           message: data.message
         });
-        // Clear current bidder and bidding state
+        // Clear current bidder but keep player bids visible until game starts
         setCurrentBidder(null);
-        setPlayerBids({});
         setCurrentBidValue(0);
         break;
 
@@ -306,6 +306,7 @@ const App = () => {
           message={prompt.message}
           choices={prompt.choices}
           type={prompt.type}
+          gameTypeValues={prompt.gameTypeValues}
           onChoice={handlePromptChoice}
           onClose={handlePromptClose}
         />

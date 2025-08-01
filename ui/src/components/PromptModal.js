@@ -7,7 +7,8 @@ const PromptModal = ({
   choices = [], 
   onChoice, 
   onClose,
-  type = 'choice'
+  type = 'choice',
+  gameTypeValues = []
 }) => {
   if (!isOpen) return null;
 
@@ -36,15 +37,29 @@ const PromptModal = ({
           <p className="message">{message}</p>
           
           <div className="choices">
-            {choices.map((choice, index) => (
-              <button
-                key={index}
-                className="choice-button"
-                onClick={() => handleChoice(choice)}
-              >
-                {typeof choice === 'string' ? choice : choice.toString()}
-              </button>
-            ))}
+            {choices.map((choice, index) => {
+              // For game_type_prompt, find the corresponding value_display
+              let valueDisplay = null;
+              if (type === 'game_type_prompt' && gameTypeValues.length > 0) {
+                const gameTypeValue = gameTypeValues.find(gtv => gtv.game_type === choice);
+                valueDisplay = gameTypeValue ? gameTypeValue.value_display : null;
+              }
+
+              return (
+                <button
+                  key={index}
+                  className="choice-button"
+                  onClick={() => handleChoice(choice)}
+                >
+                  <div className="choice-content">
+                    <span className="choice-main">{typeof choice === 'string' ? choice : choice.toString()}</span>
+                    {valueDisplay && (
+                      <span className="choice-value">{valueDisplay}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
