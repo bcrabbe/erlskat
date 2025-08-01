@@ -2,7 +2,14 @@ import React from 'react';
 import Card from './Card';
 import './PlayerHand.css';
 
-const PlayerHand = ({ cards = [], onCardClick, validCards = [], isFlipped = false }) => {
+const PlayerHand = ({ 
+  cards = [], 
+  onCardClick, 
+  validCards = [], 
+  isFlipped = false,
+  selectedDiscardCards = [],
+  isDiscardMode = false
+}) => {
   return (
     <div className="player-hand">
       {cards.map((card, index) => (
@@ -12,6 +19,8 @@ const PlayerHand = ({ cards = [], onCardClick, validCards = [], isFlipped = fals
           onClick={() => onCardClick(index)}
           isPlayable={validCards.includes(index)}
           isFlipped={isFlipped}
+          isSelected={selectedDiscardCards.includes(index)}
+          isDiscardMode={isDiscardMode}
         />
       ))}
     </div>

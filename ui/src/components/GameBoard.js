@@ -16,7 +16,11 @@ const GameBoard = ({
   currentBidValue = 0,
   biddingWinner = null,
   gameDeclaration = null,
-  gameType = null
+  gameType = null,
+  discardPrompt = null,
+  selectedDiscardCards = [],
+  onDiscardCardClick = null,
+  onDiscardSubmit = null
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -240,10 +244,28 @@ const GameBoard = ({
             </div>
           )}
         </div>
+        
+        {/* Discard prompt */}
+        {discardPrompt && (
+          <div className="discard-prompt">
+            <div className="discard-message">{discardPrompt.message}</div>
+            {selectedDiscardCards.length === discardPrompt.count && (
+              <button 
+                className="discard-submit-btn"
+                onClick={onDiscardSubmit}
+              >
+                Discard Selected Cards
+              </button>
+            )}
+          </div>
+        )}
+        
         <PlayerHand
           cards={playerHand}
-          onCardClick={onCardClick}
-          validCards={validCards}
+          onCardClick={discardPrompt ? onDiscardCardClick : onCardClick}
+          validCards={discardPrompt ? playerHand.map((_, index) => index) : validCards}
+          selectedDiscardCards={selectedDiscardCards}
+          isDiscardMode={!!discardPrompt}
         />
       </div>
     </div>

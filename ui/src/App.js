@@ -29,6 +29,10 @@ const App = () => {
   const [gameDeclaration, setGameDeclaration] = useState(null);
   const [gameType, setGameType] = useState(null);
 
+  // New state for discard functionality
+  const [discardPrompt, setDiscardPrompt] = useState(null);
+  const [selectedDiscardCards, setSelectedDiscardCards] = useState([]);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -73,6 +77,9 @@ const App = () => {
           message: data.message,
           choices: data.valid_cards.map(index => index)
         });
+        // Clear discard state when card play prompt is received
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'bid_prompt':
@@ -81,6 +88,9 @@ const App = () => {
           message: data.message,
           choices: data.choices || []
         });
+        // Clear discard state when bid prompt is received
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'game_type_prompt':
@@ -90,6 +100,9 @@ const App = () => {
           choices: data.game_types || [],
           gameTypeValues: data.game_type_values || []
         });
+        // Clear discard state when game type prompt is received
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'multiplier_prompt':
@@ -98,6 +111,9 @@ const App = () => {
           message: data.message,
           choices: data.multipliers || []
         });
+        // Clear discard state when multiplier prompt is received
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'initial_choice_prompt':
@@ -106,14 +122,17 @@ const App = () => {
           message: data.message,
           choices: data.choices || []
         });
+        // Clear discard state when initial choice prompt is received
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'discard_prompt':
-        setPrompt({
-          type: 'discard_prompt',
+        setDiscardPrompt({
           message: data.message,
-          choices: Array.from({ length: data.count }, (_, i) => i)
+          count: data.count
         });
+        setSelectedDiscardCards([]);
         break;
 
       case 'awaiting_bid':
@@ -194,6 +213,9 @@ const App = () => {
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
+        // Clear discard state
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'game_complete_broadcast':
@@ -209,6 +231,9 @@ const App = () => {
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
+        // Clear discard state
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
         break;
 
       case 'hand_reorder_broadcast':
@@ -257,6 +282,30 @@ const App = () => {
     setPrompt(null);
   }, []);
 
+  const handleDiscardCardClick = useCallback((cardIndex) => {
+    if (!discardPrompt) return;
+    
+    setSelectedDiscardCards(prev => {
+      if (prev.includes(cardIndex)) {
+        // Remove card if already selected
+        return prev.filter(index => index !== cardIndex);
+      } else if (prev.length < discardPrompt.count) {
+        // Add card if under the limit
+        return [...prev, cardIndex];
+      }
+      // Don't add if at limit
+      return prev;
+    });
+  }, [discardPrompt]);
+
+  const handleDiscardSubmit = useCallback(() => {
+    if (selectedDiscardCards.length === discardPrompt.count) {
+      sendMessage(selectedDiscardCards);
+      setDiscardPrompt(null);
+      setSelectedDiscardCards([]);
+    }
+  }, [selectedDiscardCards, discardPrompt, sendMessage]);
+
   useEffect(() => {
     return () => {
       disconnect();
@@ -288,6 +337,10 @@ const App = () => {
             biddingWinner={biddingWinner}
             gameDeclaration={gameDeclaration}
             gameType={gameType}
+            discardPrompt={discardPrompt}
+            selectedDiscardCards={selectedDiscardCards}
+            onDiscardCardClick={handleDiscardCardClick}
+            onDiscardSubmit={handleDiscardSubmit}
           />
         );
 

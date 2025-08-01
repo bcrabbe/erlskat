@@ -1,7 +1,7 @@
 import React from 'react';
 import './Card.css';
 
-const Card = ({ card, onClick, isPlayable = false, isFlipped = false }) => {
+const Card = ({ card, onClick, isPlayable = false, isFlipped = false, isSelected = false, isDiscardMode = false }) => {
   if (!card) return null;
 
   const { rank, suit } = card;
@@ -21,14 +21,14 @@ const Card = ({ card, onClick, isPlayable = false, isFlipped = false }) => {
   };
 
   const handleClick = () => {
-    if (isPlayable && onClick) {
+    if ((isPlayable || isDiscardMode) && onClick) {
       onClick();
     }
   };
 
   return (
     <div 
-      className={`card ${isPlayable ? 'playable' : ''} ${isFlipped ? 'flipped' : ''}`}
+      className={`card ${isPlayable ? 'playable' : ''} ${isFlipped ? 'flipped' : ''} ${isSelected ? 'selected' : ''} ${isDiscardMode ? 'discard-mode' : ''}`}
       onClick={handleClick}
     >
       {isFlipped ? (

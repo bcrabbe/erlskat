@@ -301,4 +301,57 @@
   color: #fff;
   font-weight: bold;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Discard prompt styles */
+.discard-prompt {
+  margin-bottom: 15px;
+  text-align: center;
+  background: linear-gradient(135deg, #ff5722, #e64a19);
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 2px solid #ff5722;
+  box-shadow: 0 4px 15px rgba(255, 87, 34, 0.3);
+  animation: discardGlow 2s ease-in-out infinite;
+}
+
+@keyframes discardGlow {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(255, 87, 34, 0.3);
+  }
+  50% {
+    box-shadow: 0 8px 25px rgba(255, 87, 34, 0.6);
+  }
+}
+
+.discard-message {
+  font-size: 16px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  margin-bottom: 10px;
+}
+
+.discard-submit-btn {
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  transition: all 0.2s ease;
+}
+
+.discard-submit-btn:hover {
+  background: linear-gradient(135deg, #45a049, #388e3c);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
+  transform: translateY(-1px);
+}
+
+.discard-submit-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
 } 

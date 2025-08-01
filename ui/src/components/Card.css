@@ -75,4 +75,20 @@
   font-size: 12px;
   text-align: center;
   line-height: 1.2;
+}
+
+/* Discard mode styles */
+.card.discard-mode {
+  cursor: pointer;
+}
+
+.card.discard-mode:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.card.selected {
+  transform: translateY(-27px); /* 0.3 * 90px card height */
+  box-shadow: 0 10px 20px rgba(0, 255, 0, 0.5);
+  border-color: #4caf50;
 } 
