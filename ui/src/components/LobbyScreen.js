@@ -20,7 +20,7 @@ const LobbyScreen = ({ players = [], onStartGame }) => {
             </div>
           )}
         </div>
-        
+
         {players.length === 3 && (
           <div className="game-ready">
             <p>All players connected! Game will start soon...</p>
@@ -31,4 +31,4 @@ const LobbyScreen = ({ players = [], onStartGame }) => {
   );
 };
 
-export default LobbyScreen; 
+export default LobbyScreen;

@@ -147,7 +147,7 @@ init({CoordinatorPid, Players}) ->
 
     % Start bidding with middlehand vs forehand
     send_bid_prompt_to_player(get_player_by_id(Middlehand, Hands), 18),
-    send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18),
+    send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18, Middlehand),
 
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -363,9 +363,11 @@ handle_bidder_accept(Player, Data) ->
                                 maps:get(hands, Data)),
                 ValidNextBid),
             send_awaiting_bid_to_player(
-                get_player_by_id(maps:get(current_bidder, Data),
-                                maps:get(hands, Data)),
-                ValidNextBid),
+                get_player_by_id(
+                  maps:get(current_bidder, Data),
+                  maps:get(hands, Data)),
+              ValidNextBid,
+                maps:get(responding_player, Data)),
             {keep_state, Data#{bid => ValidNextBid,
                                current_bidder => maps:get(responding_player, Data),
                                responding_player => maps:get(current_bidder, Data)}}
@@ -382,7 +384,8 @@ handle_bidder_pass(Player, Data) ->
                 maps:get(bid, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(NewRespondingPlayer, maps:get(hands, Data)),
-                maps:get(bid, Data)),
+                maps:get(bid, Data),
+                NewCurrentBidder),
             {keep_state, Data#{current_bidder => NewCurrentBidder,
                                responding_player => NewRespondingPlayer,
                                passed_players => PassedPlayers}};
@@ -403,7 +406,8 @@ handle_responder_pass(Player, Data) ->
                 maps:get(bid, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(NewRespondingPlayer, maps:get(hands, Data)),
-                maps:get(bid, Data)),
+                maps:get(bid, Data),
+                NewCurrentBidder),
             {keep_state, Data#{current_bidder => NewCurrentBidder,
                                responding_player => NewRespondingPlayer,
                                passed_players => PassedPlayers}};
@@ -609,9 +613,9 @@ send_bid_prompt_to_player(#{player := #{socket := Socket}}, BidValue) ->
     Socket ! erlskat_client_responses:bid_prompt(BidValue),
     done.
 
--spec send_awaiting_bid_to_player(player_bidding_data(), game_value()) -> done.
-send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue) ->
-    Socket ! erlskat_client_responses:awaiting_bid(BidValue),
+-spec send_awaiting_bid_to_player(player_bidding_data(), game_value(), erlskat:player_id()) -> done.
+send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue, WaitingForPlayerId) ->
+    Socket ! erlskat_client_responses:awaiting_bid(BidValue, WaitingForPlayerId),
     done.
 
 -spec send_game_type_prompt_to_player(

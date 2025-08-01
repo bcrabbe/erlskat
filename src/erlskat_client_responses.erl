@@ -12,7 +12,7 @@
 -export([
     %% Bidding messages
     bid_prompt/1,
-    awaiting_bid/1,
+    awaiting_bid/2,
     game_type_prompt/1,
     game_type_prompt_with_values/2,
     multiplier_prompt/2,
@@ -148,6 +148,7 @@
 -type awaiting_bid_msg() :: #{
     type := awaiting_bid,
     bid_value := integer(),
+    waiting_for_player_id := erlskat:player_id(),
     message := binary()
 }.
 
@@ -401,11 +402,14 @@ bid_prompt(BidValue) ->
                                   <<"?">>]),
       choices => [hold, pass]}.
 
--spec awaiting_bid(integer()) -> awaiting_bid_msg().
-awaiting_bid(BidValue) ->
+-spec awaiting_bid(integer(), erlskat:player_id()) -> awaiting_bid_msg().
+awaiting_bid(BidValue, WaitingForPlayerId) ->
     #{type => awaiting_bid,
       bid_value => BidValue,
-      message => iolist_to_binary([<<"Waiting for opponent to bid ">>,
+      waiting_for_player_id => WaitingForPlayerId,
+      message => iolist_to_binary([<<"Waiting for ">>,
+                                  WaitingForPlayerId,
+                                  <<" to bid ">>,
                                   integer_to_list(BidValue)])}.
 
 -spec game_type_prompt([binary()]) -> game_type_prompt_msg().
@@ -600,7 +604,7 @@ bid_broadcast(BiddingPlayer, BidValue) ->
       bidder => maps:without([socket], BiddingPlayer),
       bid_value => BidValue,
       message => iolist_to_binary([<<"Player ">>,
-                                  maps:get(name, BiddingPlayer, <<"Unknown">>),
+                                  maps:get(id, BiddingPlayer),
                                   <<" bids ">>,
                                   integer_to_list(BidValue)])}.
 
@@ -609,7 +613,7 @@ pass_broadcast(PassingPlayer) ->
     #{type => pass_broadcast,
       passer => maps:without([socket], PassingPlayer),
       message => iolist_to_binary([<<"Player ">>,
-                                  maps:get(name, PassingPlayer, <<"Unknown">>),
+                                  maps:get(id, PassingPlayer),
                                   <<" passes">>])}.
 
 -spec bidding_roles(#{erlskat:player_id() => speaking | listening | waiting}) ->
