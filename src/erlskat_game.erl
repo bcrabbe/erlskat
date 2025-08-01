@@ -297,7 +297,7 @@ complete_game(State) ->
     CoordinatorPid = State#state.coordinator_pid,
     CoordinatorPid ! {game_complete, self(), GameResult},
 
-    {next_state, game_complete, State}.
+    {next_state, game_complete, State, 3000}.
 
 %% Validate card play according to Skat rules
 validate_card_play(PlayedCard, PlayerHand, CurrentTrick, GameType) ->
@@ -370,8 +370,9 @@ determine_trick_winner(Trick, CardOrdering, _GameType) ->
 %% Calculate final game result
 calculate_game_result(State) ->
     % Calculate card points for declarer and defenders
-    DeclarerPoints = calculate_player_points(State#state.declarer, State#state.tricks_won,
-                                           State#state.discarded_cards),
+    DeclarerPoints = calculate_player_points(
+                       State#state.declarer, State#state.tricks_won,
+                       State#state.discarded_cards),
     DefenderPoints = 120 - DeclarerPoints,
 
     % Determine if declarer won
@@ -386,19 +387,16 @@ calculate_game_result(State) ->
 
     % Calculate actual game value
     ActualGameValue = calculate_actual_game_value(State, DeclarerWon, DeclarerPoints),
-
-    #{
-        declarer => State#state.declarer,
-        declarer_won => DeclarerWon,
-        declarer_points => DeclarerPoints,
-        defender_points => DefenderPoints,
-        game_type => State#state.game_type,
-        final_bid => State#state.final_bid,
-        actual_game_value => ActualGameValue,
-        is_hand_game => State#state.is_hand_game,
-        selected_multipliers => State#state.selected_multipliers,
-        tricks_won => State#state.tricks_won
-    }.
+    #{declarer => State#state.declarer,
+      declarer_won => DeclarerWon,
+      declarer_points => DeclarerPoints,
+      defender_points => DefenderPoints,
+      game_type => State#state.game_type,
+      final_bid => State#state.final_bid,
+      actual_game_value => ActualGameValue,
+      is_hand_game => State#state.is_hand_game,
+      selected_multipliers => State#state.selected_multipliers,
+      tricks_won => State#state.tricks_won}.
 
 %% Calculate card points for a player
 calculate_player_points(PlayerId, TricksWon, DiscardedCards) ->
@@ -435,7 +433,10 @@ calculate_actual_game_value(State, DeclarerWon, DeclarerPoints) ->
     },
 
     Result = erlskat_game_value:calculate_actual_game_value(
-        State#state.game_type, AllDeclarerCards, State#state.skat_cards, Options),
+               State#state.game_type,
+               AllDeclarerCards,
+               State#state.skat_cards,
+               Options),
 
     BaseValue = maps:get(value, Result),
 
