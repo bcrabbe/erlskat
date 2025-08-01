@@ -148,6 +148,9 @@ init({CoordinatorPid, Players}) ->
     % Start bidding with middlehand vs forehand
     send_bid_prompt_to_player(get_player_by_id(Middlehand, Hands), 18),
     send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18, Middlehand),
+    % Send awaiting bid message to the third player (rearhand)
+    [ThirdPlayerId] = get_third_player(Middlehand, Forehand, BiddingOrder),
+    send_awaiting_bid_to_player(get_player_by_id(ThirdPlayerId, Hands), 18, Middlehand),
 
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -368,6 +371,15 @@ handle_bidder_accept(Player, Data) ->
                   maps:get(hands, Data)),
               ValidNextBid,
                 maps:get(responding_player, Data)),
+            % Send awaiting bid message to the third player
+            [ThirdPlayerId] = get_third_player(
+                maps:get(current_bidder, Data),
+                maps:get(responding_player, Data),
+                maps:get(bidding_order, Data)),
+            send_awaiting_bid_to_player(
+                get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
+                ValidNextBid,
+                maps:get(responding_player, Data)),
             {keep_state, Data#{bid => ValidNextBid,
                                current_bidder => maps:get(responding_player, Data),
                                responding_player => maps:get(current_bidder, Data)}}
@@ -384,6 +396,13 @@ handle_bidder_pass(Player, Data) ->
                 maps:get(bid, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(NewRespondingPlayer, maps:get(hands, Data)),
+                maps:get(bid, Data),
+                NewCurrentBidder),
+            % Send awaiting bid message to the third player
+            [ThirdPlayerId] = get_third_player(NewCurrentBidder, NewRespondingPlayer,
+                                              maps:get(bidding_order, Data)),
+            send_awaiting_bid_to_player(
+                get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
                 maps:get(bid, Data),
                 NewCurrentBidder),
             {keep_state, Data#{current_bidder => NewCurrentBidder,
@@ -406,6 +425,13 @@ handle_responder_pass(Player, Data) ->
                 maps:get(bid, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(NewRespondingPlayer, maps:get(hands, Data)),
+                maps:get(bid, Data),
+                NewCurrentBidder),
+            % Send awaiting bid message to the third player
+            [ThirdPlayerId] = get_third_player(NewCurrentBidder, NewRespondingPlayer,
+                                              maps:get(bidding_order, Data)),
+            send_awaiting_bid_to_player(
+                get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
                 maps:get(bid, Data),
                 NewCurrentBidder),
             {keep_state, Data#{current_bidder => NewCurrentBidder,
@@ -777,6 +803,10 @@ get_expected_message_format(completed) ->
 %%% Helper functions
 %%%===================================================================
 
+-spec get_third_player(erlskat:player_id(), erlskat:player_id(), [erlskat:player_id()]) ->
+          erlskat:player_id().
+get_third_player(Player1, Player2, BiddingOrder) ->
+    [P || P <- BiddingOrder, P =/= Player1, P =/= Player2].
 
 -spec get_player_by_id(erlskat:player_id(), [player_bidding_data()]) ->
           player_bidding_data() | undefined.
