@@ -7,7 +7,7 @@
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 
--define(SESSION_HEADER, <<"skat_session_id">>).
+-define(SESSION_COOKIE, <<"skat_session">>).
 -define(SESSION_SECRET, <<"skat_session_secret">>).
 
 init(Req0, _) ->
@@ -70,7 +70,7 @@ websocket_info(Msg, #{player_id := PlayerId} = State) ->
          state => State}),
     try to_json(Msg) of
         Json ->
-            {reply, {binary, Json}, State}
+            {reply, {text, Json}, State}
     catch
         _:_ ->
             {ok, State}
@@ -80,21 +80,44 @@ to_json(Reply) ->
     jsx:encode(Reply).
 
 session(Req) ->
-    case cowboy_req:header(?SESSION_HEADER, Req) of
-        undefined ->
-            set_session(Req);
-        SessionHdr ->
-            decrypt_session(Req, SessionHdr)
+    try
+        % Filter cookies first to avoid crashes from malformed cookies
+        FilteredReq = cowboy_req:filter_cookies([?SESSION_COOKIE], Req),
+
+        % Use match_cookies to extract the session cookie
+        case cowboy_req:match_cookies([{?SESSION_COOKIE, [], undefined}], FilteredReq) of
+            #{?SESSION_COOKIE := undefined} ->
+                set_session(FilteredReq);
+            #{?SESSION_COOKIE := SessionCookie} ->
+                decrypt_session(FilteredReq, SessionCookie)
+        end
+    catch
+        _:Reason ->
+            ?LOG_WARNING(
+               #{module => ?MODULE,
+                 line => ?LINE,
+                 function => ?FUNCTION_NAME,
+                 reason => Reason,
+                 event => cookie_parsing_error}),
+            % If cookie parsing fails, create a new session
+            set_session(Req)
     end.
 
 set_session(Req) ->
     quickrand:seed(),
     PlayerId = generate_session_id(),
     ?LOG_INFO(#{player_id => PlayerId}),
-    {binary_uuid_to_hex(PlayerId), cowboy_req:set_resp_header(
-                  ?SESSION_HEADER,
-                  encrypt_session(PlayerId),
-                  Req)}.
+    SessionValue = encrypt_session(PlayerId),
+    % Set cookie with secure options
+    Req1 = cowboy_req:set_resp_cookie(
+              ?SESSION_COOKIE,
+              SessionValue,
+              Req,
+              #{http_only => true,
+                secure => false, % Set to true in production with HTTPS
+                same_site => lax,
+                max_age => 86400}), % 24 hours
+    {binary_uuid_to_hex(PlayerId), Req1}.
 
 generate_session_id() -> uuid:get_v4().
 
@@ -114,7 +137,20 @@ encrypt_session(PlayerId) ->
                  session => PlayerId }),
     base64:encode(<<?SESSION_SECRET/binary, ":"/utf8, PlayerId/binary>>).
 
-decrypt_session(Req, SessionHdr) ->
-    DecodedCredentials = base64:decode(SessionHdr),
-    [?SESSION_SECRET, PlayerId] = binary:split(DecodedCredentials, <<$:>>),
-    {binary_uuid_to_hex(PlayerId), Req}.
+decrypt_session(Req, SessionCookie) ->
+    try
+        DecodedCredentials = base64:decode(SessionCookie),
+        [?SESSION_SECRET, PlayerId] = binary:split(DecodedCredentials, <<$:>>),
+        {binary_uuid_to_hex(PlayerId), Req}
+    catch
+        _:Reason ->
+            ?LOG_WARNING(
+               #{module => ?MODULE,
+                 line => ?LINE,
+                 function => ?FUNCTION_NAME,
+                 reason => Reason,
+                 session_cookie => SessionCookie,
+                 event => session_decryption_error}),
+            % If session decryption fails, create a new session
+            set_session(Req)
+    end.
