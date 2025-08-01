@@ -17,12 +17,28 @@ const App = () => {
   const [validCards, setValidCards] = useState([]);
   const [prompt, setPrompt] = useState(null);
 
+  // New state for bidding animations
+  const [playerId, setPlayerId] = useState(null);
+  const [tableOrder, setTableOrder] = useState([]);
+  const [currentBidder, setCurrentBidder] = useState(null);
+  const [playerBids, setPlayerBids] = useState({});
+  const [currentBidValue, setCurrentBidValue] = useState(0);
+  const [biddingWinner, setBiddingWinner] = useState(null);
+
+  // New state for game declaration and type broadcasts
+  const [gameDeclaration, setGameDeclaration] = useState(null);
+  const [gameType, setGameType] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
     const { type, ...data } = message;
 
     switch (type) {
+      case 'player_joined':
+        setPlayerId(data.player_id);
+        break;
+
       case 'lobby_status':
         if (data.state === 'waiting') {
           setGameState('lobby');
@@ -36,6 +52,12 @@ const App = () => {
       case 'table_started':
         setGameState('game');
         setPlayers(data.players || []);
+        setTableOrder(data.players || []);
+        // Reset bidding state when table starts
+        setCurrentBidder(null);
+        setPlayerBids({});
+        setCurrentBidValue(0);
+        setBiddingWinner(null);
         break;
 
       case 'cards_dealt':
@@ -93,6 +115,61 @@ const App = () => {
         });
         break;
 
+      case 'awaiting_bid':
+        setCurrentBidder(data.waiting_for_player_id);
+        break;
+
+      case 'bid_broadcast':
+        setCurrentBidValue(data.bid_value);
+        setPlayerBids(prev => ({
+          ...prev,
+          [data.bidder.id]: { type: 'bid', value: data.bid_value }
+        }));
+        // Clear current bidder when a bid is made
+        if (data.bidder.id === currentBidder) {
+          setCurrentBidder(null);
+        }
+        break;
+
+      case 'pass_broadcast':
+        setPlayerBids(prev => ({
+          ...prev,
+          [data.passer.id]: { type: 'pass', value: currentBidValue }
+        }));
+        // Clear current bidder when a pass is made
+        if (data.passer.id === currentBidder) {
+          setCurrentBidder(null);
+        }
+        break;
+
+      case 'bidding_winner_notification':
+        setBiddingWinner({
+          winnerId: data.winner_id,
+          bidValue: data.bid_value,
+          message: data.message
+        });
+        // Clear current bidder and bidding state
+        setCurrentBidder(null);
+        setPlayerBids({});
+        setCurrentBidValue(0);
+        break;
+
+      case 'game_declaration_broadcast':
+        setGameDeclaration({
+          winnerId: data.winner_id,
+          choice: data.choice,
+          message: data.message
+        });
+        break;
+
+      case 'game_type_broadcast':
+        setGameType({
+          winnerId: data.winner_id,
+          gameType: data.game_type,
+          message: data.message
+        });
+        break;
+
       case 'card_played_broadcast':
         // Update current trick when a card is played
         setCurrentTrick(prev => [...prev, {
@@ -109,6 +186,14 @@ const App = () => {
 
       case 'game_start_broadcast':
         setGameState('game');
+        // Clear bidding state when game starts
+        setCurrentBidder(null);
+        setPlayerBids({});
+        setCurrentBidValue(0);
+        setBiddingWinner(null);
+        // Clear game declaration and type state
+        setGameDeclaration(null);
+        setGameType(null);
         break;
 
       case 'game_complete_broadcast':
@@ -117,12 +202,33 @@ const App = () => {
         setPlayerHand([]);
         setCurrentTrick([]);
         setValidCards([]);
+        setCurrentBidder(null);
+        setPlayerBids({});
+        setCurrentBidValue(0);
+        setBiddingWinner(null);
+        // Clear game declaration and type state
+        setGameDeclaration(null);
+        setGameType(null);
+        break;
+
+      case 'hand_reorder_broadcast':
+        // Reorder all player hands based on the broadcast data
+        if (data.hands && Array.isArray(data.hands)) {
+          data.hands.forEach(handData => {
+            if (handData.player_id === playerId) {
+              // Update current player's hand
+              setPlayerHand(handData.hand || []);
+            }
+            // Note: For other players' hands, we would need to track them separately
+            // Currently the UI only shows the current player's hand
+          });
+        }
         break;
 
       default:
         console.log('Unhandled message type:', type, data);
     }
-  }, []);
+  }, [currentBidder, currentBidValue]);
 
   const { connect, disconnect, sendMessage, isConnected } = useWebSocket(
     `ws://${window.location.hostname}:8080/ws`,
@@ -174,6 +280,14 @@ const App = () => {
             currentTrick={currentTrick}
             onCardClick={handleCardClick}
             validCards={validCards}
+            playerId={playerId}
+            tableOrder={tableOrder}
+            currentBidder={currentBidder}
+            playerBids={playerBids}
+            currentBidValue={currentBidValue}
+            biddingWinner={biddingWinner}
+            gameDeclaration={gameDeclaration}
+            gameType={gameType}
           />
         );
 

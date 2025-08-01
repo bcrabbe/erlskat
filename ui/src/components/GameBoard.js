@@ -8,13 +8,138 @@ const GameBoard = ({
   rightPlayerCards = [],
   currentTrick = [],
   onCardClick,
-  validCards = []
+  validCards = [],
+  playerId = null,
+  tableOrder = [],
+  currentBidder = null,
+  playerBids = {},
+  currentBidValue = 0,
+  biddingWinner = null,
+  gameDeclaration = null,
+  gameType = null
 }) => {
+  // Helper function to get player position
+  const getPlayerPosition = (targetPlayerId) => {
+    if (!playerId || !tableOrder.length) return null;
+    
+    const playerIndex = tableOrder.indexOf(playerId);
+    const targetIndex = tableOrder.indexOf(targetPlayerId);
+    
+    if (playerIndex === -1 || targetIndex === -1) return null;
+    
+    // Calculate relative position
+    const relativePosition = (targetIndex - playerIndex + tableOrder.length) % tableOrder.length;
+    
+    switch (relativePosition) {
+      case 1: return 'left';
+      case 2: return 'right';
+      default: return null; // Current player or invalid
+    }
+  };
+
+  // Helper function to get player display name
+  const getPlayerDisplayName = (targetPlayerId) => {
+    const position = getPlayerPosition(targetPlayerId);
+    switch (position) {
+      case 'left': return 'Left Player';
+      case 'right': return 'Right Player';
+      default: return 'Unknown Player';
+    }
+  };
+
+  // Helper function to get bid display text
+  const getBidDisplayText = (bidData) => {
+    if (!bidData) return '';
+    if (bidData.type === 'pass') return `Passed @ ${bidData.value || currentBidValue}`;
+    if (bidData.type === 'bid') return `Bid ${bidData.value}`;
+    return '';
+  };
+
+  // Helper function to get winner display name
+  const getWinnerDisplayName = (winnerId) => {
+    if (!winnerId || !playerId) return 'Unknown Player';
+    
+    if (winnerId === playerId) return 'You';
+    
+    const position = getPlayerPosition(winnerId);
+    switch (position) {
+      case 'left': return 'Left Player';
+      case 'right': return 'Right Player';
+      default: return 'Unknown Player';
+    }
+  };
+
+  // Helper function to get player ID by position
+  const getPlayerIdByPosition = (position) => {
+    if (!playerId || !tableOrder.length) return null;
+    
+    const playerIndex = tableOrder.indexOf(playerId);
+    if (playerIndex === -1) return null;
+    
+    let targetIndex;
+    switch (position) {
+      case 'left':
+        targetIndex = (playerIndex + 1) % tableOrder.length;
+        break;
+      case 'right':
+        targetIndex = (playerIndex + 2) % tableOrder.length;
+        break;
+      default:
+        return null;
+    }
+    
+    return tableOrder[targetIndex];
+  };
+
+  // Helper function to get game declaration display text
+  const getGameDeclarationDisplay = (declaration) => {
+    if (!declaration) return null;
+    
+    const playerName = getWinnerDisplayName(declaration.winnerId);
+    const choiceText = declaration.choice === 'hand' ? 'hand' : declaration.choice;
+    
+    return {
+      playerName,
+      choice: choiceText,
+      message: declaration.message
+    };
+  };
+
+  // Helper function to get game type display text
+  const getGameTypeDisplay = (gameTypeData) => {
+    if (!gameTypeData) return null;
+    
+    const playerName = getWinnerDisplayName(gameTypeData.winnerId);
+    const gameTypeText = gameTypeData.gameType === 'grand' ? 'Grand Game' : 
+                        gameTypeData.gameType === 'null' ? 'Null Game' : 
+                        gameTypeData.gameType === 'ramsch' ? 'Ramsch Game' : 
+                        gameTypeData.gameType;
+    
+    return {
+      playerName,
+      gameType: gameTypeText,
+      message: gameTypeData.message
+    };
+  };
+
   return (
     <div className="game-board">
       {/* Top player (left) */}
       <div className="player-position left-player">
-        <div className="player-info">Left Player</div>
+        <div className="player-info">
+          Left Player
+          {currentBidder && getPlayerPosition(currentBidder) === 'left' && (
+            <div className="bidding-indicator">
+              <div className="thinking-animation">🤔</div>
+              <div className="bidding-text">Thinking...</div>
+            </div>
+          )}
+          {playerBids[getPlayerIdByPosition('left')] && (
+            <div className="bid-display">
+              {getBidDisplayText(playerBids[getPlayerIdByPosition('left')])}
+            </div>
+          )}
+        </div>
         <PlayerHand
           cards={leftPlayerCards}
           isFlipped={true}
@@ -35,11 +160,70 @@ const GameBoard = ({
             </div>
           ))}
         </div>
+        
+        {/* Bidding status display */}
+        {currentBidder && (
+          <div className="bidding-status">
+            <div className="bidding-message">
+              Waiting for {getPlayerDisplayName(currentBidder)} to bid...
+            </div>
+          </div>
+        )}
+        
+        {/* Bidding winner display with thinking animation */}
+        {biddingWinner && (
+          <div className="bidding-winner-status">
+            <div className="winner-message">
+              <div className="winner-announcement">
+                🎉 {getWinnerDisplayName(biddingWinner.winnerId)} won the bidding at {biddingWinner.bidValue}!
+              </div>
+              <div className="thinking-animation-container">
+                <div className="thinking-animation">🤔</div>
+                <div className="thinking-text">Thinking about game choice...</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Game declaration display */}
+        {gameDeclaration && (
+          <div className="game-declaration-status">
+            <div className="declaration-message">
+              <div className="declaration-announcement">
+                {getGameDeclarationDisplay(gameDeclaration).playerName} chose to play {getGameDeclarationDisplay(gameDeclaration).choice}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Game type display */}
+        {gameType && (
+          <div className="game-type-status">
+            <div className="type-message">
+              <div className="type-announcement">
+                {getGameTypeDisplay(gameType).playerName} chose {getGameTypeDisplay(gameType).gameType}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right player */}
       <div className="player-position right-player">
-        <div className="player-info">Right Player</div>
+        <div className="player-info">
+          Right Player
+          {currentBidder && getPlayerPosition(currentBidder) === 'right' && (
+            <div className="bidding-indicator">
+              <div className="thinking-animation">🤔</div>
+              <div className="bidding-text">Thinking...</div>
+            </div>
+          )}
+          {playerBids[getPlayerIdByPosition('right')] && (
+            <div className="bid-display">
+              {getBidDisplayText(playerBids[getPlayerIdByPosition('right')])}
+            </div>
+          )}
+        </div>
         <PlayerHand
           cards={rightPlayerCards}
           isFlipped={true}
@@ -48,7 +232,14 @@ const GameBoard = ({
 
       {/* Bottom player (current player) */}
       <div className="player-position bottom-player">
-        <div className="player-info">Your Hand</div>
+        <div className="player-info">
+          Your Hand
+          {playerBids[playerId] && (
+            <div className="bid-display own-bid">
+              {getBidDisplayText(playerBids[playerId])}
+            </div>
+          )}
+        </div>
         <PlayerHand
           cards={playerHand}
           onCardClick={onCardClick}
