@@ -51,7 +51,10 @@
 -spec start_link(pid(), erlskat:player_id(), binary(), map(), [erlskat:player()]) ->
           {ok, Pid :: pid()} | ignore | {error, Error :: term()}.
 start_link(CoordinatorPid, Declarer, GameType, BiddingResult, Players) ->
-    gen_statem:start_link(?MODULE, {CoordinatorPid, Declarer, GameType, BiddingResult, Players}, []).
+    gen_statem:start_link(
+      ?MODULE,
+      {CoordinatorPid, Declarer, GameType, BiddingResult, Players},
+      []).
 
 %%%===================================================================
 %%% gen_statem callbacks
@@ -95,7 +98,12 @@ init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
     [erlskat_manager:update_player_proc(Player, self()) || Player <- Players],
 
     % Send initial game state to all players
-    broadcast_game_start_to_all_players(Players, Declarer, GameType, IsHandGame, SelectedMultipliers),
+    broadcast_game_start_to_all_players(
+      Players,
+      Declarer,
+      GameType,
+      IsHandGame,
+      SelectedMultipliers),
 
     % Send first trick prompt to first player
     send_card_play_prompt_to_current_player(FirstLeader, PlayerHands, [], CardOrdering, Players),
@@ -176,8 +184,11 @@ handle_card_play(PlayerId, CardIndex, State) ->
             PlayedCard = lists:nth(CardIndex + 1, PlayerHand),
 
             % Validate card play according to Skat rules
-            case validate_card_play(PlayedCard, PlayerHand, State#state.current_trick,
-                                    State#state.card_ordering, State#state.game_type) of
+            case validate_card_play(
+                   PlayedCard,
+                   PlayerHand,
+                   State#state.current_trick,
+                   State#state.game_type) of
                 valid ->
                     process_valid_card_play(PlayerId, PlayedCard, CardIndex, State);
                 {invalid, Reason} ->
@@ -194,7 +205,9 @@ process_valid_card_play(PlayerId, PlayedCard, CardIndex, State) ->
     UpdatedPlayerHands = maps:put(PlayerId, UpdatedPlayerHand, State#state.player_hands),
 
     % Add card to current trick
-    CardPlay = #{player => PlayerId, card => PlayedCard, position => length(State#state.current_trick)},
+    CardPlay = #{player => PlayerId,
+                 card => PlayedCard,
+                 position => length(State#state.current_trick)},
     UpdatedCurrentTrick = State#state.current_trick ++ [CardPlay],
 
     % Broadcast card play to all players
@@ -210,10 +223,12 @@ process_valid_card_play(PlayerId, PlayedCard, CardIndex, State) ->
         _ ->
             % Continue to next player
             NextPlayer = get_next_player(PlayerId, State#state.player_order),
-            NextPlayerHand = maps:get(NextPlayer, UpdatedPlayerHands),
-
-            send_card_play_prompt_to_current_player(NextPlayer, UpdatedPlayerHands,
-                                                   UpdatedCurrentTrick, State#state.card_ordering, State#state.players),
+            send_card_play_prompt_to_current_player(
+              NextPlayer,
+              UpdatedPlayerHands,
+              UpdatedCurrentTrick,
+              State#state.card_ordering,
+              State#state.players),
 
             {keep_state, State#state{
                 player_hands = UpdatedPlayerHands,
@@ -247,11 +262,12 @@ complete_trick(State) ->
             });
         _ ->
             % Start next trick with winner leading
-            NextPlayerHand = maps:get(TrickWinner, State#state.player_hands),
-
-            send_card_play_prompt_to_current_player(TrickWinner, State#state.player_hands,
-                                                   [], State#state.card_ordering, State#state.players),
-
+            send_card_play_prompt_to_current_player(
+              TrickWinner,
+              State#state.player_hands,
+              [],
+              State#state.card_ordering,
+              State#state.players),
             {keep_state, State#state{
                 current_trick = [],
                 current_leader = TrickWinner,
@@ -263,12 +279,13 @@ complete_trick(State) ->
 
 %% Complete the game and calculate results
 complete_game(State) ->
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                declarer => State#state.declarer,
-                game_type => State#state.game_type,
-                action => game_completing}),
+    ?LOG_INFO(
+       #{module => ?MODULE,
+         line => ?LINE,
+         function => ?FUNCTION_NAME,
+         declarer => State#state.declarer,
+         game_type => State#state.game_type,
+         action => game_completing}),
 
     % Calculate game result
     GameResult = calculate_game_result(State),
@@ -283,18 +300,18 @@ complete_game(State) ->
     {next_state, game_complete, State}.
 
 %% Validate card play according to Skat rules
-validate_card_play(PlayedCard, PlayerHand, CurrentTrick, CardOrdering, GameType) ->
+validate_card_play(PlayedCard, PlayerHand, CurrentTrick, GameType) ->
     case CurrentTrick of
         [] ->
             % First card of trick, any card is valid
             valid;
         [FirstPlay | _] ->
             FirstCard = maps:get(card, FirstPlay),
-            validate_follow_suit(PlayedCard, FirstCard, PlayerHand, CardOrdering, GameType)
+            validate_follow_suit(PlayedCard, FirstCard, PlayerHand, GameType)
     end.
 
 %% Validate following suit rules
-validate_follow_suit(PlayedCard, FirstCard, PlayerHand, CardOrdering, GameType) ->
+validate_follow_suit(PlayedCard, FirstCard, PlayerHand, GameType) ->
     LedSuit = get_effective_suit(FirstCard, GameType),
     PlayedSuit = get_effective_suit(PlayedCard, GameType),
 
@@ -389,11 +406,7 @@ calculate_player_points(PlayerId, TricksWon, DiscardedCards) ->
     TrickCards = lists:flatmap(fun(Trick) ->
         [maps:get(card, Play) || Play <- Trick]
     end, PlayerTricks),
-
-    AllCards = case PlayerId of
-        _ -> TrickCards ++ DiscardedCards  % Declarer gets discarded cards
-    end,
-
+    AllCards = TrickCards ++ DiscardedCards,  % Declarer gets discarded cards
     lists:sum([get_card_points(Card) || Card <- AllCards]).
 
 %% Get point value of a card
@@ -444,12 +457,20 @@ get_next_player(CurrentPlayer, PlayerOrder) ->
 %%%===================================================================
 
 %% Send card play prompt to current player
-send_card_play_prompt_to_current_player(PlayerId, PlayerHands, CurrentTrick, CardOrdering, Players) ->
+send_card_play_prompt_to_current_player(
+  PlayerId,
+  PlayerHands,
+  CurrentTrick,
+  CardOrdering,
+  Players) ->
     case find_player_by_id(PlayerId, Players) of
         {ok, Player} ->
             PlayerHand = maps:get(PlayerId, PlayerHands),
             Socket = maps:get(socket, Player),
-            Socket ! erlskat_client_responses:card_play_prompt(PlayerHand, CurrentTrick, CardOrdering);
+            Socket ! erlskat_client_responses:card_play_prompt(
+                       PlayerHand,
+                       CurrentTrick,
+                       CardOrdering);
         error ->
             ?LOG_WARNING(#{module => ?MODULE,
                           line => ?LINE,
@@ -459,7 +480,11 @@ send_card_play_prompt_to_current_player(PlayerId, PlayerHands, CurrentTrick, Car
 
 %% Broadcast game start to all players
 broadcast_game_start_to_all_players(Players, Declarer, GameType, IsHandGame, SelectedMultipliers) ->
-    Msg = erlskat_client_responses:game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers),
+    Msg = erlskat_client_responses:game_start_broadcast(
+            Declarer,
+            GameType,
+            IsHandGame,
+            SelectedMultipliers),
     [maps:get(socket, Player) ! Msg || Player <- Players].
 
 %% Broadcast card played to all players
@@ -504,12 +529,14 @@ find_player_by_id(PlayerId, Players) ->
     end.
 
 %% Handle unexpected events
-handle_unexpected_event(EventType, Event, State, StateName) ->
-    ?LOG_WARNING(#{module => ?MODULE,
-                   line => ?LINE,
-                   function => ?FUNCTION_NAME,
-                   event_type => EventType,
-                   event => Event,
-                   state => StateName,
-                   action => unhandled_game_event}),
+handle_unexpected_event(EventType, Event, Data, StateName) ->
+    ?LOG_WARNING(
+       #{module => ?MODULE,
+         line => ?LINE,
+         function => ?FUNCTION_NAME,
+         event_type => EventType,
+         event => Event,
+         state => StateName,
+         action => unhandled_game_event,
+         data => Data}),
     keep_state_and_data.

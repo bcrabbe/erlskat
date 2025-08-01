@@ -79,15 +79,17 @@ order_cards_for_skat(Cards) ->
     OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(?SKAT_ORDERING)]),
 
     % Sort cards according to their position in the ordering
-    lists:sort(fun(Card1, Card2) ->
-                       maps:get(Card1, OrderMap, 999) =< maps:get(Card2, OrderMap, 999)
-               end, Cards).
+    sort_cards_by_order_map(Cards, OrderMap).
 
 %% Order cards according to specific game type rules
 -spec order_cards_for_game_type(erlskat:cards(), binary()) -> erlskat:cards().
 order_cards_for_game_type(Cards, GameType) ->
     Ordering = get_card_ordering_for_game_type(GameType),
     OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(Ordering)]),
+    sort_cards_by_order_map(Cards, OrderMap).
+
+-spec sort_cards_by_order_map(erlskat:cards(), map()) -> erlskat:cards().
+sort_cards_by_order_map(Cards, OrderMap) ->
     lists:sort(fun(Card1, Card2) ->
                        maps:get(Card1, OrderMap, 999) =< maps:get(Card2, OrderMap, 999)
                end, Cards).

@@ -218,7 +218,8 @@ game_declaration(cast,
                         maps:get(hand, PlayerHand),
                         maps:get(skat, Data)),
                     % Create hand with skat for game type selection
-                    HandWithSkat = erlskat_card_ordering:order_cards_for_skat(maps:get(hand, PlayerHand) ++ maps:get(skat, Data)),
+                    HandWithSkat = erlskat_card_ordering:order_cards_for_skat(
+                                     maps:get(hand, PlayerHand) ++ maps:get(skat, Data)),
                     send_game_type_prompt_to_player(
                         PlayerHand,
                         ?REGULAR_GAME_TYPES,
@@ -327,12 +328,12 @@ multiplier_selection(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, multiplier_selection).
 
 %% State: completed
-completed(timeout, _Event, _Data) ->
+completed(timeout, _Event, Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 action => bidding_server_timeout_termination}),
-    {stop, normal, _Data};
+    {stop, normal, Data};
 
 completed(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, completed).
@@ -613,8 +614,14 @@ send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue) ->
     Socket ! erlskat_client_responses:awaiting_bid(BidValue),
     done.
 
--spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()], erlskat:cards()) -> done.
-send_game_type_prompt_to_player(#{player := #{socket := Socket}} = PlayerData, GameTypes, HandWithSkat) ->
+-spec send_game_type_prompt_to_player(
+        player_bidding_data(),
+        [game_type()],
+        erlskat:cards()) -> done.
+send_game_type_prompt_to_player(
+  #{player := #{socket := Socket}} = PlayerData,
+  GameTypes,
+  HandWithSkat) ->
     PlayerDataWithSkat = PlayerData#{hand => HandWithSkat},
     Socket ! erlskat_client_responses:game_type_prompt_with_values(GameTypes, PlayerDataWithSkat),
     done.
@@ -625,8 +632,16 @@ send_multiplier_prompt_to_player(#{player := #{socket := Socket}}, Multipliers, 
     done.
 
 -spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary(), map()) -> done.
-send_multiplier_prompt_to_player(#{player := #{socket := Socket}} = PlayerData, Multipliers, GameType, GameData) ->
-    Socket ! erlskat_client_responses:multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData),
+send_multiplier_prompt_to_player(
+  #{player := #{socket := Socket}} = PlayerData,
+  Multipliers,
+  GameType,
+  GameData) ->
+    Socket ! erlskat_client_responses:multiplier_prompt_with_values(
+               Multipliers,
+               GameType,
+               PlayerData,
+               GameData),
     done.
 
 -spec send_initial_choice_prompt_to_player(player_bidding_data()) -> done.

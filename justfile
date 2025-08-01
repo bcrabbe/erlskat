@@ -93,3 +93,7 @@ version:
 # Starts local shell and 3 websocket clients (Requires itermocil) --here to using the current window
 manual-test FLAGS="": clean compile
     itermocil erlskat {{FLAGS}}
+
+# Starts local shell and 3 websocket clients pretty printing the msgs (Requires itermocil)
+manual-test-pp FLAGS="": clean compile
+    itermocil erlskat-pp {{FLAGS}}

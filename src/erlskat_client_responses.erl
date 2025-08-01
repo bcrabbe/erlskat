@@ -400,7 +400,10 @@ game_type_prompt_with_values(GameTypes, PlayerData) ->
     IsHandGame = length(PlayerHand) =:= 10,
     GameTypeValues = [begin
         Options = #{is_hand_game => IsHandGame, selected_multipliers => []},
-        ValueResult = erlskat_game_value:calculate_estimated_game_value(GameType, PlayerHand, Options),
+        ValueResult = erlskat_game_value:calculate_estimated_game_value(
+                        GameType,
+                        PlayerHand,
+                        Options),
         ValueDisplay = erlskat_game_value:format_game_value_display(ValueResult, GameType),
         #{game_type => GameType, value_display => ValueDisplay}
     end || GameType <- GameTypes],
@@ -436,10 +439,18 @@ multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData) ->
             <<"skip">> ->
                 #{multiplier => Multiplier, value_display => <<"Skip multipliers">>};
             _ ->
-                NewOptions = Options#{selected_multipliers => [binary_to_atom(Multiplier, utf8) | SelectedMultipliers]},
+                NewOptions = Options#{selected_multipliers => [binary_to_atom(Multiplier, utf8) |
+                                                               SelectedMultipliers]},
                 NewValueResult = case IsHandGame of
-                    true -> erlskat_game_value:calculate_estimated_game_value(GameType, PlayerHand, NewOptions);
-                    false -> erlskat_game_value:calculate_actual_game_value(GameType, PlayerHand, [], NewOptions)
+                    true -> erlskat_game_value:calculate_estimated_game_value(
+                              GameType,
+                              PlayerHand,
+                              NewOptions);
+                    false -> erlskat_game_value:calculate_actual_game_value(
+                               GameType,
+                               PlayerHand,
+                               [],
+                               NewOptions)
                 end,
                 NewDisplay = erlskat_game_value:format_game_value_display(NewValueResult, GameType),
                 #{multiplier => Multiplier, value_display => NewDisplay}
@@ -593,7 +604,7 @@ cards_dealt(Hand) ->
 %% Game play message constructors
 -spec card_play_prompt(erlskat:cards(), [map()], [erlskat:card()]) -> card_play_prompt_msg().
 card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering) ->
-    % Determine valid card indices (for now, all cards are valid - suit following logic would go here)
+    % TODO: Determine valid card indices based on suit and hand
     ValidCards = lists:seq(0, length(PlayerHand) - 1),
     #{type => card_play_prompt,
       hand => PlayerHand,
@@ -613,8 +624,11 @@ game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
     end,
     MultiplierText = case SelectedMultipliers of
         [] -> <<"">>;
-        _ -> iolist_to_binary([<<" with ">>,
-                               lists:join(<<", ">>, [atom_to_binary(M, utf8) || M <- SelectedMultipliers])])
+        _ -> iolist_to_binary(
+               [<<" with ">>,
+                lists:join(
+                  <<", ">>,
+                  [atom_to_binary(M, utf8) || M <- SelectedMultipliers])])
     end,
     DeclarerBin = case is_atom(Declarer) of
         true -> atom_to_binary(Declarer, utf8);
@@ -663,10 +677,20 @@ game_complete_broadcast(GameResult) ->
     GameType = maps:get(game_type, GameResult),
 
     ResultText = case DeclarerWon of
-        true -> iolist_to_binary([Declarer, <<" won the ">>, GameType,
-                                 <<" game with ">>, integer_to_list(DeclarerPoints), <<" points">>]);
-        false -> iolist_to_binary([Declarer, <<" lost the ">>, GameType,
-                                  <<" game with only ">>, integer_to_list(DeclarerPoints), <<" points">>])
+        true -> iolist_to_binary(
+                  [Declarer,
+                   <<" won the ">>,
+                   GameType,
+                   <<" game with ">>,
+                   integer_to_list(DeclarerPoints),
+                   <<" points">>]);
+        false -> iolist_to_binary(
+                   [Declarer,
+                    <<" lost the ">>,
+                    GameType,
+                    <<" game with only ">>,
+                    integer_to_list(DeclarerPoints),
+                    <<" points">>])
     end,
 
     #{type => game_complete_broadcast,
