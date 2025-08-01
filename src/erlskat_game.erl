@@ -256,28 +256,40 @@ complete_trick(State) ->
 
     NewTrickCount = State#state.trick_count + 1,
 
-    % Check if game is complete (10 tricks played)
-    case NewTrickCount of
-        10 ->
+    % Check for null game immediate loss condition
+    case State#state.game_type =:= <<"null">> andalso 
+         TrickWinner =:= State#state.declarer andalso 
+         length(WinnerTricks) =:= 0 of
+        true ->
+            % Declarer just won their first trick in a null game - immediate loss
             complete_game(State#state{
                 tricks_won = UpdatedTricksWon,
                 trick_count = NewTrickCount
             });
-        _ ->
-            % Start next trick with winner leading
-            send_card_play_prompt_to_current_player(
-              TrickWinner,
-              State#state.player_hands,
-              [],
-              State#state.card_ordering,
-              State#state.players),
-            {keep_state, State#state{
-                current_trick = [],
-                current_leader = TrickWinner,
-                current_player = TrickWinner,
-                tricks_won = UpdatedTricksWon,
-                trick_count = NewTrickCount
-            }}
+        false ->
+            % Check if game is complete (10 tricks played)
+            case NewTrickCount of
+                10 ->
+                    complete_game(State#state{
+                        tricks_won = UpdatedTricksWon,
+                        trick_count = NewTrickCount
+                    });
+                _ ->
+                    % Start next trick with winner leading
+                    send_card_play_prompt_to_current_player(
+                      TrickWinner,
+                      State#state.player_hands,
+                      [],
+                      State#state.card_ordering,
+                      State#state.players),
+                    {keep_state, State#state{
+                        current_trick = [],
+                        current_leader = TrickWinner,
+                        current_player = TrickWinner,
+                        tricks_won = UpdatedTricksWon,
+                        trick_count = NewTrickCount
+                    }}
+            end
     end.
 
 %% Complete the game and calculate results

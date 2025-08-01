@@ -191,7 +191,6 @@ broadcast_scores_update(Data) ->
     % Get all players from the scores data to broadcast to
     AllPlayers = [PlayerId || #{player_id := PlayerId} <- PlayerScores],
 
-    % Broadcast to all players (we'll need to get player sockets from manager)
     lists:foreach(
       fun(PlayerId) ->
               PlayerProc = maps:get(socket, maps:get(PlayerId, Data)),
@@ -214,14 +213,9 @@ broadcast_next_hand_starting(Data) ->
     end, [], Data),
 
     % Broadcast to all players
-    lists:foreach(fun(PlayerId) ->
-        case erlskat_manager:get_player_proc(PlayerId) of
-            {ok, PlayerProc} ->
-                PlayerProc ! erlskat_client_responses:next_hand_starting_broadcast(NextHandNumber);
-            error ->
-                ?LOG_WARNING(#{module => ?MODULE,
-                              line => ?LINE,
-                              player_id => PlayerId,
-                              action => player_not_found_for_hand_start_broadcast})
-        end
-    end, AllPlayers).
+    lists:foreach(
+      fun(PlayerId) ->
+              PlayerProc = maps:get(socket, maps:get(PlayerId, Data)),
+              PlayerProc ! erlskat_client_responses:next_hand_starting_broadcast(NextHandNumber)
+      end,
+      AllPlayers).
