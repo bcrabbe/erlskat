@@ -52,7 +52,7 @@
 %%%===================================================================
 
 start_link(Players, TableSupPid) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, {Players, TableSupPid}, []).
+    gen_server:start_link(?MODULE, {Players, TableSupPid}, []).
 
 %%%===================================================================
 %%% gen_server callbacks
