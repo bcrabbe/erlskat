@@ -90,6 +90,16 @@ prod-full: clean compile test release-prod docker-build
 version:
     rebar3 version
 
+# Frontend commands
+build-fe:
+    cd ui && npm run build
+
+run-fe:
+    cd ui && npm start
+
+test-fe:
+    cd ui && npm test
+
 # Starts local shell and 3 websocket clients (Requires itermocil) --here to using the current window
 manual-test FLAGS="": clean compile
     itermocil erlskat {{FLAGS}}

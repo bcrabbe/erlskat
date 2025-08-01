@@ -1,0 +1,88 @@
+.game-board {
+  display: grid;
+  grid-template-areas: 
+    "left center right"
+    "bottom bottom bottom";
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 1fr auto;
+  height: 100vh;
+  gap: 20px;
+  padding: 20px;
+}
+
+.player-position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.left-player {
+  grid-area: left;
+  transform: rotate(-90deg);
+}
+
+.right-player {
+  grid-area: right;
+  transform: rotate(90deg);
+}
+
+.bottom-player {
+  grid-area: bottom;
+}
+
+.center-area {
+  grid-area: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.current-trick {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.trick-card {
+  width: 50px;
+  height: 75px;
+  border: 2px solid #333;
+  border-radius: 6px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: black;
+}
+
+.trick-card .card-rank {
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.trick-card .card-suit {
+  font-size: 18px;
+  margin-top: 2px;
+}
+
+.trick-card .card-suit.red {
+  color: #d32f2f;
+}
+
+.trick-card .card-suit.black {
+  color: #212121;
+}
+
+.player-info {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+} 

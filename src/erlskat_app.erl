@@ -27,7 +27,12 @@
                    {ok, Pid :: pid(), State :: term()} |
                    {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
-    Dispatch = cowboy_router:compile([{'_', [{"/", erlskat_handler, []}]}]),
+    Dispatch = cowboy_router:compile([
+        {'_', [
+            {"/", erlskat_static_handler, []},
+            {"/ws", erlskat_handler, []}
+        ]}
+    ]),
     {ok, _} = cowboy:start_clear(
                 erlskat_handler,
                 [{port, 8080}],

@@ -1,0 +1,85 @@
+.lobby-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #2c5530 0%, #1a3d1f 100%);
+}
+
+.lobby-content {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 40px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  max-width: 500px;
+  width: 90%;
+}
+
+.lobby-content h1 {
+  font-size: 32px;
+  margin-bottom: 30px;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.lobby-content h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.player-list {
+  margin-bottom: 30px;
+}
+
+.player-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px;
+  margin: 10px 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-avatar {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.player-name {
+  font-size: 18px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.waiting-message {
+  font-size: 16px;
+  color: #ccc;
+  margin-top: 20px;
+  font-style: italic;
+}
+
+.game-ready {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  border-radius: 10px;
+}
+
+.game-ready p {
+  color: #4caf50;
+  font-weight: bold;
+  margin: 0;
+} 

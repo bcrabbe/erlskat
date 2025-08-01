@@ -1,0 +1,17 @@
+.App {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.connection-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 193, 7, 0.9);
+  color: #333;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+  z-index: 1000;
+} 
