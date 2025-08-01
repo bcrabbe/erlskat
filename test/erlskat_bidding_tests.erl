@@ -1,3 +1,5 @@
+
+
 -module(erlskat_bidding_tests).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -347,7 +349,7 @@ test_game_type_prompt() ->
 
     %% Test that the function can be called without error
     try
-        erlskat_bidding:send_game_type_prompt_to_player(Hand, GameTypes),
+        erlskat_bidding:send_game_type_prompt_to_player(Hand, GameTypes, []),
         ?assert(true)
     catch
         _:_ -> ?assert(false)

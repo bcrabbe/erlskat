@@ -14,7 +14,9 @@
     bid_prompt/1,
     awaiting_bid/1,
     game_type_prompt/1,
+    game_type_prompt_with_values/2,
     multiplier_prompt/2,
+    multiplier_prompt_with_values/4,
     initial_choice_prompt/0,
     skat_flipped/1,
     hand_with_skat/1,
@@ -129,14 +131,17 @@
 -type game_type_prompt_msg() :: #{
     type := game_type_prompt,
     game_types := [binary()],
-    message := binary()
+    message := binary(),
+    game_type_values => [#{game_type := binary(), value_display := binary()}]
 }.
 
 -type multiplier_prompt_msg() :: #{
     type := multiplier_prompt,
     multipliers := [binary()],
     game_type := binary(),
-    message := binary()
+    message := binary(),
+    current_value => binary(),
+    multiplier_values => [#{multiplier := binary(), value_display := binary()}]
 }.
 
 -type initial_choice_prompt_msg() :: #{
@@ -318,12 +323,66 @@ game_type_prompt(GameTypes) ->
       game_types => GameTypes,
       message => <<"Choose your game type">>}.
 
+-spec game_type_prompt_with_values([binary()], map()) -> game_type_prompt_msg().
+game_type_prompt_with_values(GameTypes, PlayerData) ->
+    PlayerHand = maps:get(hand, PlayerData),
+    % Determine if this is a hand game based on hand size
+    % 10 cards = hand game, 12 cards = skat game
+    IsHandGame = length(PlayerHand) =:= 10,
+    GameTypeValues = [begin
+        Options = #{is_hand_game => IsHandGame, selected_multipliers => []},
+        ValueResult = erlskat_game_value:calculate_estimated_game_value(GameType, PlayerHand, Options),
+        ValueDisplay = erlskat_game_value:format_game_value_display(ValueResult, GameType),
+        #{game_type => GameType, value_display => ValueDisplay}
+    end || GameType <- GameTypes],
+    #{type => game_type_prompt,
+      game_types => GameTypes,
+      game_type_values => GameTypeValues,
+      message => <<"Choose your game type (estimated values shown)">>}.
+
 -spec multiplier_prompt([binary()], binary()) -> multiplier_prompt_msg().
 multiplier_prompt(Multipliers, GameType) ->
     #{type => multiplier_prompt,
       multipliers => Multipliers,
       game_type => GameType,
       message => <<"Choose additional multipliers (or skip)">>}.
+
+-spec multiplier_prompt_with_values([binary()], binary(), map(), map()) -> multiplier_prompt_msg().
+multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData) ->
+    PlayerHand = maps:get(hand, PlayerData),
+    IsHandGame = maps:get(is_hand_game, GameData, false),
+    SelectedMultipliers = maps:get(selected_multipliers, GameData, []),
+
+    % Calculate current game value
+    Options = #{is_hand_game => IsHandGame, selected_multipliers => SelectedMultipliers},
+    CurrentValueResult = case IsHandGame of
+        true -> erlskat_game_value:calculate_estimated_game_value(GameType, PlayerHand, Options);
+        false -> erlskat_game_value:calculate_actual_game_value(GameType, PlayerHand, [], Options)
+    end,
+    CurrentDisplay = erlskat_game_value:format_game_value_display(CurrentValueResult, GameType),
+
+    % Calculate values for each multiplier option
+    MultiplierValues = [begin
+        case Multiplier of
+            <<"skip">> ->
+                #{multiplier => Multiplier, value_display => <<"Skip multipliers">>};
+            _ ->
+                NewOptions = Options#{selected_multipliers => [binary_to_atom(Multiplier, utf8) | SelectedMultipliers]},
+                NewValueResult = case IsHandGame of
+                    true -> erlskat_game_value:calculate_estimated_game_value(GameType, PlayerHand, NewOptions);
+                    false -> erlskat_game_value:calculate_actual_game_value(GameType, PlayerHand, [], NewOptions)
+                end,
+                NewDisplay = erlskat_game_value:format_game_value_display(NewValueResult, GameType),
+                #{multiplier => Multiplier, value_display => NewDisplay}
+        end
+    end || Multiplier <- Multipliers],
+
+    #{type => multiplier_prompt,
+      multipliers => Multipliers,
+      game_type => GameType,
+      current_value => CurrentDisplay,
+      multiplier_values => MultiplierValues,
+      message => <<"Choose additional multipliers (values shown) or skip">>}.
 
 -spec initial_choice_prompt() -> initial_choice_prompt_msg().
 initial_choice_prompt() ->

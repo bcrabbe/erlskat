@@ -24,8 +24,9 @@
          deal/1,
          get_player_by_id/2,
          send_initial_choice_prompt_to_player/1,
-         send_game_type_prompt_to_player/2,
+         send_game_type_prompt_to_player/3,
          send_multiplier_prompt_to_player/3,
+         send_multiplier_prompt_to_player/4,
          broadcast_game_declaration_to_other_players/3,
          broadcast_game_type_to_other_players/3,
          get_expected_message_format/1]).
@@ -242,9 +243,11 @@ game_declaration(cast,
                     % Player chooses to play hand game
                     broadcast_game_declaration_to_other_players(
                         maps:get(hands, Data), PlayerId, <<"hand">>),
+                    PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
                     send_game_type_prompt_to_player(
-                        get_player_by_id(PlayerId, maps:get(hands, Data)),
-                        ?REGULAR_GAME_TYPES),
+                        PlayerHand,
+                        ?REGULAR_GAME_TYPES,
+                        maps:get(hand, PlayerHand)),
                     {next_state, game_type_selection,
                      Data#{is_hand_game => true,
                            game_declaration_step => game_type_choice,
@@ -258,9 +261,12 @@ game_declaration(cast,
                         PlayerHand,
                         maps:get(hand, PlayerHand),
                         maps:get(skat, Data)),
+                    % Create hand with skat for game type selection
+                    HandWithSkat = order_cards_for_skat(maps:get(hand, PlayerHand) ++ maps:get(skat, Data)),
                     send_game_type_prompt_to_player(
-                        get_player_by_id(PlayerId, maps:get(hands, Data)),
-                        ?REGULAR_GAME_TYPES),
+                        PlayerHand,
+                        ?REGULAR_GAME_TYPES,
+                        HandWithSkat),
                     {next_state, game_type_selection,
                      Data#{is_hand_game => false,
                            game_declaration_step => game_type_choice,
@@ -488,14 +494,16 @@ handle_multiplier_selection(Player, Multiplier, Data) ->
             send_multiplier_prompt_to_player(
                 get_player_by_id(PlayerId, maps:get(hands, Data)),
                 [<<"schwartz">>],
-                GameType),
+                GameType,
+                Data),
             {keep_state, Data#{selected_multipliers => [schnieder | CurrentMultipliers]}};
         <<"schwartz">> ->
             % Offer ouvert next
             send_multiplier_prompt_to_player(
                 get_player_by_id(PlayerId, maps:get(hands, Data)),
                 [<<"ouvert">>],
-                GameType),
+                GameType,
+                Data),
             {keep_state, Data#{selected_multipliers => [schwartz | CurrentMultipliers]}};
         _ ->
             keep_state_and_data
@@ -527,7 +535,8 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
             send_multiplier_prompt_to_player(
                 get_player_by_id(PlayerId, ReorderedHands),
                 [<<"ouvert">>],
-                <<"null">>),
+                <<"null">>,
+                UpdatedData),
             {next_state, multiplier_selection,
              UpdatedData#{chosen_game => GameType,
                           game_declaration_step => multiplier_choice}};
@@ -538,7 +547,8 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
                     send_multiplier_prompt_to_player(
                         get_player_by_id(PlayerId, ReorderedHands),
                         [<<"schnieder">>],
-                        GameType),
+                        GameType,
+                        UpdatedData),
                     {next_state, multiplier_selection,
                      UpdatedData#{chosen_game => GameType,
                                   game_declaration_step => multiplier_choice}};
@@ -640,14 +650,20 @@ send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue) ->
     Socket ! erlskat_client_responses:awaiting_bid(BidValue),
     done.
 
--spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()]) -> done.
-send_game_type_prompt_to_player(#{player := #{socket := Socket}}, GameTypes) ->
-    Socket ! erlskat_client_responses:game_type_prompt(GameTypes),
+-spec send_game_type_prompt_to_player(player_bidding_data(), [game_type()], erlskat:cards()) -> done.
+send_game_type_prompt_to_player(#{player := #{socket := Socket}} = PlayerData, GameTypes, HandWithSkat) ->
+    PlayerDataWithSkat = PlayerData#{hand => HandWithSkat},
+    Socket ! erlskat_client_responses:game_type_prompt_with_values(GameTypes, PlayerDataWithSkat),
     done.
 
 -spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary()) -> done.
 send_multiplier_prompt_to_player(#{player := #{socket := Socket}}, Multipliers, GameType) ->
     Socket ! erlskat_client_responses:multiplier_prompt(Multipliers, GameType),
+    done.
+
+-spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary(), map()) -> done.
+send_multiplier_prompt_to_player(#{player := #{socket := Socket}} = PlayerData, Multipliers, GameType, GameData) ->
+    Socket ! erlskat_client_responses:multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData),
     done.
 
 -spec send_initial_choice_prompt_to_player(player_bidding_data()) -> done.
