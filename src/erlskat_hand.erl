@@ -78,18 +78,16 @@ handle_info({bidding_complete, BiddingPid, BiddingResult},
     % Clean up the bidding process monitor
     erlang:demonitor(State#state.current_monitor_ref, [flush]),
 
-    % Determine which game to start based on bidding result
-    case BiddingResult of
-        {winner, Declarer, GameType, GameData} ->
-            start_game_phase(Declarer, GameType, GameData, State);
-        {ramsch} ->
-            start_ramsch_game(State);
-        {no_bid} ->
-            % No one bid, end the hand
-            ?LOG_INFO(#{module => ?MODULE,
-                        line => ?LINE,
-                        action => hand_ended_no_bid}),
-            {stop, normal, State}
+    % Extract winner and game info from bidding result
+    Winner = maps:get(winner, BiddingResult),
+    ChosenGame = maps:get(chosen_game, BiddingResult),
+    
+    % Start the game phase with the new unified game server
+    case start_game_phase(Winner, ChosenGame, BiddingResult, State) of
+        {noreply, NewState} ->
+            {noreply, NewState};
+        {stop, Reason, NewState} ->
+            {stop, Reason, NewState}
     end;
 
 % Handle game completion message
@@ -135,7 +133,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_game_phase(Declarer, GameType, GameData, State) ->
+start_game_phase(Declarer, GameType, BiddingResult, State) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -143,14 +141,14 @@ start_game_phase(Declarer, GameType, GameData, State) ->
                 game_type => GameType,
                 action => starting_game_phase}),
 
-    case start_game_module(Declarer, GameType, GameData, State#state.players) of
+    case erlskat_game:start_link(self(), Declarer, GameType, BiddingResult, State#state.players) of
         {ok, GamePid} ->
             MonitorRef = erlang:monitor(process, GamePid),
             {noreply, State#state{
                 current_phase = game,
                 current_pid = GamePid,
                 current_monitor_ref = MonitorRef,
-                bidding_result = {Declarer, GameType, GameData}
+                bidding_result = BiddingResult
             }};
         {error, Reason} ->
             ?LOG_ERROR(#{module => ?MODULE,
@@ -160,40 +158,5 @@ start_game_phase(Declarer, GameType, GameData, State) ->
             {stop, {game_start_failed, Reason}, State}
     end.
 
-start_game_module(Declarer, clubs, GameData, Players) ->
-    erlskat_color_game:start_link(self(), Declarer, clubs, GameData, Players);
-start_game_module(Declarer, spades, GameData, Players) ->
-    erlskat_color_game:start_link(self(), Declarer, spades, GameData, Players);
-start_game_module(Declarer, hearts, GameData, Players) ->
-    erlskat_color_game:start_link(self(), Declarer, hearts, GameData, Players);
-start_game_module(Declarer, diamonds, GameData, Players) ->
-    erlskat_color_game:start_link(self(), Declarer, diamonds, GameData, Players);
-start_game_module(Declarer, grand, GameData, Players) ->
-    erlskat_grand_game:start_link(self(), Declarer, grand, GameData, Players);
-start_game_module(Declarer, null, GameData, Players) ->
-    erlskat_null_game:start_link(self(), Declarer, null, GameData, Players).
-
-start_ramsch_game(State) ->
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                action => starting_ramsch_game}),
-
-    case erlskat_ramsch:start_link(self(), State#state.players) of
-        {ok, GamePid} ->
-            MonitorRef = erlang:monitor(process, GamePid),
-            {noreply, State#state{
-                current_phase = game,
-                current_pid = GamePid,
-                current_monitor_ref = MonitorRef,
-                bidding_result = ramsch
-            }};
-        {error, Reason} ->
-            ?LOG_ERROR(#{module => ?MODULE,
-                         line => ?LINE,
-                         error_reason => Reason,
-                         action => failed_to_start_ramsch}),
-            {stop, {ramsch_start_failed, Reason}, State}
-    end.
 
 

@@ -31,6 +31,14 @@
     pass_broadcast/1,
     bidding_roles/1,
     cards_dealt/1,
+    %% Game play messages
+    card_play_prompt/3,
+    game_start_broadcast/4,
+    card_played_broadcast/3,
+    trick_won_broadcast/2,
+    game_complete_broadcast/1,
+    invalid_card_error/0,
+    card_play_error/1,
     %% Connection management messages
     player_disconnected/2,
     player_timed_out/1,
@@ -71,6 +79,13 @@
     pass_broadcast_msg/0,
     bidding_roles_msg/0,
     cards_dealt_msg/0,
+    card_play_prompt_msg/0,
+    game_start_broadcast_msg/0,
+    card_played_broadcast_msg/0,
+    trick_won_broadcast_msg/0,
+    game_complete_broadcast_msg/0,
+    invalid_card_error_msg/0,
+    card_play_error_msg/0,
     player_disconnected_msg/0,
     player_timed_out_msg/0,
     game_closed_msg/0,
@@ -87,7 +102,8 @@
     initial_choice_prompt | skat_flipped | hand_with_skat | discard_prompt | bidding_complete |
     bidding_winner_notification | game_declaration_broadcast | game_type_broadcast |
     hand_reorder_broadcast | bid_broadcast | pass_broadcast | bidding_roles |
-    cards_dealt |
+    cards_dealt | card_play_prompt | game_start_broadcast | card_played_broadcast |
+    trick_won_broadcast | game_complete_broadcast | invalid_card_error | card_play_error |
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
     %% Lobby messages
@@ -231,6 +247,56 @@
     hand := erlskat:cards()
 }.
 
+%% Game Play Messages
+-type card_play_prompt_msg() :: #{
+    type := card_play_prompt,
+    hand := erlskat:cards(),
+    current_trick := [map()],
+    valid_cards := [integer()],
+    message := binary()
+}.
+
+-type game_start_broadcast_msg() :: #{
+    type := game_start_broadcast,
+    declarer := erlskat:player_id(),
+    game_type := binary(),
+    is_hand_game := boolean(),
+    selected_multipliers := [atom()],
+    message := binary()
+}.
+
+-type card_played_broadcast_msg() :: #{
+    type := card_played_broadcast,
+    player_id := erlskat:player_id(),
+    card := erlskat:card(),
+    card_index := integer(),
+    message := binary()
+}.
+
+-type trick_won_broadcast_msg() :: #{
+    type := trick_won_broadcast,
+    winner_id := erlskat:player_id(),
+    trick := [map()],
+    message := binary()
+}.
+
+-type game_complete_broadcast_msg() :: #{
+    type := game_complete_broadcast,
+    result := map(),
+    message := binary()
+}.
+
+-type invalid_card_error_msg() :: #{
+    type := invalid_card_error,
+    message := binary()
+}.
+
+-type card_play_error_msg() :: #{
+    type := card_play_error,
+    reason := binary(),
+    message := binary()
+}.
+
 %% Connection Management Messages
 -type player_disconnected_msg() :: #{
     type := player_disconnected,
@@ -282,7 +348,10 @@
     bidding_winner_notification_msg() | game_declaration_broadcast_msg() |
     game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
     pass_broadcast_msg() |
-    bidding_roles_msg() | cards_dealt_msg() | error_msg() |
+    bidding_roles_msg() | cards_dealt_msg() | 
+    card_play_prompt_msg() | game_start_broadcast_msg() | card_played_broadcast_msg() |
+    trick_won_broadcast_msg() | game_complete_broadcast_msg() | invalid_card_error_msg() |
+    card_play_error_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
     player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
@@ -520,6 +589,100 @@ bidding_roles(RoleMap) ->
 cards_dealt(Hand) ->
     #{type => cards_dealt,
       hand => Hand}.
+
+%% Game play message constructors
+-spec card_play_prompt(erlskat:cards(), [map()], [erlskat:card()]) -> card_play_prompt_msg().
+card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering) ->
+    % Determine valid card indices (for now, all cards are valid - suit following logic would go here)
+    ValidCards = lists:seq(0, length(PlayerHand) - 1),
+    #{type => card_play_prompt,
+      hand => PlayerHand,
+      current_trick => CurrentTrick,
+      valid_cards => ValidCards,
+      message => case length(CurrentTrick) of
+          0 -> <<"Play a card to lead the trick">>;
+          _ -> <<"Play a card to follow">>
+      end}.
+
+-spec game_start_broadcast(erlskat:player_id(), binary(), boolean(), [atom()]) -> 
+          game_start_broadcast_msg().
+game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
+    HandGameText = case IsHandGame of
+        true -> <<" (hand game)">>;
+        false -> <<"">>
+    end,
+    MultiplierText = case SelectedMultipliers of
+        [] -> <<"">>;
+        _ -> iolist_to_binary([<<" with ">>, 
+                               lists:join(<<", ">>, [atom_to_binary(M, utf8) || M <- SelectedMultipliers])])
+    end,
+    DeclarerBin = case is_atom(Declarer) of
+        true -> atom_to_binary(Declarer, utf8);
+        false -> Declarer
+    end,
+    #{type => game_start_broadcast,
+      declarer => Declarer,
+      game_type => GameType,
+      is_hand_game => IsHandGame,
+      selected_multipliers => SelectedMultipliers,
+      message => iolist_to_binary([<<"Game starting: ">>,
+                                  DeclarerBin,
+                                  <<" is playing ">>,
+                                  GameType,
+                                  HandGameText,
+                                  MultiplierText])}.
+
+-spec card_played_broadcast(erlskat:player_id(), erlskat:card(), integer()) -> 
+          card_played_broadcast_msg().
+card_played_broadcast(PlayerId, Card, CardIndex) ->
+    CardText = iolist_to_binary([
+        atom_to_binary(maps:get(rank, Card), utf8),
+        <<" of ">>,
+        atom_to_binary(maps:get(suit, Card), utf8)
+    ]),
+    #{type => card_played_broadcast,
+      player_id => PlayerId,
+      card => Card,
+      card_index => CardIndex,
+      message => iolist_to_binary([PlayerId,
+                                  <<" played ">>,
+                                  CardText])}.
+
+-spec trick_won_broadcast(erlskat:player_id(), [map()]) -> trick_won_broadcast_msg().
+trick_won_broadcast(WinnerId, Trick) ->
+    #{type => trick_won_broadcast,
+      winner_id => WinnerId,
+      trick => Trick,
+      message => iolist_to_binary([WinnerId, <<" won the trick">>])}.
+
+-spec game_complete_broadcast(map()) -> game_complete_broadcast_msg().
+game_complete_broadcast(GameResult) ->
+    Declarer = maps:get(declarer, GameResult),
+    DeclarerWon = maps:get(declarer_won, GameResult),
+    DeclarerPoints = maps:get(declarer_points, GameResult),
+    GameType = maps:get(game_type, GameResult),
+    
+    ResultText = case DeclarerWon of
+        true -> iolist_to_binary([Declarer, <<" won the ">>, GameType, 
+                                 <<" game with ">>, integer_to_list(DeclarerPoints), <<" points">>]);
+        false -> iolist_to_binary([Declarer, <<" lost the ">>, GameType, 
+                                  <<" game with only ">>, integer_to_list(DeclarerPoints), <<" points">>])
+    end,
+    
+    #{type => game_complete_broadcast,
+      result => GameResult,
+      message => ResultText}.
+
+-spec invalid_card_error() -> invalid_card_error_msg().
+invalid_card_error() ->
+    #{type => invalid_card_error,
+      message => <<"Invalid card index - please select a valid card">>}.
+
+-spec card_play_error(binary()) -> card_play_error_msg().
+card_play_error(Reason) ->
+    #{type => card_play_error,
+      reason => Reason,
+      message => iolist_to_binary([<<"Card play error: ">>, Reason])}.
 
 %% Connection management message constructors
 -spec player_disconnected(erlskat:player_id(), integer()) ->
