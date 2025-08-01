@@ -12,7 +12,10 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/1]).
+-export([start_link/2]).
+
+%% Type exports
+-export_type([game_result/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -20,27 +23,42 @@
 
 -define(SERVER, ?MODULE).
 
+% Type spec for game result from erlskat_game:calculate_game_result/1
+-type game_result() :: #{
+    declarer := erlskat:player_id(),
+    declarer_won := boolean(),
+    declarer_points := non_neg_integer(),
+    defender_points := non_neg_integer(),
+    game_type := binary(),
+    final_bid := integer(),
+    actual_game_value := integer(),
+    is_hand_game := boolean(),
+    selected_multipliers := [atom()],
+    tricks_won := #{erlskat:player_id() => [map()]}
+}.
+
 % State record for the coordinator
 -record(state, {
     players :: [erlskat:player()],
     current_phase :: bidding | game,
     current_pid :: pid() | undefined,
     current_monitor_ref :: reference() | undefined,
-    bidding_result :: term() | undefined
+    bidding_result :: term() | undefined,
+    table_sup_pid :: pid()
 }).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
-start_link(Players) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, Players, []).
+start_link(Players, TableSupPid) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, {Players, TableSupPid}, []).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init(Players) ->
+init({Players, TableSupPid}) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -55,7 +73,8 @@ init(Players) ->
         players = Players,
         current_phase = bidding,
         current_pid = BiddingPid,
-        current_monitor_ref = MonitorRef
+        current_monitor_ref = MonitorRef,
+        table_sup_pid = TableSupPid
     }}.
 
 handle_call(_Request, _From, State) ->
@@ -92,7 +111,7 @@ handle_info({bidding_complete, BiddingPid, BiddingResult},
 
 % Handle game completion message
 handle_info({game_complete, GamePid, GameResult},
-            #state{current_phase = game, current_pid = GamePid} = State) ->
+            #state{current_phase = game, current_pid = GamePid, table_sup_pid = TableSupPid} = State) ->
 
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -103,8 +122,20 @@ handle_info({game_complete, GamePid, GameResult},
     % Clean up the game process monitor
     erlang:demonitor(State#state.current_monitor_ref, [flush]),
 
-    % Hand is complete, TODO: notify scorecard
-    % notify_scorecard(GameResult),
+    % Send game result to scorecard
+    case erlskat_scorecard:record_result(TableSupPid, GameResult) of
+        ok ->
+            ?LOG_INFO(#{module => ?MODULE,
+                        line => ?LINE,
+                        function => ?FUNCTION_NAME,
+                        action => scorecard_updated});
+        {error, Reason} ->
+            ?LOG_ERROR(#{module => ?MODULE,
+                         line => ?LINE,
+                         function => ?FUNCTION_NAME,
+                         error => Reason,
+                         action => scorecard_update_failed})
+    end,
 
     {stop, normal, State};
 

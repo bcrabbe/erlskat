@@ -49,6 +49,9 @@
     player_joined/1,
     %% Table messages
     table_started/1,
+    %% Scorecard messages
+    scores_update_broadcast/1,
+    next_hand_starting_broadcast/1,
     %% Error messages
     error_message/2
 ]).
@@ -92,6 +95,8 @@
     lobby_status_msg/0,
     player_joined_msg/0,
     table_started_msg/0,
+    scores_update_broadcast_msg/0,
+    next_hand_starting_broadcast_msg/0,
     error_msg/0
 ]).
 
@@ -110,6 +115,8 @@
     lobby_status | player_joined |
     %% Table messages
     table_started |
+    %% Scorecard messages
+    scores_update_broadcast | next_hand_starting_broadcast |
     %% Error messages
     error.
 
@@ -282,7 +289,7 @@
 
 -type game_complete_broadcast_msg() :: #{
     type := game_complete_broadcast,
-    result := map(),
+    result := erlskat_hand:game_result(),
     message := binary()
 }.
 
@@ -331,6 +338,19 @@
     players := [erlskat:player_id()]
 }.
 
+%% Scorecard Messages
+-type scores_update_broadcast_msg() :: #{
+    type := scores_update_broadcast,
+    player_scores := [#{player_id := erlskat:player_id(), score := integer()}],
+    message := binary()
+}.
+
+-type next_hand_starting_broadcast_msg() :: #{
+    type := next_hand_starting_broadcast,
+    hand_number := integer(),
+    message := binary()
+}.
+
 %% Error Messages
 -type error_msg() :: #{
     type := error,
@@ -357,7 +377,9 @@
     %% Lobby messages (legacy format without type field)
     lobby_status_msg() | player_joined_msg() |
     %% Table messages
-    table_started_msg().
+    table_started_msg() |
+    %% Scorecard messages
+    scores_update_broadcast_msg() | next_hand_starting_broadcast_msg().
 
 %% Helper type for player bidding data with hand information
 -type player_bidding_data() :: #{
@@ -669,7 +691,7 @@ trick_won_broadcast(WinnerId, Trick) ->
       trick => Trick,
       message => iolist_to_binary([WinnerId, <<" won the trick">>])}.
 
--spec game_complete_broadcast(map()) -> game_complete_broadcast_msg().
+-spec game_complete_broadcast(erlskat_hand:game_result()) -> game_complete_broadcast_msg().
 game_complete_broadcast(GameResult) ->
     Declarer = maps:get(declarer, GameResult),
     DeclarerWon = maps:get(declarer_won, GameResult),
@@ -748,6 +770,22 @@ player_joined(PlayerId) ->
 table_started(PlayerIds) ->
     #{type => table_started,
       players => PlayerIds}.
+
+%% Scorecard message constructors
+-spec scores_update_broadcast([#{player_id := erlskat:player_id(), score := integer()}]) ->
+          scores_update_broadcast_msg().
+scores_update_broadcast(PlayerScores) ->
+    #{type => scores_update_broadcast,
+      player_scores => PlayerScores,
+      message => <<"Updated player scores">>}.
+
+-spec next_hand_starting_broadcast(integer()) -> next_hand_starting_broadcast_msg().
+next_hand_starting_broadcast(HandNumber) ->
+    #{type => next_hand_starting_broadcast,
+      hand_number => HandNumber,
+      message => iolist_to_binary([<<"Hand ">>,
+                                  integer_to_list(HandNumber),
+                                  <<" starting">>])}.
 
 %% Error message constructor
 -spec error_message(binary(), map()) -> error_msg().

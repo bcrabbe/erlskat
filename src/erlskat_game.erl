@@ -44,6 +44,9 @@
     discarded_cards :: erlskat:cards()
 }).
 
+%% Type for state record
+-type state() :: #state{}.
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -368,6 +371,7 @@ determine_trick_winner(Trick, CardOrdering, _GameType) ->
     maps:get(player, WinningPlay).
 
 %% Calculate final game result
+-spec calculate_game_result(state()) -> erlskat_hand:game_result().
 calculate_game_result(State) ->
     % Calculate card points for declarer and defenders
     DeclarerPoints = calculate_player_points(
@@ -499,6 +503,7 @@ broadcast_trick_won_to_all_players(Players, WinnerId, Trick) ->
     [maps:get(socket, Player) ! Msg || Player <- Players].
 
 %% Broadcast game complete to all players
+-spec broadcast_game_complete_to_all_players([erlskat:player()], erlskat_hand:game_result()) -> ok.
 broadcast_game_complete_to_all_players(Players, GameResult) ->
     Msg = erlskat_client_responses:game_complete_broadcast(GameResult),
     [maps:get(socket, Player) ! Msg || Player <- Players].
