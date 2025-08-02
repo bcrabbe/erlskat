@@ -40,17 +40,8 @@ const App = ({ wsUrl, debug = false }) => {
       if (!isMounted) return;
       setGameState(newState);
 
-      // Handle non-card prompts separately
-      if (newState.currentPrompt) {
-        const promptType = newState.currentPrompt.type;
-        if (!['card_play_prompt', 'discard_prompt'].includes(promptType)) {
-          setCurrentNonCardPrompt(newState.currentPrompt);
-        } else {
-          setCurrentNonCardPrompt(null);
-        }
-      } else {
-        setCurrentNonCardPrompt(null);
-      }
+      // GameScreen now handles all prompts, so don't show PromptHandler overlay
+      setCurrentNonCardPrompt(null);
     });
 
     messageHandler.setBroadcastHandler((message) => {

@@ -40,6 +40,45 @@ const GameScreen = ({
 
   // Handle keyboard input
   useSafeInput((input, key) => {
+    // Handle non-card prompts first
+    if (currentPrompt && !['card_play_prompt', 'discard_prompt'].includes(currentPrompt.type)) {
+      switch (currentPrompt.type) {
+        case 'bid_prompt':
+          if (input === 'h' || input === 'H') {
+            onChoiceSelection('hold');
+          } else if (input === 'p' || input === 'P') {
+            onChoiceSelection('pass');
+          }
+          break;
+
+        case 'initial_choice_prompt':
+          if (input === 'h' || input === 'H') {
+            onChoiceSelection('hand');
+          } else if (input === 's' || input === 'S') {
+            onChoiceSelection('skat');
+          }
+          break;
+
+        case 'game_type_prompt':
+          const gameTypeNum = parseInt(input);
+          if (gameTypeNum >= 1 && gameTypeNum <= (currentPrompt.game_types?.length || 0)) {
+            const selectedGameType = currentPrompt.game_types[gameTypeNum - 1];
+            onChoiceSelection(selectedGameType);
+          }
+          break;
+
+        case 'multiplier_prompt':
+          const multiplierNum = parseInt(input);
+          if (multiplierNum >= 1 && multiplierNum <= (currentPrompt.multipliers?.length || 0)) {
+            const selectedMultiplier = currentPrompt.multipliers[multiplierNum - 1];
+            onChoiceSelection(selectedMultiplier);
+          }
+          break;
+      }
+      return;
+    }
+
+    // Handle card-related prompts
     if (!playerHand || playerHand.length === 0) return;
 
     // Arrow key navigation
@@ -89,9 +128,61 @@ const GameScreen = ({
   const renderPrompt = () => {
     if (!currentPrompt) return null;
 
-    // Only render card-related prompts here
-    // Non-card prompts are handled by PromptHandler component
     switch (currentPrompt.type) {
+      case 'bid_prompt':
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message}</Text>
+            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' to Hold, 'P' to Pass</Text>
+          </Box>
+        );
+
+      case 'initial_choice_prompt':
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message}</Text>
+            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' for Hand, 'S' for Skat</Text>
+          </Box>
+        );
+
+      case 'game_type_prompt':
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message}</Text>
+            <Text>Choose a game type:</Text>
+            {currentPrompt.game_types?.map((gameType, index) => {
+              const valueInfo = currentPrompt.game_type_values?.find(v => v.game_type === gameType);
+              return (
+                <Text key={index} color="cyan">
+                  {index + 1}: {gameType}{valueInfo ? ` (${valueInfo.value_display})` : ''}
+                </Text>
+              );
+            })}
+            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.game_types?.length || 0} to select</Text>
+          </Box>
+        );
+
+      case 'multiplier_prompt':
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message}</Text>
+            <Text>Game type: {currentPrompt.game_type}</Text>
+            {currentPrompt.current_value && (
+              <Text>Current value: {currentPrompt.current_value}</Text>
+            )}
+            <Text>Choose multiplier:</Text>
+            {currentPrompt.multipliers?.map((multiplier, index) => {
+              const valueInfo = currentPrompt.multiplier_values?.find(v => v.multiplier === multiplier);
+              return (
+                <Text key={index} color="cyan">
+                  {index + 1}: {multiplier}{valueInfo ? ` (${valueInfo.value_display})` : ''}
+                </Text>
+              );
+            })}
+            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.multipliers?.length || 0} to select</Text>
+          </Box>
+        );
+
       case 'discard_prompt':
         return (
           <Box flexDirection="column">
@@ -117,9 +208,31 @@ const GameScreen = ({
           </Box>
         );
 
+      case 'skat_flipped':
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message}</Text>
+            <Text>Skat cards:</Text>
+            {currentPrompt.cards?.map((card, index) => (
+              <Text key={index} color="cyan">
+                {card.rank} of {card.suit}
+              </Text>
+            ))}
+          </Box>
+        );
+
       default:
-        // For non-card prompts, show nothing here as PromptHandler will handle them
-        return null;
+        return (
+          <Box flexDirection="column">
+            <Text color="yellow">{currentPrompt.message || 'Unknown prompt'}</Text>
+            <Text color="gray">Prompt type: {currentPrompt.type}</Text>
+            {debug && (
+              <Text color="gray">
+                Raw prompt: {JSON.stringify(currentPrompt, null, 2)}
+              </Text>
+            )}
+          </Box>
+        );
     }
   };
 
