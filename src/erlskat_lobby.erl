@@ -13,7 +13,7 @@
 
 %% API
 -export([start_link/0, stop/0]).
--export([new_player/1]).
+-export([new_player/1, return_player_to_lobby/1]).
 -export_type([lobby_response/0]).
 
 %% gen_statem callbacks
@@ -31,6 +31,12 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec return_player_to_lobby(erlskat:player()) -> pid().
+return_player_to_lobby(Player) ->
+    gen_statem:cast(?SERVER, {new_player, Player}),
+    erlskat_manager:update_player_proc(Player, ?SERVER),
+    ?SERVER.
 
 -spec new_player(erlskat:player()) -> pid().
 new_player(Player) ->

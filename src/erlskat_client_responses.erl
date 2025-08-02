@@ -752,7 +752,7 @@ player_timed_out(PlayerId) ->
 
 -spec game_closed() -> game_closed_msg().
 game_closed() ->
-    #{type => game_closed}.
+    #{type => game_closed, message => <<"Returning to the lobby...">>}.
 
 %% Lobby message constructors
 -spec lobby_waiting([erlskat:player_id()]) -> lobby_status_msg().

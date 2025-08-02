@@ -119,7 +119,15 @@ handle_event({timeout, player_timeout},
                 msg => Msg}),
     [Socket ! player_timed_out(DisconnectedPlayerId) ||
         #{socket := Socket} <- maps:values(Players)],
-    {next_state, game_closed, Data, [{{timeout, game_closed}, 0, game_closed}]};
+    RemainingPlayersByRef = maps:filter(
+        fun
+            (_, #{id := Id}) -> Id =/= DisconnectedPlayerId
+        end,
+        Players),
+    {next_state,
+     game_closed,
+     Data#{players := RemainingPlayersByRef},
+     [{{timeout, game_closed}, 0, game_closed}]};
 
 handle_event({timeout, game_closed},
              _Msg,
@@ -127,6 +135,8 @@ handle_event({timeout, game_closed},
              #{players := RemainingPlayersByRef} = _Data) ->
     [Socket ! game_closed() ||
         #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
+    [erlskat_lobby:return_player_to_lobby(Player) ||
+        Player <- maps:values(RemainingPlayersByRef)],
     {stop, player_disconnected};
 
  %% a msg from the reconnecting player
