@@ -10,13 +10,13 @@ const MESSAGE_CATEGORIES = {
   // Messages that require user input
   PROMPT: [
     'bid_prompt',
-    'game_type_prompt', 
+    'game_type_prompt',
     'multiplier_prompt',
     'initial_choice_prompt',
     'discard_prompt',
     'card_play_prompt'
   ],
-  
+
   // Messages that update game state but don't require input
   BROADCAST: [
     'awaiting_bid',
@@ -33,7 +33,7 @@ const MESSAGE_CATEGORIES = {
     'scores_update_broadcast',
     'next_hand_starting_broadcast'
   ],
-  
+
   // Messages that update player state
   STATE_UPDATE: [
     'skat_flipped',
@@ -43,17 +43,17 @@ const MESSAGE_CATEGORIES = {
     'bidding_roles',
     'cards_dealt'
   ],
-  
+
   // Connection and lobby management
   CONNECTION: [
     'player_disconnected',
-    'player_timed_out', 
+    'player_timed_out',
     'game_closed',
     'lobby_status',
     'player_joined',
     'table_started'
   ],
-  
+
   // Error messages
   ERROR: [
     'invalid_card_error',
@@ -72,7 +72,7 @@ class MessageHandler {
       gameInfo: {},
       connectionInfo: {}
     };
-    
+
     // Event handlers
     this.onStateUpdate = null;
     this.onPrompt = null;
@@ -125,7 +125,7 @@ class MessageHandler {
    */
   handlePromptMessage(message) {
     this.gameState.currentPrompt = message;
-    
+
     // Update phase based on prompt type
     switch (message.type) {
       case 'bid_prompt':
@@ -143,9 +143,9 @@ class MessageHandler {
         }
         break;
     }
-    
+
     this.notifyStateUpdate();
-    
+
     if (this.onPrompt) {
       this.onPrompt(message);
     }
@@ -171,9 +171,9 @@ class MessageHandler {
         this.gameState.gameInfo.result = message.result;
         break;
     }
-    
+
     this.notifyStateUpdate();
-    
+
     if (this.onBroadcast) {
       this.onBroadcast(message);
     }
@@ -207,7 +207,7 @@ class MessageHandler {
         this.gameState.gameInfo.biddingResult = message.result;
         break;
     }
-    
+
     this.notifyStateUpdate();
   }
 
@@ -236,9 +236,9 @@ class MessageHandler {
         this.gameState.connectionInfo.timedOutPlayer = message.player_id;
         break;
     }
-    
+
     this.notifyStateUpdate();
-    
+
     if (this.onConnectionChange) {
       this.onConnectionChange(message);
     }
@@ -260,7 +260,7 @@ class MessageHandler {
     if (this.debug) {
       console.error('MessageHandler error:', errorMessage);
     }
-    
+
     if (this.onError) {
       this.onError({ type: 'error', message: errorMessage });
     }

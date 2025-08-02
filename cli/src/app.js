@@ -69,10 +69,11 @@ const App = ({ wsUrl, debug = false }) => {
       if (message.type === 'game_closed') {
         // Reset to lobby state
         setCurrentNonCardPrompt(null);
-        setMessages([]);
+        setMessages([message]); // Start fresh with just this message
         setError(null);
+      } else {
+        setMessages(prev => [...prev, message]);
       }
-      setMessages(prev => [...prev, message]);
     });
 
     // Set up WebSocket event listeners
@@ -216,7 +217,7 @@ const App = ({ wsUrl, debug = false }) => {
         {/* Status and messages area */}
         <Box flexGrow={1}>
           <StatusDisplay
-            messages={messages.slice(-3)} // Show recent messages
+            messages={messages} // Show recent messages
             gameState={gameState}
             connectionState={connectionState}
           />

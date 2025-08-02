@@ -71,7 +71,7 @@ const GameScreen = ({
 
   const handleMultiCardToggle = () => {
     const maxCards = currentPrompt?.count || 2;
-    
+
     if (multiSelected.includes(selectedIndex)) {
       // Deselect if already selected
       setMultiSelected(prev => prev.filter(i => i !== selectedIndex));
@@ -128,12 +128,12 @@ const GameScreen = ({
       {/* Message area */}
       <Box flexDirection="column" flexGrow={1} borderStyle="single" padding={1}>
         <Text bold color="green">Erlskat Game - Phase: {phase}</Text>
-        
+
         {/* Game info */}
         {gameInfo.declarer && (
           <Text>
             Declarer: {gameInfo.declarer} | Game: {gameInfo.gameType}
-            {gameInfo.isHandGame && ' (Hand)'} 
+            {gameInfo.isHandGame && ' (Hand)'}
             {gameInfo.selectedMultipliers?.length > 0 && ` + ${gameInfo.selectedMultipliers.join(', ')}`}
           </Text>
         )}
@@ -162,7 +162,7 @@ const GameScreen = ({
       {debug && (
         <Box borderStyle="single" borderColor="gray">
           <Text color="gray">
-            Debug: Selected={selectedIndex}, Multi={JSON.stringify(multiSelected)}, 
+            Debug: Selected={selectedIndex}, Multi={JSON.stringify(multiSelected)},
             Prompt={currentPrompt?.type || 'none'}
           </Text>
         </Box>

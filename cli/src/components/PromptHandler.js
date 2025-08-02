@@ -6,10 +6,10 @@ const useSafeInput = require('../utils/safeInput');
 /**
  * Handles non-card prompts (bid, game type, multiplier, etc.)
  */
-const PromptHandler = ({ 
-  prompt, 
+const PromptHandler = ({
+  prompt,
   onResponse,
-  debug = false 
+  debug = false
 }) => {
   const [selectedOption, setSelectedOption] = useState(0);
 
