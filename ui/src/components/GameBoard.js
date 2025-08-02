@@ -23,7 +23,8 @@ const GameBoard = ({
   onDiscardSubmit = null,
   skatCards = [],
   showSkatCards = false,
-  hasActiveBidPrompt = false
+  hasActiveBidPrompt = false,
+  hasInitialChoicePrompt = false
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -169,7 +170,7 @@ const GameBoard = ({
         </div>
 
         {/* Bidding status display */}
-        {currentBidder && !hasActiveBidPrompt && (
+        {currentBidder && !hasActiveBidPrompt && !biddingWinner && !hasInitialChoicePrompt && (
           <div className="bidding-status">
             <div className="bidding-message">
               Waiting for {getPlayerDisplayName(currentBidder)} to bid...

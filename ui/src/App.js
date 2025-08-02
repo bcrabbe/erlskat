@@ -132,7 +132,8 @@ const App = () => {
         // Clear discard state when initial choice prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
-        break;
+        setCurrentBidder(null);
+      break;
 
       case 'discard_prompt':
         setDiscardPrompt({
@@ -300,13 +301,13 @@ const App = () => {
         let positionText = 'player';
         if (playerPosition === 1) positionText = 'left player';
         else if (playerPosition === 2) positionText = 'right player';
-        
+
         setDisconnectedPlayer({
           playerId: data.player_id,
           message: `${positionText} disconnected... waiting ${Math.ceil(data.reconnection_deadline_ms / 1000)} seconds for them to reconnect`,
           deadline: data.reconnection_deadline_ms
         });
-        
+
         // Clear disconnection notice after the deadline
         setTimeout(() => {
           setDisconnectedPlayer(null);
@@ -407,6 +408,7 @@ const App = () => {
             skatCards={skatCards}
             showSkatCards={showSkatCards}
             hasActiveBidPrompt={prompt && prompt.type === 'bid_prompt'}
+            hasInitialChoicePrompt={prompt && prompt.type === 'initial_choice_prompt'}
           />
         );
 
