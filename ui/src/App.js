@@ -269,6 +269,28 @@ const App = () => {
         setSkatCards([]);
         break;
 
+      case 'game_closed':
+        // Reset game state and return to lobby
+        setGameState('lobby');
+        setPlayerHand([]);
+        setLeftPlayerCards([]);
+        setRightPlayerCards([]);
+        setCurrentTrick([]);
+        setValidCards([]);
+        setPrompt(null);
+        setCurrentBidder(null);
+        setPlayerBids({});
+        setCurrentBidValue(0);
+        setBiddingWinner(null);
+        setGameDeclaration(null);
+        setGameType(null);
+        setDiscardPrompt(null);
+        setSelectedDiscardCards([]);
+        setSkatCards([]);
+        setShowSkatCards(false);
+        console.log('Game closed, returning to lobby');
+        break;
+
       default:
         console.log('Unhandled message type:', type, data);
     }
