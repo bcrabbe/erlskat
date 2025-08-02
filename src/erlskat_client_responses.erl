@@ -28,7 +28,7 @@
     game_type_broadcast/2,
     hand_reorder_broadcast/6,
     bid_broadcast/2,
-    pass_broadcast/1,
+    pass_broadcast/2,
     bidding_roles/1,
     cards_dealt/1,
     %% Game play messages
@@ -242,6 +242,7 @@
 -type pass_broadcast_msg() :: #{
     type := pass_broadcast,
     passer := erlskat:player(),
+    bid_value := integer(),
     message := binary()
 }.
 
@@ -608,13 +609,15 @@ bid_broadcast(BiddingPlayer, BidValue) ->
                                   <<" bids ">>,
                                   integer_to_list(BidValue)])}.
 
--spec pass_broadcast(erlskat:player()) -> pass_broadcast_msg().
-pass_broadcast(PassingPlayer) ->
+-spec pass_broadcast(erlskat:player(), integer()) -> pass_broadcast_msg().
+pass_broadcast(PassingPlayer, BidValue) ->
     #{type => pass_broadcast,
       passer => maps:without([socket], PassingPlayer),
+      bid_value => BidValue,
       message => iolist_to_binary([<<"Player ">>,
                                   maps:get(id, PassingPlayer),
-                                  <<" passes">>])}.
+                                  <<" passes at ">>,
+                                  integer_to_list(BidValue)])}.
 
 -spec bidding_roles(#{erlskat:player_id() => speaking | listening | waiting}) ->
           bidding_roles_msg().

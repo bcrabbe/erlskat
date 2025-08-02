@@ -386,7 +386,7 @@ handle_bidder_accept(Player, Data) ->
     end.
 
 handle_bidder_pass(Player, Data) ->
-    broadcast_pass_to_all_players(maps:get(hands, Data), Player),
+    broadcast_pass_to_all_players(maps:get(hands, Data), Player, maps:get(bid, Data)),
     PassedPlayers = [maps:get(id, Player) | maps:get(passed_players, Data)],
     case get_next_bidding_pair(maps:get(bidding_order, Data), PassedPlayers) of
         {NewCurrentBidder, NewRespondingPlayer} ->
@@ -415,7 +415,7 @@ handle_bidder_pass(Player, Data) ->
     end.
 
 handle_responder_pass(Player, Data) ->
-    broadcast_pass_to_all_players(maps:get(hands, Data), Player),
+    broadcast_pass_to_all_players(maps:get(hands, Data), Player, maps:get(bid, Data)),
     PassedPlayers = [maps:get(id, Player) | maps:get(passed_players, Data)],
     case get_next_bidding_pair(maps:get(bidding_order, Data), PassedPlayers) of
         {NewCurrentBidder, NewRespondingPlayer} ->
@@ -716,9 +716,9 @@ broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 
--spec broadcast_pass_to_all_players([player_bidding_data()], erlskat:player()) -> done.
-broadcast_pass_to_all_players(Hands, PassingPlayer) ->
-    BroadcastMsg = erlskat_client_responses:pass_broadcast(PassingPlayer),
+-spec broadcast_pass_to_all_players([player_bidding_data()], erlskat:player(), integer()) -> done.
+broadcast_pass_to_all_players(Hands, PassingPlayer, BidValue) ->
+    BroadcastMsg = erlskat_client_responses:pass_broadcast(PassingPlayer, BidValue),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
     done.
 

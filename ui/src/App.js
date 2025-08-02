@@ -154,7 +154,7 @@ const App = () => {
       case 'pass_broadcast':
         setPlayerBids(prev => ({
           ...prev,
-          [data.passer.id]: { type: 'pass', value: currentBidValue }
+          [data.passer.id]: { type: 'pass', value: data.bid_value }
         }));
         // Clear current bidder when a pass is made
         if (data.passer.id === currentBidder) {
