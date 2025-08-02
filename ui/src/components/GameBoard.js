@@ -22,7 +22,8 @@ const GameBoard = ({
   onDiscardCardClick = null,
   onDiscardSubmit = null,
   skatCards = [],
-  showSkatCards = false
+  showSkatCards = false,
+  hasActiveBidPrompt = false
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -134,7 +135,7 @@ const GameBoard = ({
       <div className="player-position left-player">
         <div className="player-info">
           Left Player
-          {currentBidder && getPlayerPosition(currentBidder) === 'left' && (
+          {currentBidder && getPlayerPosition(currentBidder) === 'left' && !hasActiveBidPrompt && (
             <div className="bidding-indicator">
               <div className="thinking-animation">🤔</div>
               <div className="bidding-text">Thinking...</div>
@@ -168,7 +169,7 @@ const GameBoard = ({
         </div>
 
         {/* Bidding status display */}
-        {currentBidder && (
+        {currentBidder && !hasActiveBidPrompt && (
           <div className="bidding-status">
             <div className="bidding-message">
               Waiting for {getPlayerDisplayName(currentBidder)} to bid...
@@ -218,7 +219,7 @@ const GameBoard = ({
       <div className="player-position right-player">
         <div className="player-info">
           Right Player
-          {currentBidder && getPlayerPosition(currentBidder) === 'right' && (
+          {currentBidder && getPlayerPosition(currentBidder) === 'right' && !hasActiveBidPrompt && (
             <div className="bidding-indicator">
               <div className="thinking-animation">🤔</div>
               <div className="bidding-text">Thinking...</div>

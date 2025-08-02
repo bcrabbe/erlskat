@@ -37,6 +37,9 @@ const App = () => {
   const [skatCards, setSkatCards] = useState([]);
   const [showSkatCards, setShowSkatCards] = useState(false);
 
+  // New state for player disconnection
+  const [disconnectedPlayer, setDisconnectedPlayer] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -291,6 +294,25 @@ const App = () => {
         console.log('Game closed, returning to lobby');
         break;
 
+      case 'player_disconnected':
+        // Show disconnection notice with reconnection deadline
+        const playerPosition = tableOrder.findIndex(player => player.id === data.player_id);
+        let positionText = 'player';
+        if (playerPosition === 1) positionText = 'left player';
+        else if (playerPosition === 2) positionText = 'right player';
+        
+        setDisconnectedPlayer({
+          playerId: data.player_id,
+          message: `${positionText} disconnected... waiting ${Math.ceil(data.reconnection_deadline_ms / 1000)} seconds for them to reconnect`,
+          deadline: data.reconnection_deadline_ms
+        });
+        
+        // Clear disconnection notice after the deadline
+        setTimeout(() => {
+          setDisconnectedPlayer(null);
+        }, data.reconnection_deadline_ms);
+        break;
+
       default:
         console.log('Unhandled message type:', type, data);
     }
@@ -384,6 +406,7 @@ const App = () => {
             onDiscardSubmit={handleDiscardSubmit}
             skatCards={skatCards}
             showSkatCards={showSkatCards}
+            hasActiveBidPrompt={prompt && prompt.type === 'bid_prompt'}
           />
         );
 
@@ -411,6 +434,12 @@ const App = () => {
       {!isConnected && gameState !== 'login' && (
         <div className="connection-status">
           <p>Connecting to server...</p>
+        </div>
+      )}
+
+      {disconnectedPlayer && (
+        <div className="disconnection-notice">
+          <p>{disconnectedPlayer.message}</p>
         </div>
       )}
     </div>

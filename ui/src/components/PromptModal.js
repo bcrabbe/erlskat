@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './PromptModal.css';
 
 const PromptModal = ({
@@ -10,6 +10,8 @@ const PromptModal = ({
   type = 'choice',
   gameTypeValues = []
 }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
   if (!isOpen) return null;
 
   const handleChoice = (choice) => {
@@ -23,13 +25,58 @@ const PromptModal = ({
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (type === 'bid_prompt') {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          setSelectedIndex(prev => prev === 0 ? choices.length - 1 : prev - 1);
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          setSelectedIndex(prev => (prev + 1) % choices.length);
+        } else if (e.key === 'Enter') {
+          handleChoice(choices[selectedIndex]);
+        }
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, selectedIndex, choices, type]);
+
+  if (type === 'bid_prompt') {
+    return (
+      <div className="bid-prompt-overlay">
+        <div className="bid-prompt-content">
+          <div className="turn-indicator">It's your turn to bid</div>
+          <div className="bid-question">{message}</div>
+          <div className="bid-choices">
+            {choices.map((choice, index) => (
+              <span
+                key={index}
+                className={`bid-option ${selectedIndex === index ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedIndex(index);
+                  handleChoice(choice);
+                }}
+              >
+                {choice}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{type === 'bid_prompt' ? 'Bidding' :
-               type === 'card_play_prompt' ? 'Play a Card' :
-               'Game Prompt'}</h3>
+          <h3>{type === 'card_play_prompt' ? 'Play a Card' : 'Game Prompt'}</h3>
           <button className="close-button" onClick={handleClose}>×</button>
         </div>
 
@@ -38,7 +85,6 @@ const PromptModal = ({
 
           <div className="choices">
             {choices.map((choice, index) => {
-              // For game_type_prompt, find the corresponding value_display
               let valueDisplay = null;
               if (type === 'game_type_prompt' && gameTypeValues.length > 0) {
                 const gameTypeValue = gameTypeValues.find(gtv => gtv.game_type === choice);
