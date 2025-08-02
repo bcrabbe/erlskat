@@ -24,6 +24,6 @@ elvis
 .\#*
 *.swp
 *.swo
-ui/node_modules
-ui/build
-ui/package-lock.json
+*/node_modules
+*/build
+*/package-lock.json

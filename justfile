@@ -107,3 +107,13 @@ manual-test FLAGS="": clean compile
 # Starts local shell and 3 websocket clients pretty printing the msgs (Requires itermocil)
 manual-test-pp FLAGS="": clean compile
     itermocil erlskat-pp {{FLAGS}}
+
+# CLI commands
+cli-install:
+    cd cli && npm install
+
+cli:
+    cd cli && npm start
+
+cli-dev:
+    cd cli && npm run dev
