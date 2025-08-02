@@ -157,18 +157,12 @@ const App = ({ wsUrl, debug = false }) => {
   // Handle non-card prompt responses
   const handlePromptResponse = (response) => {
     try {
-      if (currentNonCardPrompt?.type === 'bid_prompt') {
-        wsManager.sendMessage(response);
-      } else if (currentNonCardPrompt?.type === 'initial_choice_prompt') {
-        wsManager.sendMessage(response);
-      } else if (currentNonCardPrompt?.type === 'game_type_prompt') {
-        wsManager.sendMessage(response);
-      } else if (currentNonCardPrompt?.type === 'multiplier_prompt') {
+      // Use gameState.currentPrompt since we're handling prompts in GameScreen now
+      const promptType = gameState.currentPrompt?.type;
+      
+      if (['bid_prompt', 'initial_choice_prompt', 'game_type_prompt', 'multiplier_prompt'].includes(promptType)) {
         wsManager.sendMessage(response);
       }
-
-      // Clear the prompt after response
-      setCurrentNonCardPrompt(null);
     } catch (error) {
       setError(`Failed to send response: ${error.message}`);
     }

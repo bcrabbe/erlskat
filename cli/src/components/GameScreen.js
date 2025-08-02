@@ -18,6 +18,7 @@ const GameScreen = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [multiSelected, setMultiSelected] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [promptOptionIndex, setPromptOptionIndex] = useState(0);
 
   const { phase, playerHand, currentPrompt, gameInfo } = gameState;
 
@@ -29,6 +30,8 @@ const GameScreen = ({
     if (currentPrompt?.type === 'discard_prompt') {
       setMultiSelected([]);
     }
+    // Reset prompt option index when prompt changes
+    setPromptOptionIndex(0);
   }, [playerHand, currentPrompt]);
 
   // Add new messages to display
@@ -42,6 +45,58 @@ const GameScreen = ({
   useSafeInput((input, key) => {
     // Handle non-card prompts first
     if (currentPrompt && !['card_play_prompt', 'discard_prompt'].includes(currentPrompt.type)) {
+      // Handle arrow keys for option navigation
+      if (key.upArrow || key.downArrow) {
+        let maxOptions = 0;
+        switch (currentPrompt.type) {
+          case 'bid_prompt':
+          case 'initial_choice_prompt':
+            maxOptions = 2;
+            break;
+          case 'game_type_prompt':
+            maxOptions = currentPrompt.game_types?.length || 0;
+            break;
+          case 'multiplier_prompt':
+            maxOptions = currentPrompt.multipliers?.length || 0;
+            break;
+        }
+        
+        if (maxOptions > 0) {
+          if (key.upArrow) {
+            setPromptOptionIndex(prev => (prev - 1 + maxOptions) % maxOptions);
+          } else if (key.downArrow) {
+            setPromptOptionIndex(prev => (prev + 1) % maxOptions);
+          }
+        }
+        return;
+      }
+      
+      // Handle enter key for option selection
+      if (key.return) {
+        switch (currentPrompt.type) {
+          case 'bid_prompt':
+            const bidChoice = promptOptionIndex === 0 ? 'hold' : 'pass';
+            onChoiceSelection(bidChoice);
+            break;
+          case 'initial_choice_prompt':
+            const initialChoice = promptOptionIndex === 0 ? 'hand' : 'skat';
+            onChoiceSelection(initialChoice);
+            break;
+          case 'game_type_prompt':
+            if (currentPrompt.game_types && promptOptionIndex < currentPrompt.game_types.length) {
+              onChoiceSelection(currentPrompt.game_types[promptOptionIndex]);
+            }
+            break;
+          case 'multiplier_prompt':
+            if (currentPrompt.multipliers && promptOptionIndex < currentPrompt.multipliers.length) {
+              onChoiceSelection(currentPrompt.multipliers[promptOptionIndex]);
+            }
+            break;
+        }
+        return;
+      }
+      
+      // Handle letter keys for quick selection
       switch (currentPrompt.type) {
         case 'bid_prompt':
           if (input === 'h' || input === 'H') {
@@ -130,18 +185,41 @@ const GameScreen = ({
 
     switch (currentPrompt.type) {
       case 'bid_prompt':
+        const bidOptions = ['Hold', 'Pass'];
         return (
           <Box flexDirection="column">
             <Text color="yellow">{currentPrompt.message}</Text>
-            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' to Hold, 'P' to Pass</Text>
+            {currentPrompt.bid_value && (
+              <Text>Bid value: {currentPrompt.bid_value}</Text>
+            )}
+            {bidOptions.map((option, index) => (
+              <Text 
+                key={index} 
+                color={promptOptionIndex === index ? "black" : "cyan"} 
+                backgroundColor={promptOptionIndex === index ? "cyan" : undefined}
+              >
+                {option}
+              </Text>
+            ))}
+            <Text color="green">Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' to Hold, 'P' to Pass</Text>
           </Box>
         );
 
       case 'initial_choice_prompt':
+        const initialOptions = ['Hand', 'Skat'];
         return (
           <Box flexDirection="column">
             <Text color="yellow">{currentPrompt.message}</Text>
-            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' for Hand, 'S' for Skat</Text>
+            {initialOptions.map((option, index) => (
+              <Text 
+                key={index} 
+                color={promptOptionIndex === index ? "black" : "cyan"} 
+                backgroundColor={promptOptionIndex === index ? "cyan" : undefined}
+              >
+                {option}
+              </Text>
+            ))}
+            <Text color="green">Use ↑/↓ arrows to navigate, Enter to select | Or press 'H' for Hand, 'S' for Skat</Text>
           </Box>
         );
 
@@ -153,12 +231,16 @@ const GameScreen = ({
             {currentPrompt.game_types?.map((gameType, index) => {
               const valueInfo = currentPrompt.game_type_values?.find(v => v.game_type === gameType);
               return (
-                <Text key={index} color="cyan">
+                <Text 
+                  key={index} 
+                  color={promptOptionIndex === index ? "black" : "cyan"} 
+                  backgroundColor={promptOptionIndex === index ? "cyan" : undefined}
+                >
                   {index + 1}: {gameType}{valueInfo ? ` (${valueInfo.value_display})` : ''}
                 </Text>
               );
             })}
-            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.game_types?.length || 0} to select</Text>
+            <Text color="green">Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.game_types?.length || 0} to select</Text>
           </Box>
         );
 
@@ -174,12 +256,16 @@ const GameScreen = ({
             {currentPrompt.multipliers?.map((multiplier, index) => {
               const valueInfo = currentPrompt.multiplier_values?.find(v => v.multiplier === multiplier);
               return (
-                <Text key={index} color="cyan">
+                <Text 
+                  key={index} 
+                  color={promptOptionIndex === index ? "black" : "cyan"} 
+                  backgroundColor={promptOptionIndex === index ? "cyan" : undefined}
+                >
                   {index + 1}: {multiplier}{valueInfo ? ` (${valueInfo.value_display})` : ''}
                 </Text>
               );
             })}
-            <Text>Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.multipliers?.length || 0} to select</Text>
+            <Text color="green">Use ↑/↓ arrows to navigate, Enter to select | Or press number 1-{currentPrompt.multipliers?.length || 0} to select</Text>
           </Box>
         );
 
