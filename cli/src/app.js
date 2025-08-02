@@ -206,11 +206,6 @@ const App = ({ wsUrl, debug = false }) => {
           connectionState={connectionState}
           lobbyState={gameState.connectionInfo?.lobbyState}
           players={gameState.connectionInfo?.players || []}
-          reconnectInfo={{
-            disconnectedPlayer: gameState.connectionInfo?.disconnectedPlayer,
-            timedOutPlayer: gameState.connectionInfo?.timedOutPlayer,
-            reconnectDeadline: gameState.connectionInfo?.reconnectDeadline
-          }}
         />
       );
     }
