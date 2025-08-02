@@ -20,20 +20,22 @@ const GameBoard = ({
   discardPrompt = null,
   selectedDiscardCards = [],
   onDiscardCardClick = null,
-  onDiscardSubmit = null
+  onDiscardSubmit = null,
+  skatCards = [],
+  showSkatCards = false
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
     if (!playerId || !tableOrder.length) return null;
-    
+
     const playerIndex = tableOrder.indexOf(playerId);
     const targetIndex = tableOrder.indexOf(targetPlayerId);
-    
+
     if (playerIndex === -1 || targetIndex === -1) return null;
-    
+
     // Calculate relative position
     const relativePosition = (targetIndex - playerIndex + tableOrder.length) % tableOrder.length;
-    
+
     switch (relativePosition) {
       case 1: return 'left';
       case 2: return 'right';
@@ -62,9 +64,9 @@ const GameBoard = ({
   // Helper function to get winner display name
   const getWinnerDisplayName = (winnerId) => {
     if (!winnerId || !playerId) return 'Unknown Player';
-    
+
     if (winnerId === playerId) return 'You';
-    
+
     const position = getPlayerPosition(winnerId);
     switch (position) {
       case 'left': return 'Left Player';
@@ -76,10 +78,10 @@ const GameBoard = ({
   // Helper function to get player ID by position
   const getPlayerIdByPosition = (position) => {
     if (!playerId || !tableOrder.length) return null;
-    
+
     const playerIndex = tableOrder.indexOf(playerId);
     if (playerIndex === -1) return null;
-    
+
     let targetIndex;
     switch (position) {
       case 'left':
@@ -91,17 +93,17 @@ const GameBoard = ({
       default:
         return null;
     }
-    
+
     return tableOrder[targetIndex];
   };
 
   // Helper function to get game declaration display text
   const getGameDeclarationDisplay = (declaration) => {
     if (!declaration) return null;
-    
+
     const playerName = getWinnerDisplayName(declaration.winnerId);
     const choiceText = declaration.choice === 'hand' ? 'hand' : declaration.choice;
-    
+
     return {
       playerName,
       choice: choiceText,
@@ -112,13 +114,13 @@ const GameBoard = ({
   // Helper function to get game type display text
   const getGameTypeDisplay = (gameTypeData) => {
     if (!gameTypeData) return null;
-    
+
     const playerName = getWinnerDisplayName(gameTypeData.winnerId);
-    const gameTypeText = gameTypeData.gameType === 'grand' ? 'Grand Game' : 
-                        gameTypeData.gameType === 'null' ? 'Null Game' : 
-                        gameTypeData.gameType === 'ramsch' ? 'Ramsch Game' : 
+    const gameTypeText = gameTypeData.gameType === 'grand' ? 'Grand Game' :
+                        gameTypeData.gameType === 'null' ? 'Null Game' :
+                        gameTypeData.gameType === 'ramsch' ? 'Ramsch Game' :
                         gameTypeData.gameType;
-    
+
     return {
       playerName,
       gameType: gameTypeText,
@@ -164,7 +166,7 @@ const GameBoard = ({
             </div>
           ))}
         </div>
-        
+
         {/* Bidding status display */}
         {currentBidder && (
           <div className="bidding-status">
@@ -173,7 +175,7 @@ const GameBoard = ({
             </div>
           </div>
         )}
-        
+
         {/* Bidding winner display with thinking animation */}
         {biddingWinner && (
           <div className="bidding-winner-status">
@@ -244,13 +246,32 @@ const GameBoard = ({
             </div>
           )}
         </div>
-        
+
+        {/* Skat cards display */}
+        {showSkatCards && skatCards.length > 0 && (
+          <div className="skat-cards-display">
+            <div className="skat-cards-label">Skat Cards:</div>
+            <div className="skat-cards">
+              {skatCards.map((card, index) => (
+                <div key={index} className="skat-card">
+                  <div className="card-rank">{card.rank}</div>
+                  <div className={`card-suit ${card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : 'black'}`}>
+                    {card.suit === 'hearts' ? '♥' :
+                     card.suit === 'diamonds' ? '♦' :
+                     card.suit === 'clubs' ? '♣' : '♠'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Discard prompt */}
         {discardPrompt && (
           <div className="discard-prompt">
             <div className="discard-message">{discardPrompt.message}</div>
             {selectedDiscardCards.length === discardPrompt.count && (
-              <button 
+              <button
                 className="discard-submit-btn"
                 onClick={onDiscardSubmit}
               >
@@ -259,7 +280,7 @@ const GameBoard = ({
             )}
           </div>
         )}
-        
+
         <PlayerHand
           cards={playerHand}
           onCardClick={discardPrompt ? onDiscardCardClick : onCardClick}

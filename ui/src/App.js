@@ -33,6 +33,10 @@ const App = () => {
   const [discardPrompt, setDiscardPrompt] = useState(null);
   const [selectedDiscardCards, setSelectedDiscardCards] = useState([]);
 
+  // New state for skat cards display
+  const [skatCards, setSkatCards] = useState([]);
+  const [showSkatCards, setShowSkatCards] = useState(false);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -250,6 +254,21 @@ const App = () => {
         }
         break;
 
+      case 'skat_flipped':
+        setSkatCards(data.cards || []);
+        setShowSkatCards(true);
+        // Hide skat cards after 3 seconds if no hand_with_skat message is received
+        setTimeout(() => {
+          setShowSkatCards(false);
+        }, 3000);
+        break;
+
+      case 'hand_with_skat':
+        setPlayerHand(data.cards || []);
+        setShowSkatCards(false);
+        setSkatCards([]);
+        break;
+
       default:
         console.log('Unhandled message type:', type, data);
     }
@@ -284,7 +303,7 @@ const App = () => {
 
   const handleDiscardCardClick = useCallback((cardIndex) => {
     if (!discardPrompt) return;
-    
+
     setSelectedDiscardCards(prev => {
       if (prev.includes(cardIndex)) {
         // Remove card if already selected
@@ -341,6 +360,8 @@ const App = () => {
             selectedDiscardCards={selectedDiscardCards}
             onDiscardCardClick={handleDiscardCardClick}
             onDiscardSubmit={handleDiscardSubmit}
+            skatCards={skatCards}
+            showSkatCards={showSkatCards}
           />
         );
 
