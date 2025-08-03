@@ -41,7 +41,7 @@
 
 %% Type definitions
 -type color_game() :: erlskat:suit().
--type game_type() :: color_game() | grand | null | null_ouvert | hand_game.
+-type game_type() :: color_game() | grand | null.
 -type game_value() ::
         18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36 | 40 | 44 | 45 |
         48 | 50 | 54 | 55 | 59 | 60 | 63 | 66 | 70 | 72 | 77 | 80 | 81 |
@@ -241,6 +241,23 @@ game_declaration(cast,
 game_declaration(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, game_declaration).
 
+%% State: game_type_selection
+game_type_selection(cast,
+                    {socket_message,
+                     #{player := Player, msg := GameType}} = Msg,
+                    Data) ->
+    PlayerId = maps:get(id, Player),
+    case PlayerId =:= maps:get(highest_bidder, Data) andalso
+         lists:member(GameType, ?REGULAR_GAME_TYPES) of
+        true ->
+            handle_game_type_selection(PlayerId, GameType, Data);
+        false ->
+            handle_unexpected_event(cast, Msg, Data, game_type_selection),
+            keep_state_and_data
+    end;
+
+game_type_selection(EventType, Event, Data) ->
+    handle_unexpected_event(EventType, Event, Data, game_type_selection).
 
 %% State: skat_exchange
 skat_exchange(cast,
@@ -259,8 +276,10 @@ skat_exchange(cast,
                     PlayerHand = get_player_by_id(PlayerId, maps:get(hands, Data)),
                     FullHand = maps:get(hand, PlayerHand),
                     Skat = maps:get(skat, Data),
-                    OrderedHand = erlskat_card_ordering:order_cards_for_skat(FullHand ++ Skat),
-
+                    GameType = maps:get(chosen_game, Data),
+                    OrderedHand = erlskat_card_ordering:order_cards_for_game_type(
+                                    FullHand ++ Skat,
+                                    GameType),
                     % Extract the discarded cards by index
                     DiscardedCards = [lists:nth(Index + 1, OrderedHand) ||
                                      Index <- Indices],
@@ -284,23 +303,6 @@ skat_exchange(cast,
 skat_exchange(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, skat_exchange).
 
-%% State: game_type_selection
-game_type_selection(cast,
-                    {socket_message,
-                     #{player := Player, msg := GameType}} = Msg,
-                    Data) ->
-    PlayerId = maps:get(id, Player),
-    case PlayerId =:= maps:get(highest_bidder, Data) andalso
-         lists:member(GameType, ?REGULAR_GAME_TYPES) of
-        true ->
-            handle_game_type_selection(PlayerId, GameType, Data);
-        false ->
-            handle_unexpected_event(cast, Msg, Data, game_type_selection),
-            keep_state_and_data
-    end;
-
-game_type_selection(EventType, Event, Data) ->
-    handle_unexpected_event(EventType, Event, Data, game_type_selection).
 
 %% State: multiplier_selection
 multiplier_selection(cast,
@@ -742,15 +744,21 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
 
 -spec broadcast_hand_reorder_to_all_players(
     [player_bidding_data()], erlskat:player_id(), binary(), erlskat:skat(), boolean()) -> done.
-broadcast_hand_reorder_to_all_players(Hands, WinnerId, GameType, Skat, IsHandGame) ->
+broadcast_hand_reorder_to_all_players(BiddingDataList, WinnerId, GameType, Skat, IsHandGame) ->
     % Send individual messages to each player with only their own hand
-    SendIndividualMessage = fun(Hand) ->
-        PlayerId = maps:get(id, maps:get(player, Hand)),
+    SendIndividualMessage = fun(
+                              #{hand := Hand,
+                                player := #{id := PlayerId}} = BiddingData) ->
         IndividualMsg = erlskat_client_responses:hand_reorder_broadcast(
-            WinnerId, GameType, Hands, Skat, IsHandGame, PlayerId),
-        send_broadcast_msg(Hand, IndividualMsg)
+                          WinnerId,
+                          GameType,
+                          BiddingData,
+                          Skat,
+                          IsHandGame,
+                          PlayerId),
+        send_broadcast_msg(BiddingData, IndividualMsg)
     end,
-    [SendIndividualMessage(Hand) || Hand <- Hands],
+    [SendIndividualMessage(BiddingData) || BiddingData <- BiddingDataList],
     done.
 
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.

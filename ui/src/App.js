@@ -246,15 +246,8 @@ const App = () => {
 
       case 'hand_reorder_broadcast':
         // Reorder all player hands based on the broadcast data
-        if (data.hands && Array.isArray(data.hands)) {
-          data.hands.forEach(handData => {
-            if (handData.player_id === playerId) {
-              // Update current player's hand
-              setPlayerHand(handData.hand || []);
-            }
-            // Note: For other players' hands, we would need to track them separately
-            // Currently the UI only shows the current player's hand
-          });
+        if (data.hand && Array.isArray(data.hand)) {
+          setPlayerHand(data.hand);
         }
         break;
 
