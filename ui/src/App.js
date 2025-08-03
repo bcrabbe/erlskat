@@ -116,7 +116,7 @@ const App = () => {
         setPrompt({
           type: 'multiplier_prompt',
           message: data.message,
-          choices: data.multipliers || []
+          choices: [...data.multipliers || [], "skip"]
         });
         // Clear discard state when multiplier prompt is received
         setDiscardPrompt(null);
