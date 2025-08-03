@@ -257,13 +257,12 @@ const App = () => {
         // Hide skat cards after 3 seconds if no hand_with_skat message is received
         setTimeout(() => {
           setShowSkatCards(false);
-        }, 3000);
+          setSkatCards([]);
+        }, 6000);
         break;
 
       case 'hand_with_skat':
         setPlayerHand(data.cards || []);
-        setShowSkatCards(false);
-        setSkatCards([]);
         break;
 
       case 'game_closed':
