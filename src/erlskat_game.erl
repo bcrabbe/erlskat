@@ -257,8 +257,8 @@ complete_trick(State) ->
     NewTrickCount = State#state.trick_count + 1,
 
     % Check for null game immediate loss condition
-    case State#state.game_type =:= <<"null">> andalso 
-         TrickWinner =:= State#state.declarer andalso 
+    case State#state.game_type =:= <<"null">> andalso
+         TrickWinner =:= State#state.declarer andalso
          length(WinnerTricks) =:= 0 of
         true ->
             % Declarer just won their first trick in a null game - immediate loss

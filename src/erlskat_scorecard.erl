@@ -28,7 +28,10 @@
 
 -spec record_result(pid(), erlskat_hand:game_result()) -> ok | {error, term()}.
 record_result(TableSupPid, HandResult) ->
-    {ok, {_Id, ScorecardPid, _Type, _Modules}} = supervisor:which_child(TableSupPid, erlskat_scorecard),
+    {ok,
+     {_Id, ScorecardPid, _Type, _Modules}} = supervisor:which_child(
+                                               TableSupPid,
+                                               erlskat_scorecard),
     gen_statem:call(ScorecardPid, {record_result, HandResult}).
 
 %%--------------------------------------------------------------------

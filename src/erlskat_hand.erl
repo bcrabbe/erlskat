@@ -111,7 +111,10 @@ handle_info({bidding_complete, BiddingPid, BiddingResult},
 
 % Handle game completion message
 handle_info({game_complete, GamePid, GameResult},
-            #state{current_phase = game, current_pid = GamePid, table_sup_pid = TableSupPid} = State) ->
+            #state{
+               current_phase = game,
+               current_pid = GamePid,
+               table_sup_pid = TableSupPid} = State) ->
 
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
