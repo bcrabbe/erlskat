@@ -278,7 +278,6 @@
     type := card_played_broadcast,
     player_id := erlskat:player_id(),
     card := erlskat:card(),
-    card_index := integer(),
     message := binary()
 }.
 
@@ -689,7 +688,6 @@ card_played_broadcast(PlayerId, Card, CardIndex) ->
     #{type => card_played_broadcast,
       player_id => PlayerId,
       card => Card,
-      card_index => CardIndex,
       message => iolist_to_binary([PlayerId,
                                   <<" played ">>,
                                   CardText])}.
