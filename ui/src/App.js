@@ -288,6 +288,10 @@ const App = () => {
         console.log('Game closed, returning to lobby');
         break;
 
+      case 'hand_after_discard':
+        setPlayerHand(data.hand || []);
+        break;
+
       case 'player_disconnected':
         // Show disconnection notice with reconnection deadline
         const playerPosition = tableOrder.findIndex(player => player.id === data.player_id);
