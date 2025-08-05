@@ -15,6 +15,7 @@ const GameBoard = ({
   playerBids = {},
   currentBidValue = 0,
   biddingWinner = null,
+  currentCardPlayer = null,
   gameDeclaration = null,
   gameType = null,
   discardPrompt = null,
@@ -142,6 +143,12 @@ const GameBoard = ({
               <div className="bidding-text">Thinking...</div>
             </div>
           )}
+          {currentCardPlayer && getPlayerPosition(currentCardPlayer) === 'left' && (
+            <div className="card-play-indicator">
+              <div className="thinking-animation">🤔</div>
+              <div className="card-play-text">Waiting to play</div>
+            </div>
+          )}
           {playerBids[getPlayerIdByPosition('left')] && (
             <div className="bid-display">
               {getBidDisplayText(playerBids[getPlayerIdByPosition('left')])}
@@ -214,6 +221,15 @@ const GameBoard = ({
             </div>
           </div>
         )}
+
+        {/* Card play waiting status */}
+        {currentCardPlayer && (
+          <div className="card-play-status">
+            <div className="card-play-message">
+              Waiting for {getPlayerDisplayName(currentCardPlayer)} to play...
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right player */}
@@ -224,6 +240,12 @@ const GameBoard = ({
             <div className="bidding-indicator">
               <div className="thinking-animation">🤔</div>
               <div className="bidding-text">Thinking...</div>
+            </div>
+          )}
+          {currentCardPlayer && getPlayerPosition(currentCardPlayer) === 'right' && (
+            <div className="card-play-indicator">
+              <div className="thinking-animation">🤔</div>
+              <div className="card-play-text">Waiting to play</div>
             </div>
           )}
           {playerBids[getPlayerIdByPosition('right')] && (

@@ -25,6 +25,9 @@ const App = () => {
   const [currentBidValue, setCurrentBidValue] = useState(0);
   const [biddingWinner, setBiddingWinner] = useState(null);
 
+  // New state for card play waiting
+  const [currentCardPlayer, setCurrentCardPlayer] = useState(null);
+
   // New state for game declaration and type broadcasts
   const [gameDeclaration, setGameDeclaration] = useState(null);
   const [gameType, setGameType] = useState(null);
@@ -69,6 +72,8 @@ const App = () => {
         setPlayerBids({});
         setCurrentBidValue(0);
         setBiddingWinner(null);
+        // Reset card player state
+        setCurrentCardPlayer(null);
         break;
 
       case 'cards_dealt':
@@ -147,6 +152,10 @@ const App = () => {
         setCurrentBidder(data.waiting_for_player_id);
         break;
 
+      case 'awaiting_card':
+        setCurrentCardPlayer(data.waiting_for_player_id);
+        break;
+
       case 'bid_broadcast':
         setCurrentBidValue(data.bid_value);
         setPlayerBids(prev => ({
@@ -204,6 +213,10 @@ const App = () => {
           player: data.player_id,
           card: data.card
         }]);
+        // Clear current card player when a card is played
+        if (data.player_id === currentCardPlayer) {
+          setCurrentCardPlayer(null);
+        }
         break;
 
       case 'trick_won_broadcast':
@@ -218,6 +231,8 @@ const App = () => {
         setPlayerBids({});
         setCurrentBidValue(0);
         setBiddingWinner(null);
+        // Clear card player state
+        setCurrentCardPlayer(null);
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
@@ -236,6 +251,7 @@ const App = () => {
         setPlayerBids({});
         setCurrentBidValue(0);
         setBiddingWinner(null);
+        setCurrentCardPlayer(null);
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
@@ -278,6 +294,7 @@ const App = () => {
         setPlayerBids({});
         setCurrentBidValue(0);
         setBiddingWinner(null);
+        setCurrentCardPlayer(null);
         setGameDeclaration(null);
         setGameType(null);
         setDiscardPrompt(null);
@@ -313,7 +330,7 @@ const App = () => {
       default:
         console.log('Unhandled message type:', type, data);
     }
-  }, [currentBidder, currentBidValue]);
+  }, [currentBidder, currentBidValue, currentCardPlayer]);
 
   const { connect, disconnect, sendMessage, isConnected } = useWebSocket(
     `ws://${window.location.hostname}:8080/ws`,
@@ -395,6 +412,7 @@ const App = () => {
             playerBids={playerBids}
             currentBidValue={currentBidValue}
             biddingWinner={biddingWinner}
+            currentCardPlayer={currentCardPlayer}
             gameDeclaration={gameDeclaration}
             gameType={gameType}
             discardPrompt={discardPrompt}
