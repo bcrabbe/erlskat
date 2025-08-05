@@ -22,6 +22,10 @@ const GameBoard = ({
   selectedDiscardCards = [],
   onDiscardCardClick = null,
   onDiscardSubmit = null,
+  cardPlayPrompt = null,
+  selectedCardPlay = null,
+  onCardPlayClick = null,
+  onCardPlaySubmit = null,
   skatCards = [],
   showSkatCards = false,
   hasActiveBidPrompt = false,
@@ -223,10 +227,19 @@ const GameBoard = ({
         )}
 
         {/* Card play waiting status */}
-        {currentCardPlayer && (
+        {currentCardPlayer && !cardPlayPrompt && (
           <div className="card-play-status">
             <div className="card-play-message">
               Waiting for {getPlayerDisplayName(currentCardPlayer)} to play...
+            </div>
+          </div>
+        )}
+
+        {/* Card play prompt for current player */}
+        {cardPlayPrompt && (
+          <div className="card-play-prompt-status">
+            <div className="card-play-prompt-message">
+              {cardPlayPrompt.message}
             </div>
           </div>
         )}
@@ -305,12 +318,32 @@ const GameBoard = ({
           </div>
         )}
 
+        {/* Card play prompt */}
+        {cardPlayPrompt && (
+          <div className="card-play-prompt">
+            <div className="card-play-message">{cardPlayPrompt.message}</div>
+            {selectedCardPlay !== null && cardPlayPrompt.validCards.includes(selectedCardPlay) && (
+              <button
+                className="card-play-submit-btn"
+                onClick={onCardPlaySubmit}
+              >
+                Play Selected Card
+              </button>
+            )}
+            <div className="card-play-instruction">
+              Use ← → arrows to select, Enter to play
+            </div>
+          </div>
+        )}
+
         <PlayerHand
           cards={playerHand}
-          onCardClick={discardPrompt ? onDiscardCardClick : onCardClick}
-          validCards={discardPrompt ? playerHand.map((_, index) => index) : validCards}
+          onCardClick={discardPrompt ? onDiscardCardClick : cardPlayPrompt ? onCardPlayClick : onCardClick}
+          validCards={discardPrompt ? playerHand.map((_, index) => index) : cardPlayPrompt ? cardPlayPrompt.validCards : validCards}
           selectedDiscardCards={selectedDiscardCards}
           isDiscardMode={!!discardPrompt}
+          selectedCardPlay={selectedCardPlay}
+          isCardPlayMode={!!cardPlayPrompt}
         />
       </div>
     </div>

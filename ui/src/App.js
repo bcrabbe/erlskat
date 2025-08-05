@@ -36,6 +36,10 @@ const App = () => {
   const [discardPrompt, setDiscardPrompt] = useState(null);
   const [selectedDiscardCards, setSelectedDiscardCards] = useState([]);
 
+  // New state for card play functionality
+  const [cardPlayPrompt, setCardPlayPrompt] = useState(null);
+  const [selectedCardPlay, setSelectedCardPlay] = useState(null);
+
   // New state for skat cards display
   const [skatCards, setSkatCards] = useState([]);
   const [showSkatCards, setShowSkatCards] = useState(false);
@@ -84,14 +88,16 @@ const App = () => {
         setPlayerHand(data.hand || []);
         setCurrentTrick(data.current_trick || []);
         setValidCards(data.valid_cards || []);
-        setPrompt({
-          type: 'card_play_prompt',
+        setCardPlayPrompt({
           message: data.message,
-          choices: data.valid_cards.map(index => index)
+          validCards: data.valid_cards
         });
+        setSelectedCardPlay(data.valid_cards.length > 0 ? data.valid_cards[0] : null);
         // Clear discard state when card play prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        // Clear regular prompt
+        setPrompt(null);
         break;
 
       case 'bid_prompt':
@@ -100,9 +106,11 @@ const App = () => {
           message: data.message,
           choices: data.choices || []
         });
-        // Clear discard state when bid prompt is received
+        // Clear discard and card play state when bid prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'game_type_prompt':
@@ -112,9 +120,11 @@ const App = () => {
           choices: data.game_types || [],
           gameTypeValues: data.game_type_values || []
         });
-        // Clear discard state when game type prompt is received
+        // Clear discard and card play state when game type prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'multiplier_prompt':
@@ -123,9 +133,11 @@ const App = () => {
           message: data.message,
           choices: [...data.multipliers || [], "skip"]
         });
-        // Clear discard state when multiplier prompt is received
+        // Clear discard and card play state when multiplier prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'initial_choice_prompt':
@@ -134,9 +146,11 @@ const App = () => {
           message: data.message,
           choices: data.choices || []
         });
-        // Clear discard state when initial choice prompt is received
+        // Clear discard and card play state when initial choice prompt is received
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         setCurrentBidder(null);
       break;
 
@@ -146,6 +160,9 @@ const App = () => {
           count: data.count
         });
         setSelectedDiscardCards([]);
+        // Clear card play state when discard prompt is received
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'awaiting_bid':
@@ -236,9 +253,11 @@ const App = () => {
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
-        // Clear discard state
+        // Clear discard and card play state
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'game_complete_broadcast':
@@ -255,9 +274,11 @@ const App = () => {
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
-        // Clear discard state
+        // Clear discard and card play state
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
+        setCardPlayPrompt(null);
+        setSelectedCardPlay(null);
         break;
 
       case 'hand_reorder_broadcast':
@@ -383,6 +404,47 @@ const App = () => {
     }
   }, [selectedDiscardCards, discardPrompt, sendMessage]);
 
+  const handleCardPlayClick = useCallback((cardIndex) => {
+    if (!cardPlayPrompt || !cardPlayPrompt.validCards.includes(cardIndex)) return;
+    setSelectedCardPlay(cardIndex);
+  }, [cardPlayPrompt]);
+
+  const handleCardPlaySubmit = useCallback(() => {
+    if (selectedCardPlay !== null && cardPlayPrompt && cardPlayPrompt.validCards.includes(selectedCardPlay)) {
+      sendMessage(selectedCardPlay);
+      setCardPlayPrompt(null);
+      setSelectedCardPlay(null);
+    }
+  }, [selectedCardPlay, cardPlayPrompt, sendMessage]);
+
+  const handleKeyDown = useCallback((event) => {
+    if (!cardPlayPrompt || !cardPlayPrompt.validCards.length) return;
+    
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const currentIndex = cardPlayPrompt.validCards.indexOf(selectedCardPlay);
+      let newIndex;
+      
+      if (event.key === 'ArrowLeft') {
+        newIndex = currentIndex > 0 ? currentIndex - 1 : cardPlayPrompt.validCards.length - 1;
+      } else {
+        newIndex = currentIndex < cardPlayPrompt.validCards.length - 1 ? currentIndex + 1 : 0;
+      }
+      
+      setSelectedCardPlay(cardPlayPrompt.validCards[newIndex]);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      handleCardPlaySubmit();
+    }
+  }, [cardPlayPrompt, selectedCardPlay, handleCardPlaySubmit]);
+
+  useEffect(() => {
+    if (cardPlayPrompt) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [cardPlayPrompt, handleKeyDown]);
+
   useEffect(() => {
     return () => {
       disconnect();
@@ -419,6 +481,10 @@ const App = () => {
             selectedDiscardCards={selectedDiscardCards}
             onDiscardCardClick={handleDiscardCardClick}
             onDiscardSubmit={handleDiscardSubmit}
+            cardPlayPrompt={cardPlayPrompt}
+            selectedCardPlay={selectedCardPlay}
+            onCardPlayClick={handleCardPlayClick}
+            onCardPlaySubmit={handleCardPlaySubmit}
             skatCards={skatCards}
             showSkatCards={showSkatCards}
             hasActiveBidPrompt={prompt && prompt.type === 'bid_prompt'}
@@ -435,7 +501,7 @@ const App = () => {
     <div className="App">
       {renderContent()}
 
-      {prompt && (
+      {prompt && prompt.type !== 'card_play_prompt' && (
         <PromptModal
           isOpen={!!prompt}
           message={prompt.message}
