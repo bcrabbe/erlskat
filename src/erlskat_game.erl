@@ -110,6 +110,7 @@ init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
 
     % Send first trick prompt to first player
     send_card_play_prompt_to_current_player(FirstLeader, PlayerHands, [], CardOrdering, Players),
+    send_awaiting_card_to_other_players(FirstLeader, Players),
 
     InitialState = #state{
         coordinator_pid = CoordinatorPid,
@@ -232,6 +233,7 @@ process_valid_card_play(PlayerId, PlayedCard, CardIndex, State) ->
               UpdatedCurrentTrick,
               State#state.card_ordering,
               State#state.players),
+            send_awaiting_card_to_other_players(NextPlayer, State#state.players),
 
             {keep_state, State#state{
                 player_hands = UpdatedPlayerHands,
@@ -282,6 +284,7 @@ complete_trick(State) ->
                       [],
                       State#state.card_ordering,
                       State#state.players),
+                    send_awaiting_card_to_other_players(TrickWinner, State#state.players),
                     {keep_state, State#state{
                         current_trick = [],
                         current_leader = TrickWinner,
@@ -494,6 +497,14 @@ send_card_play_prompt_to_current_player(
                           player_id => PlayerId,
                           action => player_not_found_for_prompt})
     end.
+
+%% Send awaiting card message to other players
+send_awaiting_card_to_other_players(CurrentPlayerId, Players) ->
+    Msg = erlskat_client_responses:awaiting_card(CurrentPlayerId),
+    OtherPlayers = lists:filter(fun(Player) ->
+        maps:get(id, Player) =/= CurrentPlayerId
+    end, Players),
+    [maps:get(socket, Player) ! Msg || Player <- OtherPlayers].
 
 %% Broadcast game start to all players
 broadcast_game_start_to_all_players(Players, Declarer, GameType, IsHandGame, SelectedMultipliers) ->

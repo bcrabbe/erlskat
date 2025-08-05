@@ -33,6 +33,7 @@
     cards_dealt/1,
     %% Game play messages
     card_play_prompt/3,
+    awaiting_card/1,
     game_start_broadcast/4,
     card_played_broadcast/3,
     trick_won_broadcast/2,
@@ -83,6 +84,7 @@
     bidding_roles_msg/0,
     cards_dealt_msg/0,
     card_play_prompt_msg/0,
+    awaiting_card_msg/0,
     game_start_broadcast_msg/0,
     card_played_broadcast_msg/0,
     trick_won_broadcast_msg/0,
@@ -107,7 +109,7 @@
     initial_choice_prompt | skat_flipped | hand_with_skat | discard_prompt | bidding_complete |
     bidding_winner_notification | game_declaration_broadcast | game_type_broadcast |
     hand_reorder_broadcast | bid_broadcast | pass_broadcast | bidding_roles |
-    cards_dealt | card_play_prompt | game_start_broadcast | card_played_broadcast |
+    cards_dealt | card_play_prompt | awaiting_card | game_start_broadcast | card_played_broadcast |
     trick_won_broadcast | game_complete_broadcast | invalid_card_error | card_play_error |
     %% Connection management messages
     player_disconnected | player_timed_out | game_closed |
@@ -265,6 +267,12 @@
     message := binary()
 }.
 
+-type awaiting_card_msg() :: #{
+    type := awaiting_card,
+    waiting_for_player_id := erlskat:player_id(),
+    message := binary()
+}.
+
 -type game_start_broadcast_msg() :: #{
     type := game_start_broadcast,
     declarer := erlskat:player_id(),
@@ -370,7 +378,7 @@
     game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
     pass_broadcast_msg() |
     bidding_roles_msg() | cards_dealt_msg() |
-    card_play_prompt_msg() | game_start_broadcast_msg() | card_played_broadcast_msg() |
+    card_play_prompt_msg() | awaiting_card_msg() | game_start_broadcast_msg() | card_played_broadcast_msg() |
     trick_won_broadcast_msg() | game_complete_broadcast_msg() | invalid_card_error_msg() |
     card_play_error_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
@@ -645,6 +653,14 @@ card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering) ->
           0 -> <<"Play a card to lead the trick">>;
           _ -> <<"Play a card to follow">>
       end}.
+
+-spec awaiting_card(erlskat:player_id()) -> awaiting_card_msg().
+awaiting_card(WaitingForPlayerId) ->
+    #{type => awaiting_card,
+      waiting_for_player_id => WaitingForPlayerId,
+      message => iolist_to_binary([<<"Waiting for player ">>,
+                                  WaitingForPlayerId,
+                                  <<" to play...">>])}.
 
 -spec game_start_broadcast(erlskat:player_id(), binary(), boolean(), [atom()]) ->
           game_start_broadcast_msg().
