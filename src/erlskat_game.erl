@@ -109,7 +109,8 @@ init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
       SelectedMultipliers),
 
     % Send first trick prompt to first player
-    send_card_play_prompt_to_current_player(FirstLeader, PlayerHands, [], CardOrdering, Players),
+    send_card_play_prompt_to_current_player(
+      FirstLeader, PlayerHands, [], CardOrdering, Players, GameType),
     send_awaiting_card_to_other_players(FirstLeader, Players),
 
     InitialState = #state{
@@ -232,7 +233,8 @@ process_valid_card_play(PlayerId, PlayedCard, CardIndex, State) ->
               UpdatedPlayerHands,
               UpdatedCurrentTrick,
               State#state.card_ordering,
-              State#state.players),
+              State#state.players,
+              State#state.game_type),
             send_awaiting_card_to_other_players(NextPlayer, State#state.players),
 
             {keep_state, State#state{
@@ -283,7 +285,8 @@ complete_trick(State) ->
                       State#state.player_hands,
                       [],
                       State#state.card_ordering,
-                      State#state.players),
+                      State#state.players,
+                      State#state.game_type),
                     send_awaiting_card_to_other_players(TrickWinner, State#state.players),
                     {keep_state, State#state{
                         current_trick = [],
@@ -472,6 +475,30 @@ get_next_player(CurrentPlayer, PlayerOrder) ->
         [] -> hd(PlayerOrder)   % Current player not found, start with first
     end.
 
+%% Determine which card indexes are playable for a player
+get_playable_card_indexes(PlayerHand, CurrentTrick, GameType) ->
+    case CurrentTrick of
+        [] ->
+            % First card of trick, all cards are playable
+            lists:seq(0, length(PlayerHand) - 1);
+        [FirstPlay | _] ->
+            FirstCard = maps:get(card, FirstPlay),
+            LedSuit = get_effective_suit(FirstCard, GameType),
+
+            % Find cards that follow suit
+            SuitCardIndexes = [Index || {Index, Card} <- lists:enumerate(0, PlayerHand),
+                                       get_effective_suit(Card, GameType) =:= LedSuit],
+
+            case SuitCardIndexes of
+                [] ->
+                    % No cards of led suit, all cards are playable
+                    lists:seq(0, length(PlayerHand) - 1);
+                _ ->
+                    % Must follow suit
+                    SuitCardIndexes
+            end
+    end.
+
 %%%===================================================================
 %%% Socket messages
 %%%===================================================================
@@ -482,15 +509,18 @@ send_card_play_prompt_to_current_player(
   PlayerHands,
   CurrentTrick,
   CardOrdering,
-  Players) ->
+  Players,
+  GameType) ->
     case find_player_by_id(PlayerId, Players) of
         {ok, Player} ->
             PlayerHand = maps:get(PlayerId, PlayerHands),
             Socket = maps:get(socket, Player),
+            PlayableIndexes = get_playable_card_indexes(PlayerHand, CurrentTrick, GameType),
             Socket ! erlskat_client_responses:card_play_prompt(
                        PlayerHand,
                        CurrentTrick,
-                       CardOrdering);
+                       CardOrdering,
+                       PlayableIndexes);
         error ->
             ?LOG_WARNING(#{module => ?MODULE,
                           line => ?LINE,

@@ -32,7 +32,7 @@
     bidding_roles/1,
     cards_dealt/1,
     %% Game play messages
-    card_play_prompt/3,
+    card_play_prompt/4,
     awaiting_card/1,
     game_start_broadcast/4,
     card_played_broadcast/3,
@@ -378,7 +378,8 @@
     game_type_broadcast_msg() | hand_reorder_broadcast_msg() | bid_broadcast_msg() |
     pass_broadcast_msg() |
     bidding_roles_msg() | cards_dealt_msg() |
-    card_play_prompt_msg() | awaiting_card_msg() | game_start_broadcast_msg() | card_played_broadcast_msg() |
+    card_play_prompt_msg() | awaiting_card_msg() | game_start_broadcast_msg() |
+    card_played_broadcast_msg() |
     trick_won_broadcast_msg() | game_complete_broadcast_msg() | invalid_card_error_msg() |
     card_play_error_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
@@ -641,14 +642,13 @@ cards_dealt(Hand) ->
       hand => Hand}.
 
 %% Game play message constructors
--spec card_play_prompt(erlskat:cards(), [map()], [erlskat:card()]) -> card_play_prompt_msg().
-card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering) ->
-    % TODO: Determine valid card indices based on suit and hand
-    ValidCards = lists:seq(0, length(PlayerHand) - 1),
+-spec card_play_prompt(erlskat:cards(), [map()], [erlskat:card()], [integer()]) ->
+          card_play_prompt_msg().
+card_play_prompt(PlayerHand, CurrentTrick, _CardOrdering, PlayableIndexes) ->
     #{type => card_play_prompt,
       hand => PlayerHand,
       current_trick => CurrentTrick,
-      valid_cards => ValidCards,
+      valid_cards => PlayableIndexes,
       message => case length(CurrentTrick) of
           0 -> <<"Play a card to lead the trick">>;
           _ -> <<"Play a card to follow">>
