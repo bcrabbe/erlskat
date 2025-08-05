@@ -47,6 +47,9 @@ const App = () => {
   // New state for player disconnection
   const [disconnectedPlayer, setDisconnectedPlayer] = useState(null);
 
+  // New state for game completion message
+  const [gameCompletionMessage, setGameCompletionMessage] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -261,6 +264,27 @@ const App = () => {
         break;
 
       case 'game_complete_broadcast':
+        // Extract game result information
+        const result = data.result;
+        const declarer = result.declarer;
+        const declarerWon = result.declarer_won;
+        const declarerPoints = result.declarer_points;
+        const actualGameValue = result.actual_game_value;
+
+        // Create completion message based on who won
+        let completionMessage;
+        if (declarerWon) {
+          completionMessage = `Declarer won with ${declarerPoints} points and scored ${actualGameValue} points!`;
+        } else {
+          completionMessage = `Declarer lost with only ${declarerPoints} points and lost ${Math.abs(actualGameValue)} points.`;
+        }
+
+        // Show completion message for 4 seconds
+        setGameCompletionMessage(completionMessage);
+        setTimeout(() => {
+          setGameCompletionMessage(null);
+        }, 4000);
+
         // Handle game completion
         setGameState('lobby');
         setPlayerHand([]);
@@ -419,18 +443,18 @@ const App = () => {
 
   const handleKeyDown = useCallback((event) => {
     if (!cardPlayPrompt || !cardPlayPrompt.validCards.length) return;
-    
+
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       const currentIndex = cardPlayPrompt.validCards.indexOf(selectedCardPlay);
       let newIndex;
-      
+
       if (event.key === 'ArrowLeft') {
         newIndex = currentIndex > 0 ? currentIndex - 1 : cardPlayPrompt.validCards.length - 1;
       } else {
         newIndex = currentIndex < cardPlayPrompt.validCards.length - 1 ? currentIndex + 1 : 0;
       }
-      
+
       setSelectedCardPlay(cardPlayPrompt.validCards[newIndex]);
     } else if (event.key === 'Enter') {
       event.preventDefault();
@@ -522,6 +546,12 @@ const App = () => {
       {disconnectedPlayer && (
         <div className="disconnection-notice">
           <p>{disconnectedPlayer.message}</p>
+        </div>
+      )}
+
+      {gameCompletionMessage && (
+        <div className="game-completion-message">
+          <p>{gameCompletionMessage}</p>
         </div>
       )}
     </div>
