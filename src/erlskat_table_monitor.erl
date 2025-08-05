@@ -76,7 +76,7 @@ init(Players) ->
       Players
      ),
     {ok, connected, #{total => length(Players),
-                      players => PlayersByRef,
+                      connected => PlayersByRef,
                       reconnecting => []}}.
 
 -spec handle_event(gen_statem:event_type(),
@@ -88,7 +88,7 @@ init(Players) ->
 handle_event(info,
              {'DOWN', Ref, process, _DownSocket, _Reason} = Msg,
              State,
-             #{players := Players} = Data) ->
+             #{connected := Players} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -102,14 +102,16 @@ handle_event(info,
     RemainingPlayersByRef = maps:without([Ref], Players),
     [Socket ! player_disconnected(DisconnectedPlayerId) ||
         #{socket := Socket}  <- maps:values(RemainingPlayersByRef)],
-    {next_state, reconnecting,
-     Data#{reconnecting => [DisconnectedPlayerId | maps:get(reconnecting, Data, [])]},
+    {next_state,
+     reconnecting,
+     Data#{reconnecting => [DisconnectedPlayerId | maps:get(reconnecting, Data, [])],
+           connected => RemainingPlayersByRef},
      [{{timeout, player_timeout}, ?RECONNECT_DEADLINE_MS, {player_timeout, DisconnectedPlayerId}}]};
 
 handle_event({timeout, player_timeout},
              {player_timeout, DisconnectedPlayerId} = Msg,
              _State,
-             #{players := Players} = Data) ->
+             #{connected := Players} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -126,13 +128,13 @@ handle_event({timeout, player_timeout},
         Players),
     {next_state,
      game_closed,
-     Data#{players := RemainingPlayersByRef},
+     Data#{connected := RemainingPlayersByRef},
      [{{timeout, game_closed}, 0, game_closed}]};
 
 handle_event({timeout, game_closed},
              _Msg,
              _State,
-             #{players := RemainingPlayersByRef} = _Data) ->
+             #{connected := RemainingPlayersByRef} = _Data) ->
     [Socket ! game_closed() ||
         #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
     [erlskat_lobby:return_player_to_lobby(Player) ||
