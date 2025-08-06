@@ -26,7 +26,8 @@
 
 -type table_monitor_state() :: connected | connecting.
 -type table_monitor_data() :: #{connected => #{reference() => erlskat:player()},
-                                reconnecting => [erlskat:player_id()],
+                                reconnecting => [#{id => erlskat:player_id(),
+                                                   prior_proc => pid()}],
                                 total => number()}.
 
 
@@ -88,7 +89,7 @@ init(Players) ->
 handle_event(info,
              {'DOWN', Ref, process, _DownSocket, _Reason} = Msg,
              State,
-             #{connected := Players} = Data) ->
+             #{connected := ConnectedPlayers} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -97,21 +98,30 @@ handle_event(info,
                 data => Data,
                 self => self(),
                 reconnecting_deadline => ?RECONNECT_DEADLINE_MS}),
-    erlang:demonitor(Ref),
-    #{id := DisconnectedPlayerId} = maps:get(Ref, Players),
-    RemainingPlayersByRef = maps:without([Ref], Players),
+    erlang:demonitor(Ref),% not sure this is needed, but it doesn't hurt?
+    #{id := DisconnectedPlayerId} = maps:get(Ref, ConnectedPlayers),
+    % get the disconnected player's current process
+    {ok, #{proc := PriorProc}} = erlskat_manager:get_player_proc(
+                                   DisconnectedPlayerId),
+    NewReconnecting = [#{id => DisconnectedPlayerId, prior_proc => PriorProc} |
+                       maps:get(reconnecting, Data, [])],
+    % notify the remaining players that a player has disconnected
+    RemainingConnectedPlayersByRef = maps:without([Ref], ConnectedPlayers),
     [Socket ! player_disconnected(DisconnectedPlayerId) ||
-        #{socket := Socket}  <- maps:values(RemainingPlayersByRef)],
+        #{socket := Socket}  <- maps:values(RemainingConnectedPlayersByRef)],
     {next_state,
      reconnecting,
-     Data#{reconnecting => [DisconnectedPlayerId | maps:get(reconnecting, Data, [])],
-           connected => RemainingPlayersByRef},
-     [{{timeout, player_timeout}, ?RECONNECT_DEADLINE_MS, {player_timeout, DisconnectedPlayerId}}]};
+     Data#{reconnecting => NewReconnecting,
+           connected => RemainingConnectedPlayersByRef},
+     [{{timeout, player_timeout},
+       ?RECONNECT_DEADLINE_MS,
+       {player_timeout, DisconnectedPlayerId}}]};
 
 handle_event({timeout, player_timeout},
              {player_timeout, DisconnectedPlayerId} = Msg,
              _State,
-             #{connected := Players} = Data) ->
+             #{connected := Players,
+               reconnecting := ReconnectingIds} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -119,38 +129,73 @@ handle_event({timeout, player_timeout},
                 data => Data,
                 self => self(),
                 msg => Msg}),
+    erlskat_manager:clear_player_proc(DisconnectedPlayerId),
+    % remove the disconnected player from the reconnecting list
+    NewReconnectingIds = lists:filter(
+                           fun
+                               (#{id := Id}) when Id =:= DisconnectedPlayerId -> false;
+                               (_) -> true
+                           end,
+                           ReconnectingIds),
+    % notify the remaining players that the player has timed out
     [Socket ! player_timed_out(DisconnectedPlayerId) ||
         #{socket := Socket} <- maps:values(Players)],
-    RemainingPlayersByRef = maps:filter(
-        fun
-            (_, #{id := Id}) -> Id =/= DisconnectedPlayerId
-        end,
-        Players),
     {next_state,
      game_closed,
-     Data#{connected := RemainingPlayersByRef},
+     Data#{reconnecting := NewReconnectingIds},
      [{{timeout, game_closed}, 0, game_closed}]};
 
 handle_event({timeout, game_closed},
              _Msg,
              _State,
-             #{connected := RemainingPlayersByRef} = _Data) ->
+             #{connected := RemainingPlayersByRef,
+              reconnecting := ReconnectingPlayers} = _Data) ->
+    % notify the remaining players that the game is closed
     [Socket ! game_closed() ||
         #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
+    %% return the players to the lobby
     [erlskat_lobby:return_player_to_lobby(Player) ||
         Player <- maps:values(RemainingPlayersByRef)],
+    %% disconnect any other reconnecting players
+    lists:foreach(
+      fun (#{id := Id}) ->
+              erlskat_manager:clear_player_proc(Id)
+      end,
+      ReconnectingPlayers),
     {stop, player_disconnected};
 
  %% a msg from the reconnecting player
 handle_event(cast,
              {socket_message,
-              #{player := #{id := Id} = Player, msg := _Msg}},
+              #{player := #{id := ReconnectingPlayerId} = Player, msg := Msg}},
              reconnecting = State,
-             #{reconnecting := ReconnectingIds} = Data) ->
-    case is_disconnected_player(Id, ReconnectingIds) of
-        true -> reconnect_player(
-                  Player,
-                  maps:put(reconnecting, lists:delete(Id, ReconnectingIds), Data));
+             #{reconnecting := ReconnectingPlayers} = Data) ->
+    case is_disconnected_player(ReconnectingPlayerId, ReconnectingPlayers) of
+        true ->
+            ?LOG_INFO(
+               #{module => ?MODULE,
+                 line => ?LINE,
+                 function => ?FUNCTION_NAME,
+                 state => State,
+                 data => Data,
+                 self => self(),
+                 player_id => ReconnectingPlayerId,
+                 msg => Msg}),
+            NewReconnectingIds = lists:filter(
+                                   fun
+                                       (#{id := Id,
+                                          prior_proc := PriorProc})
+                                         when Id =:= ReconnectingPlayerId ->
+                                           erlskat_manager:update_player_proc(
+                                             Player,
+                                             PriorProc), %% restore the prior process
+                                           false;
+                                       (_) -> true
+                                   end,
+                                   ReconnectingPlayers),
+            reconnect_player(
+              Player,
+              Data#{reconnecting => NewReconnectingIds});
         false -> {keep_state, State, Data}
     end.
 
@@ -186,7 +231,7 @@ code_change(_OldVsn, State, Data, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-is_disconnected_player(Id, [Id | _]) ->
+is_disconnected_player(Id, [#{id := Id} | _]) ->
     true;
 is_disconnected_player(Id, [_ | Rest]) ->
     is_disconnected_player(Id, Rest);

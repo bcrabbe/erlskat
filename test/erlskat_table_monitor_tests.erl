@@ -15,9 +15,15 @@ start_test_() ->
 
 one_leaver_test_() ->
     [{"notifies remaining players of disconnect",
-      {setup, fun start_with_leaver/0, fun stop/1, fun receive_disconnect_messages/1}},
+      {setup,
+       fun start_with_leaver/0,
+       fun (Arg) -> unload_with_leaver_mocks(), stop(Arg) end,
+       fun receive_disconnect_messages/1}},
      {"notifies remaining players of timeout",
-      {setup, fun start_with_leaver/0, fun stop/1, fun receive_timeout_messages/1}}
+      {setup,
+       fun start_with_leaver/0,
+       fun (Arg) -> unload_with_leaver_mocks(), stop(Arg) end,
+       fun receive_timeout_messages/1}}
     ].
 
 %% player_disconnects_test_() ->
@@ -97,12 +103,31 @@ start_with_leaver() ->
               exit(expected_mock_player_disconnect)
       end),
     process_flag(trap_exit, true),
+    start_with_leaver_mocks(),
     timer:sleep(110),
     flush(),
     {ok, Pid} = erlskat_table_monitor:start_link(
                   [player(?LEAVING_PLAYER_ID, LeaverPid) | players(2)]),
     Pid.
 
+start_with_leaver_mocks() ->
+    meck:new(erlskat_manager, [unstick, passthrough]),
+    meck:expect(
+      erlskat_manager,
+      get_player_proc,
+      fun
+          (DisconnectingPlayerId) when DisconnectingPlayerId =:= ?LEAVING_PLAYER_ID ->
+              {ok, #{proc => self()}}
+      end),
+    meck:expect(
+      erlskat_manager,
+      clear_player_proc,
+      fun
+          (DisconnectingPlayerId) when DisconnectingPlayerId =:= ?LEAVING_PLAYER_ID -> ok
+      end).
+
+unload_with_leaver_mocks() ->
+    ok = meck:unload(erlskat_manager).
 
 stop([Pid | []]) ->
     stop(Pid);

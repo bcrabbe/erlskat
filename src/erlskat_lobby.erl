@@ -88,6 +88,8 @@ handle_event(info,
                 left => Left,
                 reason => Reason}),
     notify_players_waiting(StillWaiting),
+    #{id := PlayerId} = hd(Left),
+    ok = erlskat_manager:clear_player_proc(PlayerId),
     {keep_state, #{players => StillWaiting}};
 
 handle_event(cast,
@@ -100,7 +102,7 @@ handle_event(cast,
                 player => NewPlayer}),
     Ref = erlang:monitor(process, Socket),
     Socket ! erlskat_client_responses:player_joined(PlayerId),
-    NewWaitingPlayers = [NewPlayer#{ ref => Ref } | WaitingPlayers],
+    NewWaitingPlayers = [NewPlayer#{ref => Ref} | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
 

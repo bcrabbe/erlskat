@@ -7,7 +7,8 @@
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 
--define(SESSION_COOKIE, <<"skat_session">>).
+-define(SESSION_COOKIE, skat_session).
+-define(SESSION_COOKIE_BINARY, <<"skat_session">>).
 -define(SESSION_SECRET, <<"skat_session_secret">>).
 
 init(Req0, _) ->
@@ -26,7 +27,7 @@ init(Req0, _) ->
 websocket_init(#{player_id := PlayerId} = State) ->
     erlskat_manager:socket_message(
       #{id => PlayerId, socket => self()},
-      #{}),
+      connected),
     {ok, State}.
 
 %% messages from client
@@ -106,16 +107,20 @@ session(Req) ->
 set_session(Req) ->
     quickrand:seed(),
     PlayerId = generate_session_id(),
-    ?LOG_INFO(#{player_id => PlayerId}),
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                player_id => PlayerId}),
     SessionValue = encrypt_session(PlayerId),
     % Set cookie with secure options
     Req1 = cowboy_req:set_resp_cookie(
-              ?SESSION_COOKIE,
+              ?SESSION_COOKIE_BINARY,
               SessionValue,
               Req,
               #{http_only => true,
                 secure => false, % Set to true in production with HTTPS
                 same_site => lax,
+                path => "/ws",
                 max_age => 86400}), % 24 hours
     {binary_uuid_to_hex(PlayerId), Req1}.
 
@@ -131,10 +136,10 @@ binary_uuid_to_hex(BinaryUuid) ->
     list_to_binary(FmtIolist).
 
 encrypt_session(PlayerId) ->
-    ?LOG_INFO(#{ module => ?MODULE,
-                 line => ?LINE,
-                 function => ?FUNCTION_NAME,
-                 session => PlayerId }),
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                session => PlayerId }),
     base64:encode(<<?SESSION_SECRET/binary, ":"/utf8, PlayerId/binary>>).
 
 decrypt_session(Req, SessionCookie) ->
