@@ -70,8 +70,7 @@ callback_mode() -> handle_event_function.
 %% process to initialize.
 %% @end
 %%--------------------------------------------------------------------
--spec init(Args :: term()) ->
-          gen_statem:init_result(term()).
+-spec init(Args :: term()) -> gen_statem:init_result(term()).
 init(Players) ->
     process_flag(trap_exit, true),
     Scores = new_scorecard(Players),
@@ -196,8 +195,9 @@ broadcast_scores_update(Data) ->
 
     lists:foreach(
       fun(PlayerId) ->
-              PlayerProc = maps:get(socket, maps:get(PlayerId, Data)),
-              PlayerProc ! erlskat_client_responses:scores_update_broadcast(PlayerScores)
+              erlskat_manager:socket_response(PlayerId,
+                                              erlskat_client_responses:scores_update_broadcast(
+                                                PlayerScores))
          end,
       AllPlayers).
 
@@ -218,7 +218,8 @@ broadcast_next_hand_starting(Data) ->
     % Broadcast to all players
     lists:foreach(
       fun(PlayerId) ->
-              PlayerProc = maps:get(socket, maps:get(PlayerId, Data)),
-              PlayerProc ! erlskat_client_responses:next_hand_starting_broadcast(NextHandNumber)
+              erlskat_manager:socket_response(PlayerId,
+                                              erlskat_client_responses:next_hand_starting_broadcast(
+                                                NextHandNumber))
       end,
       AllPlayers).

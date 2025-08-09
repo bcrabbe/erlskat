@@ -89,7 +89,7 @@ init(Players) ->
     % Send table_started message to all players
     PlayerIds = [maps:get(id, Player) || Player <- Players],
     TableStartedMsg = erlskat_client_responses:table_started(PlayerIds),
-    [maps:get(socket, Player) ! TableStartedMsg || Player <- Players],
+    [erlskat_manager:socket_response(PlayerId, TableStartedMsg) || PlayerId <- PlayerIds],
 
     {ok, {SupFlags, [Scorecard, Hand, Monitor]}}.
 

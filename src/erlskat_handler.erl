@@ -25,7 +25,7 @@ init(Req0, _) ->
      #{idle_timeout => infinity, max_frame_size => infinity}}.
 
 websocket_init(#{player_id := PlayerId} = State) ->
-    erlskat_manager:socket_message(
+    erlskat_manager:socket_request(
       #{id => PlayerId, socket => self()},
       connected),
     {ok, State}.
@@ -42,7 +42,7 @@ websocket_handle({text, Msg} = _Req0, #{player_id := PlayerId} = State) ->
                  player => PlayerId,
                  state => State,
                  pid => self()}),
-            erlskat_manager:socket_message(
+            erlskat_manager:socket_request(
               #{id => PlayerId,
                 socket => self()},
               Json),

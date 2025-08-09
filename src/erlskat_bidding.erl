@@ -163,7 +163,7 @@ init({CoordinatorPid, Players}) ->
 %%%===================================================================
 
 %% State: bidding_phase
-bidding_phase(cast, {socket_message, #{player := Player, msg := <<"hold">>}}, Data) ->
+bidding_phase(cast, {socket_request, #{player := Player, msg := <<"hold">>}}, Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(current_bidder, Data) of
         true ->
@@ -172,7 +172,7 @@ bidding_phase(cast, {socket_message, #{player := Player, msg := <<"hold">>}}, Da
             keep_state_and_data
     end;
 
-bidding_phase(cast, {socket_message, #{player := Player, msg := <<"pass">>}}, Data) ->
+bidding_phase(cast, {socket_request, #{player := Player, msg := <<"pass">>}}, Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(current_bidder, Data) of
         true ->
@@ -191,7 +191,7 @@ bidding_phase(EventType, Event, Data) ->
 
 %% State: game_declaration winning bidder chooses to see skat or play hand
 game_declaration(cast,
-                 {socket_message,
+                 {socket_request,
                   #{player := Player, msg := Choice}} = Msg,
                  Data) ->
     PlayerId = maps:get(id, Player),
@@ -243,7 +243,7 @@ game_declaration(EventType, Event, Data) ->
 
 %% State: game_type_selection
 game_type_selection(cast,
-                    {socket_message,
+                    {socket_request,
                      #{player := Player, msg := GameType}} = Msg,
                     Data) ->
     PlayerId = maps:get(id, Player),
@@ -261,7 +261,7 @@ game_type_selection(EventType, Event, Data) ->
 
 %% State: skat_exchange
 skat_exchange(cast,
-              {socket_message,
+              {socket_request,
                #{player := Player, msg := Indices}} = Msg,
               Data) ->
     PlayerId = maps:get(id, Player),
@@ -306,7 +306,7 @@ skat_exchange(EventType, Event, Data) ->
 
 %% State: multiplier_selection
 multiplier_selection(cast,
-                     {socket_message,
+                     {socket_request,
                       #{player := Player, msg := Multiplier}} = Msg,
                      Data) ->
     PlayerId = maps:get(id, Player),
@@ -632,18 +632,20 @@ send_hands_to_players(_) ->
     done.
 
 -spec send_hands_to_players(erlskat:player(), player_bidding_data()) -> done.
-send_hands_to_players(#{socket := Socket}, #{hand := Hand}) ->
-    Socket ! erlskat_client_responses:cards_dealt(Hand),
+send_hands_to_players(#{id := PlayerId}, #{hand := Hand}) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:cards_dealt(Hand)),
     done.
 
 -spec send_bid_prompt_to_player(player_bidding_data(), game_value()) -> done.
-send_bid_prompt_to_player(#{player := #{socket := Socket}}, BidValue) ->
-    Socket ! erlskat_client_responses:bid_prompt(BidValue),
+send_bid_prompt_to_player(#{player := #{id := PlayerId}}, BidValue) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:bid_prompt(BidValue)),
     done.
 
 -spec send_awaiting_bid_to_player(player_bidding_data(), game_value(), erlskat:player_id()) -> done.
-send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue, WaitingForPlayerId) ->
-    Socket ! erlskat_client_responses:awaiting_bid(BidValue, WaitingForPlayerId),
+send_awaiting_bid_to_player(#{player := #{id := PlayerId}}, BidValue, WaitingForPlayerId) ->
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:awaiting_bid(
+                                      BidValue, WaitingForPlayerId)),
     done.
 
 -spec send_game_type_prompt_to_player(
@@ -651,65 +653,72 @@ send_awaiting_bid_to_player(#{player := #{socket := Socket}}, BidValue, WaitingF
         [game_type()],
         erlskat:cards()) -> done.
 send_game_type_prompt_to_player(
-  #{player := #{socket := Socket}} = PlayerData,
+  #{player := #{id := PlayerId}} = PlayerData,
   GameTypes,
   HandWithSkat) ->
     PlayerDataWithSkat = PlayerData#{hand => HandWithSkat},
-    Socket ! erlskat_client_responses:game_type_prompt_with_values(GameTypes, PlayerDataWithSkat),
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:game_type_prompt_with_values(
+                                      GameTypes, PlayerDataWithSkat)),
     done.
 
 -spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary()) -> done.
-send_multiplier_prompt_to_player(#{player := #{socket := Socket}}, Multipliers, GameType) ->
-    Socket ! erlskat_client_responses:multiplier_prompt(Multipliers, GameType),
+send_multiplier_prompt_to_player(#{player := #{id := PlayerId}}, Multipliers, GameType) ->
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:multiplier_prompt(
+                                      Multipliers, GameType)),
     done.
 
 -spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary(), map()) -> done.
 send_multiplier_prompt_to_player(
-  #{player := #{socket := Socket}} = PlayerData,
+  #{player := #{id := PlayerId}} = PlayerData,
   Multipliers,
   GameType,
   GameData) ->
-    Socket ! erlskat_client_responses:multiplier_prompt_with_values(
-               Multipliers,
-               GameType,
-               PlayerData,
-               GameData),
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:multiplier_prompt_with_values(
+                                      Multipliers,
+                                      GameType,
+                                      PlayerData,
+                                      GameData)),
     done.
 
 -spec send_initial_choice_prompt_to_player(player_bidding_data()) -> done.
-send_initial_choice_prompt_to_player(#{player := #{socket := Socket}}) ->
-    Socket ! erlskat_client_responses:initial_choice_prompt(),
+send_initial_choice_prompt_to_player(#{player := #{id := PlayerId}}) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:initial_choice_prompt()),
     done.
 
 % First show skat cards, then send combined hand
 -spec send_skat_cards_to_player(player_bidding_data(), erlskat:cards(), erlskat:skat()) -> done.
 send_skat_cards_to_player(
-  #{player := #{socket := Socket}, hand := HandCards},
+  #{player := #{id := PlayerId}, hand := HandCards},
   HandCards,
   SkatCards) ->
-    Socket ! erlskat_client_responses:skat_flipped(SkatCards),
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:skat_flipped(SkatCards)),
     FullHand = erlskat_card_ordering:order_cards_for_skat(HandCards ++ SkatCards),
-    Socket ! erlskat_client_responses:hand_with_skat(FullHand),
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:hand_with_skat(FullHand)),
     done.
 
 -spec send_discard_prompt_to_player(player_bidding_data(), non_neg_integer()) -> done.
-send_discard_prompt_to_player(#{player := #{socket := Socket}}, Count) ->
-    Socket ! erlskat_client_responses:discard_prompt(Count),
+send_discard_prompt_to_player(#{player := #{id := PlayerId}}, Count) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:discard_prompt(Count)),
     done.
 
 -spec send_hand_after_discard_to_player(player_bidding_data(), erlskat:cards()) -> done.
-send_hand_after_discard_to_player(#{player := #{socket := Socket}}, Hand) ->
-    Socket ! erlskat_client_responses:hand_after_discard(Hand),
+send_hand_after_discard_to_player(#{player := #{id := PlayerId}}, Hand) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:hand_after_discard(Hand)),
     done.
 
 -spec send_bidding_complete_to_player(player_bidding_data(), map()) -> done.
-send_bidding_complete_to_player(#{player := #{socket := Socket}}, Result) ->
-    Socket ! erlskat_client_responses:bidding_complete(Result),
+send_bidding_complete_to_player(#{player := #{id := PlayerId}}, Result) ->
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:bidding_complete(Result)),
     done.
 
 % Create a map from card to its position in the ordering
-send_bidding_winner_notification_to_player(#{player := #{socket := Socket}}, WinnerId, BidValue) ->
-    Socket ! erlskat_client_responses:bidding_winner_notification(WinnerId, BidValue),
+send_bidding_winner_notification_to_player(#{player := #{id := PlayerId}}, WinnerId, BidValue) ->
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:bidding_winner_notification(
+                                      WinnerId, BidValue)),
     done.
 
 -spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), game_value()) -> done.
@@ -762,8 +771,8 @@ broadcast_hand_reorder_to_all_players(BiddingDataList, WinnerId, GameType, Skat,
     done.
 
 -spec send_broadcast_msg(player_bidding_data(), map()) -> done.
-send_broadcast_msg(#{player := #{socket := Socket}}, BroadcastMsg) ->
-    Socket ! BroadcastMsg,
+send_broadcast_msg(#{player := #{id := PlayerId}}, BroadcastMsg) ->
+    erlskat_manager:socket_response(PlayerId, BroadcastMsg),
     done.
 
 -spec send_bidding_roles_to_all_players([player_bidding_data()], [erlskat:player_id()]) -> done.
@@ -777,8 +786,10 @@ send_bidding_roles_to_all_players(Hands, BiddingOrder) ->
     done.
 
 -spec send_error_message_to_player(player_bidding_data(), binary(), map()) -> done.
-send_error_message_to_player(#{player := #{socket := Socket}}, ErrorMessage, ExpectedFormat) ->
-    Socket ! erlskat_client_responses:error_message(ErrorMessage, ExpectedFormat),
+send_error_message_to_player(#{player := #{id := PlayerId}}, ErrorMessage, ExpectedFormat) ->
+    erlskat_manager:socket_response(PlayerId,
+                                    erlskat_client_responses:error_message(
+                                      ErrorMessage, ExpectedFormat)),
     done.
 
 -spec send_error_message_to_player_by_id(erlskat:player_id(), [player_bidding_data()],
@@ -852,7 +863,7 @@ deal(Players) ->
 
 -spec handle_unexpected_event(gen_statem:event_type(), term(), term(), server_state()) ->
           gen_statem:event_handler_result(term()).
-handle_unexpected_event(cast, {socket_message, #{player := Player, msg := _Msg} = SocketEvent},
+handle_unexpected_event(cast, {socket_request, #{player := Player, msg := _Msg} = SocketEvent},
                         Data, StateName) ->
     PlayerId = maps:get(id, Player),
     ?LOG_WARNING(#{module => ?MODULE,
@@ -862,7 +873,7 @@ handle_unexpected_event(cast, {socket_message, #{player := Player, msg := _Msg} 
                    event => SocketEvent,
                    state => StateName,
                    player_id => PlayerId,
-                   action => unexpected_socket_message}),
+                   action => unexpected_socket_request}),
     ExpectedFormat = get_expected_message_format(StateName),
     ErrorMessage = iolist_to_binary(["Unexpected message in state '",
                                     atom_to_list(StateName),

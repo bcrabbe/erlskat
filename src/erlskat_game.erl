@@ -140,7 +140,7 @@ init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
 %%%===================================================================
 
 %% State: trick_play
-trick_play(cast, {socket_message, #{player := Player, msg := CardIndex}}, State) ->
+trick_play(cast, {socket_request, #{player := Player, msg := CardIndex}}, State) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= State#state.current_player andalso is_integer(CardIndex) of
         true ->
@@ -514,13 +514,12 @@ send_card_play_prompt_to_current_player(
     case find_player_by_id(PlayerId, Players) of
         {ok, Player} ->
             PlayerHand = maps:get(PlayerId, PlayerHands),
-            Socket = maps:get(socket, Player),
             PlayableIndexes = get_playable_card_indexes(PlayerHand, CurrentTrick, GameType),
-            Socket ! erlskat_client_responses:card_play_prompt(
+            erlskat_manager:socket_response(PlayerId, erlskat_client_responses:card_play_prompt(
                        PlayerHand,
                        CurrentTrick,
                        CardOrdering,
-                       PlayableIndexes);
+                       PlayableIndexes));
         error ->
             ?LOG_WARNING(#{module => ?MODULE,
                           line => ?LINE,
@@ -531,10 +530,13 @@ send_card_play_prompt_to_current_player(
 %% Send awaiting card message to other players
 send_awaiting_card_to_other_players(CurrentPlayerId, Players) ->
     Msg = erlskat_client_responses:awaiting_card(CurrentPlayerId),
-    OtherPlayers = lists:filter(fun(Player) ->
-        maps:get(id, Player) =/= CurrentPlayerId
+    OtherPlayerIds = lists:filtermap(fun(Player) ->
+        case maps:get(id, Player) =/= CurrentPlayerId of
+            true -> {true, maps:get(id, Player)};
+            false -> false
+        end
     end, Players),
-    [maps:get(socket, Player) ! Msg || Player <- OtherPlayers].
+    [erlskat_manager:socket_response(PlayerId, Msg) || PlayerId <- OtherPlayerIds].
 
 %% Broadcast game start to all players
 broadcast_game_start_to_all_players(Players, Declarer, GameType, IsHandGame, SelectedMultipliers) ->
@@ -543,30 +545,34 @@ broadcast_game_start_to_all_players(Players, Declarer, GameType, IsHandGame, Sel
             GameType,
             IsHandGame,
             SelectedMultipliers),
-    [maps:get(socket, Player) ! Msg || Player <- Players].
+    PlayerIds = [maps:get(id, Player) || Player <- Players],
+    [erlskat_manager:socket_response(PlayerId, Msg) || PlayerId <- PlayerIds].
 
 %% Broadcast card played to all players
 broadcast_card_played_to_all_players(Players, PlayerId, PlayedCard, CardIndex) ->
     Msg = erlskat_client_responses:card_played_broadcast(PlayerId, PlayedCard, CardIndex),
-    [maps:get(socket, Player) ! Msg || Player <- Players].
+    PlayerIds = [maps:get(id, Player) || Player <- Players],
+    [erlskat_manager:socket_response(Pid, Msg) || Pid <- PlayerIds].
 
 %% Broadcast trick won to all players
 broadcast_trick_won_to_all_players(Players, WinnerId, Trick) ->
     Msg = erlskat_client_responses:trick_won_broadcast(WinnerId, Trick),
-    [maps:get(socket, Player) ! Msg || Player <- Players].
+    PlayerIds = [maps:get(id, Player) || Player <- Players],
+    [erlskat_manager:socket_response(PlayerId, Msg) || PlayerId <- PlayerIds].
 
 %% Broadcast game complete to all players
 -spec broadcast_game_complete_to_all_players([erlskat:player()], erlskat_hand:game_result()) -> ok.
 broadcast_game_complete_to_all_players(Players, GameResult) ->
     Msg = erlskat_client_responses:game_complete_broadcast(GameResult),
-    [maps:get(socket, Player) ! Msg || Player <- Players].
+    PlayerIds = [maps:get(id, Player) || Player <- Players],
+    [erlskat_manager:socket_response(PlayerId, Msg) || PlayerId <- PlayerIds].
 
 %% Send error messages
 send_invalid_card_error_to_player(PlayerId, Players) ->
     case find_player_by_id(PlayerId, Players) of
         {ok, Player} ->
-            Socket = maps:get(socket, Player),
-            Socket ! erlskat_client_responses:invalid_card_error();
+            erlskat_manager:socket_response(PlayerId,
+                                            erlskat_client_responses:invalid_card_error());
         error ->
             ok
     end.
@@ -574,8 +580,8 @@ send_invalid_card_error_to_player(PlayerId, Players) ->
 send_card_play_error_to_player(PlayerId, Reason, Players) ->
     case find_player_by_id(PlayerId, Players) of
         {ok, Player} ->
-            Socket = maps:get(socket, Player),
-            Socket ! erlskat_client_responses:card_play_error(Reason);
+            erlskat_manager:socket_response(PlayerId,
+                                            erlskat_client_responses:card_play_error(Reason));
         error ->
             ok
     end.

@@ -98,17 +98,19 @@ handle_event(info,
                 data => Data,
                 self => self(),
                 reconnecting_deadline => ?RECONNECT_DEADLINE_MS}),
-    erlang:demonitor(Ref),% not sure this is needed, but it doesn't hurt?
+    erlang:demonitor(Ref), % not sure this is needed, but it doesn't hurt?
     #{id := DisconnectedPlayerId} = maps:get(Ref, ConnectedPlayers),
     % get the disconnected player's current process
     {ok, #{proc := PriorProc}} = erlskat_manager:get_player_proc(
                                    DisconnectedPlayerId),
+    %% update the player's process to the current process so that we hear if they reconnect
+    erlskat_manager:update_player_proc(#{id => DisconnectedPlayerId}, self()),
     NewReconnecting = [#{id => DisconnectedPlayerId, prior_proc => PriorProc} |
                        maps:get(reconnecting, Data, [])],
     % notify the remaining players that a player has disconnected
     RemainingConnectedPlayersByRef = maps:without([Ref], ConnectedPlayers),
-    [Socket ! player_disconnected(DisconnectedPlayerId) ||
-        #{socket := Socket}  <- maps:values(RemainingConnectedPlayersByRef)],
+    [erlskat_manager:socket_response(PlayerId, player_disconnected(DisconnectedPlayerId)) ||
+        #{id := PlayerId}  <- maps:values(RemainingConnectedPlayersByRef)],
     {next_state,
      reconnecting,
      Data#{reconnecting => NewReconnecting,
@@ -117,9 +119,23 @@ handle_event(info,
        ?RECONNECT_DEADLINE_MS,
        {player_timeout, DisconnectedPlayerId}}]};
 
+handle_event({timeout, player_timeout} = Event,
+             {player_timeout, DisconnectedPlayerId} = Msg,
+             connected = State,
+             #{connected := Players,
+               reconnecting := ReconnectingIds} = Data) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => ?FUNCTION_NAME,
+                state => State,
+                player_id => DisconnectedPlayerId,
+                event => Event,
+                msg => player_timeout_cancelled_following_reconnect}),
+    keep_state_and_data;
+
 handle_event({timeout, player_timeout},
              {player_timeout, DisconnectedPlayerId} = Msg,
-             _State,
+             reconnecting = _State,
              #{connected := Players,
                reconnecting := ReconnectingIds} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
@@ -138,8 +154,8 @@ handle_event({timeout, player_timeout},
                            end,
                            ReconnectingIds),
     % notify the remaining players that the player has timed out
-    [Socket ! player_timed_out(DisconnectedPlayerId) ||
-        #{socket := Socket} <- maps:values(Players)],
+    [erlskat_manager:socket_response(PlayerId, player_timed_out(DisconnectedPlayerId)) ||
+        #{id := PlayerId} <- maps:values(Players)],
     {next_state,
      game_closed,
      Data#{reconnecting := NewReconnectingIds},
@@ -151,8 +167,8 @@ handle_event({timeout, game_closed},
              #{connected := RemainingPlayersByRef,
               reconnecting := ReconnectingPlayers} = _Data) ->
     % notify the remaining players that the game is closed
-    [Socket ! game_closed() ||
-        #{socket := Socket} <- maps:values(RemainingPlayersByRef)],
+    [erlskat_manager:socket_response(PlayerId, game_closed()) ||
+        #{id := PlayerId} <- maps:values(RemainingPlayersByRef)],
     %% return the players to the lobby
     [erlskat_lobby:return_player_to_lobby(Player) ||
         Player <- maps:values(RemainingPlayersByRef)],
@@ -166,7 +182,7 @@ handle_event({timeout, game_closed},
 
  %% a msg from the reconnecting player
 handle_event(cast,
-             {socket_message,
+             {socket_request,
               #{player := #{id := ReconnectingPlayerId} = Player, msg := Msg}},
              reconnecting = State,
              #{reconnecting := ReconnectingPlayers} = Data) ->
@@ -179,7 +195,7 @@ handle_event(cast,
                  state => State,
                  data => Data,
                  self => self(),
-                 player_id => ReconnectingPlayerId,
+                 reconnecting_player_id => ReconnectingPlayerId,
                  msg => Msg}),
             NewReconnectingIds = lists:filter(
                                    fun

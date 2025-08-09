@@ -101,7 +101,7 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer}),
     Ref = erlang:monitor(process, Socket),
-    Socket ! erlskat_client_responses:player_joined(PlayerId),
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:player_joined(PlayerId)),
     NewWaitingPlayers = [NewPlayer#{ref => Ref} | WaitingPlayers],
     notify_players_waiting(NewWaitingPlayers),
     {keep_state, #{players => NewWaitingPlayers}};
@@ -115,7 +115,7 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => NewPlayer,
                 action => starting_new_game}),
-    Socket ! erlskat_client_responses:player_joined(PlayerId),
+    erlskat_manager:socket_response(PlayerId, erlskat_client_responses:player_joined(PlayerId)),
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
     erlskat_floor_manager:new_table(NewGamePlayers),
@@ -156,9 +156,9 @@ player_id(#{id := Id}) ->
 notify_players_waiting(WaitingPlayers) ->
     lists:map(
       fun
-          (#{socket := PlayerSocket}) ->
-              PlayerSocket ! erlskat_client_responses:lobby_waiting(
-                                lists:map(fun player_id/1, WaitingPlayers))
+          (#{id := PlayerId}) ->
+              erlskat_manager:socket_response(PlayerId, erlskat_client_responses:lobby_waiting(
+                                lists:map(fun player_id/1, WaitingPlayers)))
       end,
       WaitingPlayers),
     done.
@@ -167,9 +167,9 @@ notify_players_waiting(WaitingPlayers) ->
 notify_players_of_game(WaitingPlayers) ->
     lists:map(
       fun
-          (#{socket := PlayerSocket}) ->
-              PlayerSocket ! erlskat_client_responses:lobby_matched(
-                                lists:map(fun player_id/1, WaitingPlayers))
+          (#{id := PlayerId}) ->
+              erlskat_manager:socket_response(PlayerId, erlskat_client_responses:lobby_matched(
+                                lists:map(fun player_id/1, WaitingPlayers)))
       end,
       WaitingPlayers),
     done.

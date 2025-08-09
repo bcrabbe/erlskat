@@ -14,7 +14,8 @@
 
 %% API
 -export([start_link/0]).
--export([socket_message/2,
+-export([socket_request/2,
+         socket_response/2,
          update_player_proc/2,
          clear_player_proc/1,
          get_player_proc/1]).
@@ -28,11 +29,18 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--type player_message() :: #{player => elskat:player(), msg => map() | binary()}.
+-type player_message() :: #{player => erlskat:player(), msg => map() | binary()}.
 
--spec socket_message(erlskat:player(), Msg :: map() | binary()) -> ok.
-socket_message(Player, Msg) ->
-    gen_statem:cast(?SERVER, {socket_message, Player, Msg}),
+%% requests coming from the player
+-spec socket_request(erlskat:player(), Msg :: map() | binary()) -> ok.
+socket_request(Player, Msg) ->
+    gen_statem:cast(?SERVER, {socket_request, Player, Msg}),
+    ok.
+
+%% responses going to the player
+-spec socket_response(erlskat:player_id(), Response :: map() | binary()) -> ok.
+socket_response(PlayerId, Response) ->
+    gen_statem:cast(?SERVER, {socket_response, PlayerId, Response}),
     ok.
 
 -spec update_player_proc(erlskat:player(), pid()) -> ok.
@@ -77,9 +85,9 @@ init([]) ->
                    Data :: term()) ->
           gen_statem:event_handler_result(term()).
 
- %% message from a player socket
+ %% request from a player socket
 handle_event(cast,
-             {socket_message,
+             {socket_request,
               #{id := PlayerId, socket := Socket} = Player,
               Msg},
              ready,
@@ -94,7 +102,7 @@ handle_event(cast,
         [{PlayerId, Socket, Proc}] ->
             gen_statem:cast(
               Proc,
-              {socket_message, #{player => Player, msg => Msg}});
+              {socket_request, #{player => Player, msg => Msg}});
         [{PlayerId, NewSocket, Proc}] ->
             %% new socket - this can happen if the player reconnects
             %% TODO: need to think about how to handle this since the original socket pid
@@ -106,14 +114,34 @@ handle_event(cast,
                         new_socket => NewSocket}),
             true = ets:insert(
                      PlayersTid,
-                     {PlayerId, NewSocket, Proc})
+                     {PlayerId, NewSocket, Proc}),
+            gen_statem:cast(
+              Proc,
+              {socket_request, #{player => Player, msg => Msg}})
     end,
     keep_state_and_data;
 
-%% message from a process controlling a socket
+%% response to a player socket
+handle_event(cast,
+             {socket_response, PlayerId, Response},
+             ready,
+             #{players := PlayersTid}) ->
+    case ets:lookup(PlayersTid, PlayerId) of
+        [] ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                          line => ?LINE,
+                          function => ?FUNCTION_NAME,
+                          player_id => PlayerId,
+                          reason => no_socket_found}),
+            ok;
+        [{PlayerId, Socket, _Proc}] ->
+            Socket ! Response
+    end,
+    keep_state_and_data;
+
 handle_event(cast,
              {update_player_proc,
-              #{id := PlayerId, socket := Socket} = Player,
+              #{id := PlayerId} = Player,
               NewProc},
              ready,
              #{players := PlayersTid}) ->
@@ -122,9 +150,10 @@ handle_event(cast,
                 function => ?FUNCTION_NAME,
                 player => Player,
                 new_proc => NewProc}),
-    true = ets:insert(
+    true = ets:update_element(
              PlayersTid,
-             {PlayerId, Socket, NewProc}),
+             PlayerId,
+             {3, NewProc}),
     keep_state_and_data;
 
 handle_event(cast,
@@ -144,7 +173,7 @@ handle_event({call, From},
              #{players := PlayersTid}) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
-                function => ?FUNCTION_NAME,
+                function => call_get_player_proc,
                 player_id => PlayerId}),
     Reply = case ets:lookup(PlayersTid, PlayerId) of
         [] -> {error, no_proc};

@@ -103,27 +103,37 @@ start_with_leaver() ->
               exit(expected_mock_player_disconnect)
       end),
     process_flag(trap_exit, true),
-    start_with_leaver_mocks(),
+    TestPid = self(),
+    start_with_leaver_mocks(TestPid),
     timer:sleep(110),
     flush(),
     {ok, Pid} = erlskat_table_monitor:start_link(
                   [player(?LEAVING_PLAYER_ID, LeaverPid) | players(2)]),
     Pid.
 
-start_with_leaver_mocks() ->
+start_with_leaver_mocks(TestPid) ->
     meck:new(erlskat_manager, [unstick, passthrough]),
     meck:expect(
       erlskat_manager,
       get_player_proc,
       fun
           (DisconnectingPlayerId) when DisconnectingPlayerId =:= ?LEAVING_PLAYER_ID ->
-              {ok, #{proc => self()}}
+              {ok, #{proc => TestPid}}
       end),
     meck:expect(
       erlskat_manager,
       clear_player_proc,
       fun
           (DisconnectingPlayerId) when DisconnectingPlayerId =:= ?LEAVING_PLAYER_ID -> ok
+      end),
+    meck:expect(
+      erlskat_manager,
+      socket_response,
+      fun
+          (PlayerId, Response) when PlayerId =/= ?LEAVING_PLAYER_ID ->
+              TestPid ! Response,
+              ok;
+          (_, _) -> ok
       end).
 
 unload_with_leaver_mocks() ->
