@@ -42,6 +42,7 @@
     card_play_error/1,
     %% Connection management messages
     player_disconnected/2,
+    player_reconnected/2,
     player_timed_out/1,
     game_closed/0,
     %% Lobby messages
@@ -92,6 +93,7 @@
     invalid_card_error_msg/0,
     card_play_error_msg/0,
     player_disconnected_msg/0,
+    player_reconnected_msg/0,
     player_timed_out_msg/0,
     game_closed_msg/0,
     lobby_status_msg/0,
@@ -320,6 +322,12 @@
     reconnection_deadline_ms := integer()
 }.
 
+-type player_reconnected_msg() :: #{
+    type := player_reconnected,
+    player_id := erlskat:player_id(),
+    remaining_reconnecting_players := [erlskat:player_id()]
+}.
+
 -type player_timed_out_msg() :: #{
     type := player_timed_out,
     player_id := erlskat:player_id()
@@ -383,7 +391,8 @@
     trick_won_broadcast_msg() | game_complete_broadcast_msg() | invalid_card_error_msg() |
     card_play_error_msg() | error_msg() |
     %% Connection messages (legacy format without type field)
-    player_disconnected_msg() | player_timed_out_msg() | game_closed_msg() |
+    player_disconnected_msg() | player_reconnected_msg() |
+    player_timed_out_msg() | game_closed_msg() |
     %% Lobby messages (legacy format without type field)
     lobby_status_msg() | player_joined_msg() |
     %% Table messages
@@ -761,6 +770,13 @@ player_disconnected(PlayerId, ReconnectionDeadlineMs) ->
     #{type => player_disconnected,
       player_id => PlayerId,
       reconnection_deadline_ms => ReconnectionDeadlineMs}.
+
+-spec player_reconnected(erlskat:player_id(), [erlskat:player_id()]) ->
+          player_reconnected_msg().
+player_reconnected(PlayerId, RemainingReconnectingPlayers) ->
+    #{type => player_reconnected,
+      player_id => PlayerId,
+      remaining_reconnecting_players => RemainingReconnectingPlayers}.
 
 -spec player_timed_out(erlskat:player_id()) -> player_timed_out_msg().
 player_timed_out(PlayerId) ->

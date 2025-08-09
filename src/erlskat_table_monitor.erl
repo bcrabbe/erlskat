@@ -52,6 +52,10 @@ stop(Pid) ->
 player_disconnected(DisconnectedPlayerId) ->
     erlskat_client_responses:player_disconnected(DisconnectedPlayerId, ?RECONNECT_DEADLINE_MS).
 
+player_reconnected(ReconnectedPlayerId, RemainingReconnectingPlayers) ->
+    RemainingPlayerIds = [maps:get(id, Player) || Player <- RemainingReconnectingPlayers],
+    erlskat_client_responses:player_reconnected(ReconnectedPlayerId, RemainingPlayerIds).
+
 player_timed_out(DisconnectedPlayerId) ->
     erlskat_client_responses:player_timed_out(DisconnectedPlayerId).
 
@@ -209,6 +213,11 @@ handle_event(cast,
                                        (_) -> true
                                    end,
                                    ReconnectingPlayers),
+            % notify all players that a player has reconnected
+            AllConnectedPlayers = maps:values(maps:get(connected, Data)),
+            [erlskat_manager:socket_response(PlayerId,
+                player_reconnected(ReconnectingPlayerId, NewReconnectingIds)) ||
+                #{id := PlayerId} <- AllConnectedPlayers],
             reconnect_player(
               Player,
               Data#{reconnecting => NewReconnectingIds});
