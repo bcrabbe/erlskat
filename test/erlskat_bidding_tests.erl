@@ -2,10 +2,14 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%% EUnit automatically generates a test/0 function
+-spec test() -> any().
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec card_ordering_test_() -> list().
 card_ordering_test_() ->
     [{"Cards are ordered correctly for Skat",
       fun test_card_ordering/0},
@@ -16,6 +20,7 @@ card_ordering_test_() ->
      {"Complete deck ordering is consistent",
       fun test_complete_deck_ordering/0}].
 
+-spec bidding_logic_test_() -> list().
 bidding_logic_test_() ->
     [{"Next valid bid calculation",
       fun test_next_valid_bid/0},
@@ -26,6 +31,7 @@ bidding_logic_test_() ->
      {"Edge cases for bidding logic",
       fun test_bidding_edge_cases/0}].
 
+-spec deck_and_dealing_test_() -> list().
 deck_and_dealing_test_() ->
     [{"Shuffled deck has correct number of cards",
       fun test_shuffled_deck/0},
@@ -34,12 +40,14 @@ deck_and_dealing_test_() ->
      {"Dealt hands have correct number of cards",
       fun test_dealt_hands/0}].
 
+-spec helper_functions_test_() -> list().
 helper_functions_test_() ->
     [{"Player lookup by ID",
       fun test_get_player_by_id/0},
      {"Player lookup with non-existent ID",
       fun test_get_player_by_id_not_found/0}].
 
+-spec game_declaration_flow_test_() -> list().
 game_declaration_flow_test_() ->
     [{"Initial choice prompt structure",
       fun test_initial_choice_prompt/0},
@@ -66,6 +74,7 @@ game_declaration_flow_test_() ->
      {"Game type validation - invalid game type",
       fun test_game_type_validation_invalid_game_type/0}].
 
+-spec card_reordering_test_() -> list().
 card_reordering_test_() ->
     [{"Reorder all hands for suit game (clubs)",
       fun test_reorder_all_hands_clubs/0},
@@ -86,6 +95,7 @@ card_reordering_test_() ->
      {"Order cards for specific game types",
       fun test_order_cards_for_game_type/0}].
 
+-spec error_handling_test_() -> list().
 error_handling_test_() ->
     [{"Unexpected message format in bidding phase returns error",
       fun test_unexpected_message_bidding_phase/0},

@@ -19,6 +19,9 @@
 -export([callback_mode/0, init/1, terminate/3, code_change/4]).
 -export([handle_event/4]).
 
+-spec handle_event(gen_statem:event_type(), term(), term(), term()) ->
+                   gen_statem:event_handler_result(term()).
+
 -define(SERVER, ?MODULE).
 
 

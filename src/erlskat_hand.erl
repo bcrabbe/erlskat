@@ -14,12 +14,24 @@
 %% API
 -export([start_link/2]).
 
+-spec start_link([erlskat:player()], pid()) -> {ok, pid()} | ignore | {error, term()}.
+
 %% Type exports
 -export_type([game_result/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
+
+-spec init({[erlskat:player()], pid()}) -> {ok, state()}.
+-spec handle_call(any(), {pid(), any()}, state()) -> {reply, any(), state()}.
+-spec handle_cast(any(), state()) -> {noreply, state()}.
+-spec handle_info({bidding_complete, pid(), erlskat_game:bidding_result()} |
+                  {game_complete, pid(), game_result()} |
+                  {'DOWN', reference(), process, pid(), any()}, state()) ->
+                 {noreply, state()} | {stop, any(), state()}.
+-spec terminate(any(), state()) -> ok.
+-spec code_change(any(), state(), any()) -> {ok, state()}.
 
 -define(SERVER, ?MODULE).
 
@@ -43,9 +55,11 @@
     current_phase :: bidding | game,
     current_pid :: pid() | undefined,
     current_monitor_ref :: reference() | undefined,
-    bidding_result :: term() | undefined,
+    bidding_result :: erlskat_game:bidding_result() | undefined,
     table_sup_pid :: pid()
 }).
+
+-type state() :: #state{}.
 
 %%%===================================================================
 %%% API functions

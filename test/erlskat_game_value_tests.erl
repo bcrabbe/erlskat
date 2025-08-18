@@ -2,10 +2,14 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%% EUnit automatically generates a test/0 function
+-spec test() -> any().
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec basic_calculations_test_() -> list().
 basic_calculations_test_() ->
     [{"Base value calculation for all game types",
       fun test_base_values/0},
@@ -14,6 +18,7 @@ basic_calculations_test_() ->
      {"Basic game value calculation",
       fun test_basic_game_value_calculation/0}].
 
+-spec tops_calculation_test_() -> list().
 tops_calculation_test_() ->
     [{"Tops calculation - with consecutive jacks from top",
       fun test_tops_with_consecutive/0},
@@ -28,6 +33,7 @@ tops_calculation_test_() ->
      {"Tops calculation - edge cases",
       fun test_tops_edge_cases/0}].
 
+-spec estimated_vs_actual_test_() -> list().
 estimated_vs_actual_test_() ->
     [{"Hand game produces estimated values",
       fun test_hand_game_estimated_values/0},
@@ -38,6 +44,7 @@ estimated_vs_actual_test_() ->
      {"Hand game estimation accuracy",
       fun test_hand_game_estimation_accuracy/0}].
 
+-spec null_games_test_() -> list().
 null_games_test_() ->
     [{"Null game basic value",
       fun test_null_game_basic/0},
@@ -48,6 +55,7 @@ null_games_test_() ->
      {"Null hand ouvert game value",
       fun test_null_hand_ouvert_game/0}].
 
+-spec multipliers_test_() -> list().
 multipliers_test_() ->
     [{"Schneider multiplier effect",
       fun test_schneider_multiplier/0},
@@ -60,6 +68,7 @@ multipliers_test_() ->
      {"Multiplier announcements vs achievements",
       fun test_multiplier_announcements_vs_achievements/0}].
 
+-spec trump_sequence_test_() -> list().
 trump_sequence_test_() ->
     [{"Trump sequence for suit games",
       fun test_trump_sequence_suit_games/0},
@@ -68,6 +77,7 @@ trump_sequence_test_() ->
      {"Trump sequence for null game",
       fun test_trump_sequence_null/0}].
 
+-spec validation_test_() -> list().
 validation_test_() ->
     [{"Bid validation against game value",
       fun test_bid_validation/0},
@@ -76,6 +86,7 @@ validation_test_() ->
      {"Game value display formatting",
       fun test_game_value_display_formatting/0}].
 
+-spec edge_cases_test_() -> list().
 edge_cases_test_() ->
     [{"Empty hand handling",
       fun test_empty_hand_handling/0},
@@ -86,6 +97,7 @@ edge_cases_test_() ->
      {"Minimum possible game value",
       fun test_minimum_possible_game_value/0}].
 
+-spec integration_test_() -> list().
 integration_test_() ->
     [{"Integration with existing card types",
       fun test_integration_with_card_types/0},

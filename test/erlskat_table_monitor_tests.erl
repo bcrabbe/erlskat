@@ -3,9 +3,13 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("kernel/include/logger.hrl").
 
+%% EUnit automatically generates a test/0 function
+-spec test() -> any().
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec start_test_() -> list().
 start_test_() ->
     [{"Can start",
      {setup, fun start/0, fun stop/1, fun has_started/1}},
@@ -13,6 +17,7 @@ start_test_() ->
       {setup, fun start_two/0, fun stop/1, fun has_started/1}}
     ].
 
+-spec one_leaver_test_() -> list().
 one_leaver_test_() ->
     [{"notifies remaining players of disconnect",
       {setup,

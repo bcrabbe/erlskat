@@ -2,6 +2,8 @@
 
 -export([init/2]).
 
+-spec init(cowboy_req:req(), any()) -> {ok, cowboy_req:req(), any()}.
+
 init(Req0, State) ->
     Path = cowboy_req:path(Req0),
 

@@ -706,7 +706,7 @@ game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
 
 -spec card_played_broadcast(erlskat:player_id(), erlskat:card(), integer()) ->
           card_played_broadcast_msg().
-card_played_broadcast(PlayerId, Card, CardIndex) ->
+card_played_broadcast(PlayerId, Card, _CardIndex) ->
     CardText = iolist_to_binary([
         atom_to_binary(maps:get(rank, Card), utf8),
         <<" of ">>,

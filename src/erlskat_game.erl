@@ -36,6 +36,13 @@
 %% State callbacks
 -export([trick_play/3, game_complete/3]).
 
+-spec trick_play(gen_statem:event_type(),
+                 {socket_request, #{player := erlskat:player(),
+                                    msg := integer()}} | any(),
+                 map()) -> gen_statem:event_handler_result(map()).
+-spec game_complete(gen_statem:event_type(), any(), map()) ->
+                    gen_statem:event_handler_result(map()).
+
 -define(SERVER, ?MODULE).
 
 %% State record
@@ -529,7 +536,7 @@ send_card_play_prompt_to_current_player(
   Players,
   GameType) ->
     case find_player_by_id(PlayerId, Players) of
-        {ok, Player} ->
+        {ok, _Player} ->
             PlayerHand = maps:get(PlayerId, PlayerHands),
             PlayableIndexes = get_playable_card_indexes(PlayerHand, CurrentTrick, GameType),
             erlskat_manager:socket_response(PlayerId, erlskat_client_responses:card_play_prompt(
@@ -588,7 +595,7 @@ broadcast_game_complete_to_all_players(Players, GameResult) ->
 %% Send error messages
 send_invalid_card_error_to_player(PlayerId, Players) ->
     case find_player_by_id(PlayerId, Players) of
-        {ok, Player} ->
+        {ok, _Player} ->
             erlskat_manager:socket_response(PlayerId,
                                             erlskat_client_responses:invalid_card_error());
         error ->
@@ -597,7 +604,7 @@ send_invalid_card_error_to_player(PlayerId, Players) ->
 
 send_card_play_error_to_player(PlayerId, Reason, Players) ->
     case find_player_by_id(PlayerId, Players) of
-        {ok, Player} ->
+        {ok, _Player} ->
             erlskat_manager:socket_response(PlayerId,
                                             erlskat_client_responses:card_play_error(Reason));
         error ->

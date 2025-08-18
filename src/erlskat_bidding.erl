@@ -157,6 +157,10 @@ init({CoordinatorPid, Players}) ->
 %%%===================================================================
 
 %% State: bidding_phase
+-spec bidding_phase(gen_statem:event_type(),
+                    {socket_request, #{player := erlskat:player(),
+                                       msg := binary()}} | any(),
+                    map()) -> gen_statem:event_handler_result(map()).
 bidding_phase(cast, {socket_request, #{player := Player, msg := <<"hold">>}}, Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(current_bidder, Data) of
@@ -184,6 +188,10 @@ bidding_phase(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, bidding_phase).
 
 %% State: game_declaration winning bidder chooses to see skat or play hand
+-spec game_declaration(gen_statem:event_type(),
+                       {socket_request, #{player := erlskat:player(),
+                                          msg := binary()}} | any(),
+                       map()) -> gen_statem:event_handler_result(map()).
 game_declaration(cast,
                  {socket_request,
                   #{player := Player, msg := Choice}} = Msg,
@@ -236,6 +244,10 @@ game_declaration(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, game_declaration).
 
 %% State: game_type_selection
+-spec game_type_selection(gen_statem:event_type(),
+                          {socket_request, #{player := erlskat:player(),
+                                             msg := binary()}} | any(),
+                          map()) -> gen_statem:event_handler_result(map()).
 game_type_selection(cast,
                     {socket_request,
                      #{player := Player, msg := GameType}} = Msg,
@@ -255,6 +267,10 @@ game_type_selection(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, game_type_selection).
 
 %% State: skat_exchange
+-spec skat_exchange(gen_statem:event_type(),
+                    {socket_request, #{player := erlskat:player(),
+                                       msg := [integer()]}} | any(),
+                    map()) -> gen_statem:event_handler_result(map()).
 skat_exchange(cast,
               {socket_request,
                #{player := Player, msg := Indices}} = Msg,
@@ -300,6 +316,10 @@ skat_exchange(EventType, Event, Data) ->
 
 
 %% State: multiplier_selection
+-spec multiplier_selection(gen_statem:event_type(),
+                           {socket_request, #{player := erlskat:player(),
+                                              msg := [binary()]}} | any(),
+                           map()) -> gen_statem:event_handler_result(map()).
 multiplier_selection(cast,
                      {socket_request,
                       #{player := Player, msg := Multiplier}} = Msg,
@@ -328,6 +348,7 @@ multiplier_selection(EventType, Event, Data) ->
     handle_unexpected_event(EventType, Event, Data, multiplier_selection).
 
 %% State: completed
+-spec completed(gen_statem:event_type(), any(), map()) -> gen_statem:event_handler_result(map()).
 completed(timeout, _Event, Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
@@ -568,6 +589,9 @@ complete_game_declaration(Data) ->
             {next_state, skat_exchange, Data}
     end.
 
+-spec get_next_bidding_pair([erlskat:player_id()], [erlskat:player_id()]) ->
+                            {erlskat:player_id(), erlskat:player_id()} |
+                            no_more_bidders.
 get_next_bidding_pair([Middlehand, Rearhand, Forehand], PassedPlayers) ->
     ActivePlayers = [P || P <- [Middlehand, Rearhand, Forehand],
                           not lists:member(P, PassedPlayers)],
@@ -590,6 +614,7 @@ get_next_bidding_pair([Middlehand, Rearhand, Forehand], PassedPlayers) ->
             {Middlehand, Forehand}
     end.
 
+-spec get_next_valid_bid(erlskat_game_value:game_value()) -> erlskat_game_value:game_value() | none.
 get_next_valid_bid(CurrentBid) ->
     ValidBids = [B || B <- ?VALID_BIDS, B > CurrentBid],
     case ValidBids of
@@ -773,7 +798,7 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
 broadcast_hand_reorder_to_all_players(BiddingDataList, WinnerId, GameType, Skat, IsHandGame) ->
     % Send individual messages to each player with only their own hand
     SendIndividualMessage = fun(
-                              #{hand := Hand,
+                              #{hand := _Hand,
                                 player := #{id := PlayerId}} = BiddingData) ->
         IndividualMsg = erlskat_client_responses:hand_reorder_broadcast(
                           WinnerId,

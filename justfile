@@ -32,6 +32,7 @@ test:
 # Run Elvis linting
 lint:
     rebar3 lint
+    rebar3 dialyzer
 
 # Build development release
 release:

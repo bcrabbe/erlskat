@@ -2,9 +2,13 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%% EUnit automatically generates a test/0 function
+-spec test() -> any().
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TESTS DESCRIPTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec happy_path_test_() -> list().
 happy_path_test_() ->
     [{"Can start",
      {setup, fun start/0, fun stop/1, fun can_start/1}},
@@ -19,6 +23,7 @@ happy_path_test_() ->
        fun (Arg) -> unload_mocks(), stop(Arg) end,
        fun game_starts/1}}].
 
+-spec player_disconnects_test_() -> list().
 player_disconnects_test_() ->
     [{"when player leaves he should be removed from the waiting players",
      {setup,

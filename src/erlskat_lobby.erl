@@ -26,7 +26,6 @@
         #{state => matched | waiting,
           players => list(erlskat:player_id())}.
 
--type new_player_message() :: {new_player, erlskat:player()}.
 
 %%%===================================================================
 %%% API
@@ -49,6 +48,7 @@ new_player(Player) ->
 start_link() ->
     gen_statem:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+-spec stop() -> ok.
 stop() ->
      gen_statem:stop(?SERVER).
 %%%===================================================================
@@ -107,7 +107,7 @@ handle_event(cast,
     {keep_state, #{players => NewWaitingPlayers}};
 
 handle_event(cast,
-             {new_player, #{socket := Socket, id := PlayerId} = NewPlayer},
+             {new_player, #{socket := _Socket, id := PlayerId} = NewPlayer},
              ready,
              #{players := WaitingPlayers}) when length(WaitingPlayers) == 2 ->
     ?LOG_INFO(#{module => ?MODULE,

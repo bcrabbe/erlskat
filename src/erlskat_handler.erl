@@ -7,6 +7,12 @@
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 
+-spec init(cowboy_req:req(), any()) -> {cowboy_websocket, cowboy_req:req(), map(), map()}.
+-spec websocket_init(map()) -> {ok, map()}.
+-spec websocket_handle({text, binary()} | {binary, binary()}, map()) ->
+                       {ok, map()} | {reply, {binary, binary()}, map()}.
+-spec websocket_info(map() | any(), map()) -> {ok, map()} | {reply, {text, binary()}, map()}.
+
 -define(SESSION_COOKIE, skat_session).
 -define(SESSION_COOKIE_BINARY, <<"skat_session">>).
 -define(SESSION_SECRET, <<"skat_session_secret">>).

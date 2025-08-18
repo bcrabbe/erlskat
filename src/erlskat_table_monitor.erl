@@ -42,6 +42,7 @@
 start_link(Players) ->
     gen_statem:start_link(?MODULE, Players, []).
 
+-spec stop(pid()) -> ok.
 stop(Pid) ->
      gen_statem:stop(Pid).
 
@@ -66,6 +67,7 @@ game_closed() ->
 %%% gen_statem callbacks
 %%%===================================================================
 
+-spec callback_mode() -> handle_event_function.
 callback_mode() -> handle_event_function.
 
 -spec init([erlskat:player()]) ->
@@ -123,17 +125,17 @@ handle_event(info,
        ?RECONNECT_DEADLINE_MS,
        {player_timeout, DisconnectedPlayerId}}]};
 
-handle_event({timeout, player_timeout} = Event,
-             {player_timeout, DisconnectedPlayerId} = Msg,
+handle_event({timeout, player_timeout} = _Event,
+             {player_timeout, DisconnectedPlayerId} = _Msg,
              connected = State,
-             #{connected := Players,
-               reconnecting := ReconnectingIds} = Data) ->
+             #{connected := _Players,
+               reconnecting := _ReconnectingIds} = _Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 state => State,
                 player_id => DisconnectedPlayerId,
-                event => Event,
+                event => _Event,
                 msg => player_timeout_cancelled_following_reconnect}),
     keep_state_and_data;
 
