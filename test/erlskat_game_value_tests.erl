@@ -100,12 +100,12 @@ integration_test_() ->
 
 test_base_values() ->
     %% Test all base values according to International Skat Order
-    ?assertEqual(9, erlskat_game_value:get_base_value(<<"diamonds">>)),
-    ?assertEqual(10, erlskat_game_value:get_base_value(<<"hearts">>)),
-    ?assertEqual(11, erlskat_game_value:get_base_value(<<"spades">>)),
-    ?assertEqual(12, erlskat_game_value:get_base_value(<<"clubs">>)),
-    ?assertEqual(24, erlskat_game_value:get_base_value(<<"grand">>)),
-    ?assertEqual(0, erlskat_game_value:get_base_value(<<"null">>)),
+    ?assertEqual(9, erlskat_game_value:get_base_value(diamonds)),
+    ?assertEqual(10, erlskat_game_value:get_base_value(hearts)),
+    ?assertEqual(11, erlskat_game_value:get_base_value(spades)),
+    ?assertEqual(12, erlskat_game_value:get_base_value(clubs)),
+    ?assertEqual(24, erlskat_game_value:get_base_value(grand)),
+    ?assertEqual(0, erlskat_game_value:get_base_value(null)),
     ?assertEqual(0, erlskat_game_value:get_base_value(<<"invalid">>)).
 
 test_multiplier_calculation() ->
@@ -132,7 +132,7 @@ test_basic_game_value_calculation() ->
     Hand = create_hand_with_jacks([clubs, spades]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
 
     ?assertEqual(12, maps:get(base_value, Result)), % Clubs base value
     ?assertEqual(2, maps:get(tops_count, Result)), % 2 jacks
@@ -146,19 +146,19 @@ test_basic_game_value_calculation() ->
 test_tops_with_consecutive() ->
     %% Test "with X" tops - consecutive jacks from top
     Hand1 = create_hand_with_jacks([clubs]),
-    Result1 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand1),
+    Result1 = erlskat_game_value:calculate_tops(clubs, Hand1),
     ?assertEqual(1, maps:get(count, Result1)),
     ?assertEqual(<<"with 1">>, maps:get(description, Result1)),
     ?assertEqual(with, maps:get(sequence_type, Result1)),
 
     Hand2 = create_hand_with_jacks([clubs, spades]),
-    Result2 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand2),
+    Result2 = erlskat_game_value:calculate_tops(clubs, Hand2),
     ?assertEqual(2, maps:get(count, Result2)),
     ?assertEqual(<<"with 2">>, maps:get(description, Result2)),
     ?assertEqual(with, maps:get(sequence_type, Result2)),
 
     Hand3 = create_hand_with_jacks([clubs, spades, hearts]),
-    Result3 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand3),
+    Result3 = erlskat_game_value:calculate_tops(clubs, Hand3),
     ?assertEqual(3, maps:get(count, Result3)),
     ?assertEqual(<<"with 3">>, maps:get(description, Result3)),
     ?assertEqual(with, maps:get(sequence_type, Result3)).
@@ -166,19 +166,19 @@ test_tops_with_consecutive() ->
 test_tops_without_consecutive() ->
     %% Test "without X" tops - missing consecutive jacks from top
     Hand1 = create_hand_with_jacks([spades, hearts, diamonds]), % Missing J♣
-    Result1 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand1),
+    Result1 = erlskat_game_value:calculate_tops(clubs, Hand1),
     ?assertEqual(1, maps:get(count, Result1)),
     ?assertEqual(<<"without 1">>, maps:get(description, Result1)),
     ?assertEqual(without, maps:get(sequence_type, Result1)),
 
     Hand2 = create_hand_with_jacks([hearts, diamonds]), % Missing J♣ and J♠
-    Result2 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand2),
+    Result2 = erlskat_game_value:calculate_tops(clubs, Hand2),
     ?assertEqual(2, maps:get(count, Result2)),
     ?assertEqual(<<"without 2">>, maps:get(description, Result2)),
     ?assertEqual(without, maps:get(sequence_type, Result2)),
 
     Hand3 = create_hand_with_jacks([diamonds]), % Missing J♣, J♠, J♥
-    Result3 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand3),
+    Result3 = erlskat_game_value:calculate_tops(clubs, Hand3),
     ?assertEqual(3, maps:get(count, Result3)),
     ?assertEqual(<<"without 3">>, maps:get(description, Result3)),
     ?assertEqual(without, maps:get(sequence_type, Result3)).
@@ -186,7 +186,7 @@ test_tops_without_consecutive() ->
 test_tops_with_all_jacks() ->
     %% Test with all four jacks
     Hand = create_hand_with_jacks([clubs, spades, hearts, diamonds]),
-    Result = erlskat_game_value:calculate_tops(<<"clubs">>, Hand),
+    Result = erlskat_game_value:calculate_tops(clubs, Hand),
     ?assertEqual(4, maps:get(count, Result)),
     ?assertEqual(<<"with 4">>, maps:get(description, Result)),
     ?assertEqual(with, maps:get(sequence_type, Result)).
@@ -194,7 +194,7 @@ test_tops_with_all_jacks() ->
 test_tops_without_any_jacks() ->
     %% Test without any jacks
     Hand = create_hand_without_jacks(),
-    Result = erlskat_game_value:calculate_tops(<<"clubs">>, Hand),
+    Result = erlskat_game_value:calculate_tops(clubs, Hand),
     ?assertEqual(4, maps:get(count, Result)),
     ?assertEqual(<<"without 4">>, maps:get(description, Result)),
     ?assertEqual(without, maps:get(sequence_type, Result)).
@@ -203,14 +203,14 @@ test_tops_interrupted_sequence() ->
     %% Test interrupted sequences as described in the rules
     % Example: J♣ J♥ (missing J♠) = "with 1" (interrupted by missing J♠)
     Hand1 = create_hand_with_jacks([clubs, hearts]), % Missing J♠
-    Result1 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand1),
+    Result1 = erlskat_game_value:calculate_tops(clubs, Hand1),
     ?assertEqual(1, maps:get(count, Result1)),
     ?assertEqual(<<"with 1">>, maps:get(description, Result1)),
     ?assertEqual(with, maps:get(sequence_type, Result1)),
 
     % Example: J♥ alone = "without 2" (counting interrupted by present J♥)
     Hand2 = create_hand_with_jacks([hearts]), % Only J♥
-    Result2 = erlskat_game_value:calculate_tops(<<"clubs">>, Hand2),
+    Result2 = erlskat_game_value:calculate_tops(clubs, Hand2),
     ?assertEqual(2, maps:get(count, Result2)),
     ?assertEqual(<<"without 2">>, maps:get(description, Result2)),
     ?assertEqual(without, maps:get(sequence_type, Result2)).
@@ -218,12 +218,12 @@ test_tops_interrupted_sequence() ->
 test_tops_edge_cases() ->
     %% Test with grand game (only jacks count)
     Hand = create_hand_with_jacks([clubs, spades]),
-    Result = erlskat_game_value:calculate_tops(<<"grand">>, Hand),
+    Result = erlskat_game_value:calculate_tops(grand, Hand),
     ?assertEqual(2, maps:get(count, Result)),
     ?assertEqual(<<"with 2">>, maps:get(description, Result)),
 
     %% Test with null game (no trumps)
-    Result2 = erlskat_game_value:calculate_tops(<<"null">>, Hand),
+    Result2 = erlskat_game_value:calculate_tops(null, Hand),
     ?assertEqual(0, maps:get(count, Result2)),
     ?assertEqual(<<"with 0">>, maps:get(description, Result2)).
 
@@ -234,7 +234,7 @@ test_hand_game_estimated_values() ->
     Hand = create_hand_with_jacks([clubs, spades]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_game_value(clubs, Hand, Options),
 
     ?assert(maps:get(is_estimated, Result)),
     ?assert(erlskat_game_value:is_estimated(Result)).
@@ -245,7 +245,7 @@ test_skat_game_actual_values() ->
     Skat = [#{rank => ace, suit => clubs}, #{rank => ten, suit => clubs}],
     Options = #{is_hand_game => false, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_actual_game_value(<<"clubs">>, Hand, Skat, Options),
+    Result = erlskat_game_value:calculate_actual_game_value(clubs, Hand, Skat, Options),
 
     ?assertNot(maps:get(is_estimated, Result)),
     ?assertNot(erlskat_game_value:is_estimated(Result)).
@@ -256,8 +256,8 @@ test_estimated_vs_actual_comparison() ->
     Skat = [#{rank => ace, suit => clubs}, #{rank => ten, suit => clubs}],
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    EstimatedResult = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
-    ActualResult = erlskat_game_value:calculate_actual_game_value(<<"clubs">>, Hand, Skat, Options),
+    EstimatedResult = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
+    ActualResult = erlskat_game_value:calculate_actual_game_value(clubs, Hand, Skat, Options),
 
     ?assert(maps:get(is_estimated, EstimatedResult)),
     ?assertNot(maps:get(is_estimated, ActualResult)),
@@ -270,8 +270,8 @@ test_hand_game_estimation_accuracy() ->
     Hand = create_hand_with_jacks([clubs]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
-    Display = erlskat_game_value:format_game_value_display(Result, <<"clubs">>),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
+    Display = erlskat_game_value:format_game_value_display(Result, clubs),
 
     ?assert(binary:match(Display, <<"Est. Value:">>) =/= nomatch),
     ?assert(binary:match(Display, <<"+">>) =/= nomatch).
@@ -281,7 +281,7 @@ test_hand_game_estimation_accuracy() ->
 test_null_game_basic() ->
     %% Basic null game value (23)
     Options = #{is_hand_game => false, selected_multipliers => []},
-    Result = erlskat_game_value:calculate_game_value(<<"null">>, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null, [], Options),
 
     ?assertEqual(23, maps:get(value, Result)),
     ?assertEqual(0, maps:get(tops_count, Result)),
@@ -291,21 +291,21 @@ test_null_game_basic() ->
 test_null_hand_game() ->
     %% Null hand game value (35)
     Options = #{is_hand_game => true, selected_multipliers => []},
-    Result = erlskat_game_value:calculate_game_value(<<"null">>, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null, [], Options),
 
     ?assertEqual(35, maps:get(value, Result)).
 
 test_null_ouvert_game() ->
     %% Null ouvert game value (46)
     Options = #{is_hand_game => false, selected_multipliers => [ouvert]},
-    Result = erlskat_game_value:calculate_game_value(<<"null">>, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null, [], Options),
 
     ?assertEqual(46, maps:get(value, Result)).
 
 test_null_hand_ouvert_game() ->
     %% Null hand ouvert game value (59)
     Options = #{is_hand_game => true, selected_multipliers => [ouvert]},
-    Result = erlskat_game_value:calculate_game_value(<<"null">>, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null, [], Options),
 
     ?assertEqual(59, maps:get(value, Result)).
 
@@ -318,8 +318,8 @@ test_schneider_multiplier() ->
     OptionsWithout = #{is_hand_game => true, selected_multipliers => []},
     OptionsWith = #{is_hand_game => true, selected_multipliers => [schnieder]},
 
-    ResultWithout = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWithout),
-    ResultWith = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWith),
+    ResultWithout = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWithout),
+    ResultWith = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWith),
 
     ?assertEqual(maps:get(multiplier, ResultWith),
                 maps:get(multiplier, ResultWithout) + 2),
@@ -333,8 +333,8 @@ test_schwarz_multiplier() ->
     OptionsWithSchneider = #{is_hand_game => true, selected_multipliers => [schnieder]},
     OptionsWithSchwarz = #{is_hand_game => true, selected_multipliers => [schnieder, schwartz]},
 
-    ResultSchneider = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWithSchneider),
-    ResultSchwarz = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWithSchwarz),
+    ResultSchneider = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWithSchneider),
+    ResultSchwarz = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWithSchwarz),
 
     ?assertEqual(maps:get(multiplier, ResultSchwarz),
                 maps:get(multiplier, ResultSchneider) + 2).
@@ -346,8 +346,8 @@ test_ouvert_multiplier() ->
     OptionsWithout = #{is_hand_game => true, selected_multipliers => [schnieder, schwartz]},
     OptionsWith = #{is_hand_game => true, selected_multipliers => [schnieder, schwartz, ouvert]},
 
-    ResultWithout = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWithout),
-    ResultWith = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsWith),
+    ResultWithout = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWithout),
+    ResultWith = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWith),
 
     ?assertEqual(maps:get(multiplier, ResultWith),
                 maps:get(multiplier, ResultWithout) + 6).
@@ -358,7 +358,7 @@ test_combined_multipliers() ->
     Options = #{is_hand_game => true,
                 selected_multipliers => [schnieder, schwartz, ouvert]},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
 
     %% Expected: 1 (base) + 4 (tops) + 1 (hand) + 1 (schnieder) + 1 (schwartz) +
     %%           1 (schnieder announced) + 1 (schwarz announced) + 6 (ouvert) = 16
@@ -376,8 +376,8 @@ test_multiplier_announcements_vs_achievements() ->
     OptionsAchieved = #{is_hand_game => true, selected_multipliers => [schnieder],
                        is_schneider_achieved => true},
 
-    ResultAnnounced = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, OptionsAnnounced),
-    ResultAchieved = erlskat_game_value:calculate_actual_game_value(<<"clubs">>, Hand, [], OptionsAchieved),
+    ResultAnnounced = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsAnnounced),
+    ResultAchieved = erlskat_game_value:calculate_actual_game_value(clubs, Hand, [], OptionsAchieved),
 
     % Both should have same value (announced gives +1, achieved gives +1, but they overlap in calculation)
     ?assertEqual(maps:get(multiplier, ResultAnnounced), maps:get(multiplier, ResultAchieved)).
@@ -386,7 +386,7 @@ test_multiplier_announcements_vs_achievements() ->
 
 test_trump_sequence_suit_games() ->
     %% Test trump sequences for suit games
-    ClubsSequence = erlskat_game_value:get_trump_sequence(<<"clubs">>),
+    ClubsSequence = erlskat_game_value:get_trump_sequence(clubs),
 
     % Should start with all 4 jacks
     ?assertEqual(#{rank => jack, suit => clubs}, lists:nth(1, ClubsSequence)),
@@ -406,7 +406,7 @@ test_trump_sequence_suit_games() ->
 
 test_trump_sequence_grand() ->
     %% Test trump sequence for grand (only jacks)
-    GrandSequence = erlskat_game_value:get_trump_sequence(<<"grand">>),
+    GrandSequence = erlskat_game_value:get_trump_sequence(grand),
 
     ?assertEqual(4, length(GrandSequence)),
     ?assertEqual(#{rank => jack, suit => clubs}, lists:nth(1, GrandSequence)),
@@ -416,7 +416,7 @@ test_trump_sequence_grand() ->
 
 test_trump_sequence_null() ->
     %% Test trump sequence for null (no trumps)
-    NullSequence = erlskat_game_value:get_trump_sequence(<<"null">>),
+    NullSequence = erlskat_game_value:get_trump_sequence(null),
     ?assertEqual([], NullSequence).
 
 %% Validation Tests
@@ -426,7 +426,7 @@ test_bid_validation() ->
     Hand = create_hand_with_jacks([clubs, spades]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
     GameValue = maps:get(value, Result),
 
     % Should accept bids equal to or less than game value
@@ -440,7 +440,7 @@ test_minimum_possible_value() ->
     %% Test minimum possible value calculation
     Hand = create_hand_with_jacks([clubs, spades]),
 
-    MinValue = erlskat_game_value:get_minimum_possible_value(<<"clubs">>, Hand),
+    MinValue = erlskat_game_value:get_minimum_possible_value(clubs, Hand),
 
     % Minimum: base value (12) * minimum multiplier (1 + 2 tops) = 36
     ?assertEqual(36, MinValue).
@@ -450,8 +450,8 @@ test_game_value_display_formatting() ->
     Hand = create_hand_with_jacks([clubs]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
-    Display = erlskat_game_value:format_game_value_display(Result, <<"clubs">>),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
+    Display = erlskat_game_value:format_game_value_display(Result, clubs),
 
     % Should contain estimated value indicator
     ?assert(binary:match(Display, <<"Est. Value:">>) =/= nomatch),
@@ -466,7 +466,7 @@ test_empty_hand_handling() ->
     EmptyHand = [],
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, EmptyHand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, EmptyHand, Options),
 
     % Should handle empty hand gracefully - for clubs game, 11 trump cards total
     ?assertEqual(11, maps:get(tops_count, Result)), % "without 11"
@@ -483,7 +483,7 @@ test_maximum_possible_game_value() ->
     Options = #{is_hand_game => true,
                 selected_multipliers => [schnieder, schwartz, ouvert]},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
 
     % Should be a very high value
     ?assert(maps:get(value, Result) > 200).
@@ -494,7 +494,7 @@ test_minimum_possible_game_value() ->
     Hand = create_hand_with_jacks([spades]),
     Options = #{is_hand_game => false, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"diamonds">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(diamonds, Hand, Options),
 
     % Minimum: diamonds (9) * (without 1, plays = 2) = 18
     ?assertEqual(18, maps:get(value, Result)).
@@ -509,7 +509,7 @@ test_integration_with_card_types() ->
     Options = #{is_hand_game => true, selected_multipliers => []},
 
     % Should work with existing card format
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"grand">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(grand, Hand, Options),
 
     ?assertEqual(1, maps:get(tops_count, Result)),
     ?assertEqual(24, maps:get(base_value, Result)),
@@ -522,7 +522,7 @@ test_consistency_with_valid_bids() ->
     Hand = create_hand_with_jacks([clubs]),
     Options = #{is_hand_game => true, selected_multipliers => []},
 
-    Result = erlskat_game_value:calculate_estimated_game_value(<<"clubs">>, Hand, Options),
+    Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
     GameValue = maps:get(value, Result),
 
     % Game value should match one of the valid bid values or be achievable

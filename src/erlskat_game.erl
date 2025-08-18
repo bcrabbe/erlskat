@@ -27,7 +27,7 @@
 -record(state, {
     coordinator_pid :: pid(),
     declarer :: erlskat:player_id(),
-    game_type :: binary(),
+    game_type :: erlskat:game_type(),
     players :: [erlskat:player()],
     player_hands :: map(),
     current_trick :: [map()],
@@ -51,7 +51,7 @@
 %%% API
 %%%===================================================================
 
--spec start_link(pid(), erlskat:player_id(), binary(), map(), [erlskat:player()]) ->
+-spec start_link(pid(), erlskat:player_id(), erlskat:game_type(), map(), [erlskat:player()]) ->
           {ok, Pid :: pid()} | ignore | {error, Error :: term()}.
 start_link(CoordinatorPid, Declarer, GameType, BiddingResult, Players) ->
     gen_statem:start_link(
@@ -66,7 +66,7 @@ start_link(CoordinatorPid, Declarer, GameType, BiddingResult, Players) ->
 -spec callback_mode() -> gen_statem:callback_mode_result().
 callback_mode() -> state_functions.
 
--spec init({pid(), erlskat:player_id(), binary(), map(), [erlskat:player()]}) ->
+-spec init({pid(), erlskat:player_id(), erlskat:game_type(), map(), [erlskat:player()]}) ->
           gen_statem:init_result(trick_play).
 init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
     process_flag(trap_exit, true),
@@ -261,7 +261,7 @@ complete_trick(State) ->
     NewTrickCount = State#state.trick_count + 1,
 
     % Check for null game immediate loss condition
-    case State#state.game_type =:= <<"null">> andalso
+    case State#state.game_type =:= null andalso
          TrickWinner =:= State#state.declarer andalso
          length(WinnerTricks) =:= 0 of
         true ->
@@ -356,18 +356,18 @@ validate_follow_suit(PlayedCard, FirstCard, PlayerHand, GameType) ->
     end.
 
 %% Get effective suit considering trumps
-get_effective_suit(#{rank := jack}, _GameType) when _GameType =/= <<"null">> ->
+get_effective_suit(#{rank := jack}, _GameType) when _GameType =/= null ->
     trump;
-get_effective_suit(#{suit := Suit}, <<"null">>) ->
+get_effective_suit(#{suit := Suit}, null) ->
     Suit;
-get_effective_suit(#{suit := Suit}, GameType) when GameType =:= <<"grand">> ->
+get_effective_suit(#{suit := Suit}, GameType) when GameType =:= grand ->
     Suit;
 get_effective_suit(#{suit := Suit}, GameType) ->
     case GameType of
-        <<"clubs">> when Suit =:= clubs -> trump;
-        <<"spades">> when Suit =:= spades -> trump;
-        <<"hearts">> when Suit =:= hearts -> trump;
-        <<"diamonds">> when Suit =:= diamonds -> trump;
+        clubs when Suit =:= clubs -> trump;
+        spades when Suit =:= spades -> trump;
+        hearts when Suit =:= hearts -> trump;
+        diamonds when Suit =:= diamonds -> trump;
         _ -> Suit
     end.
 
@@ -399,7 +399,7 @@ calculate_game_result(State) ->
 
     % Determine if declarer won
     DeclarerWon = case State#state.game_type of
-        <<"null">> ->
+        null ->
             % In null games, declarer wins by taking 0 tricks
             length(maps:get(State#state.declarer, State#state.tricks_won, [])) =:= 0;
         _ ->

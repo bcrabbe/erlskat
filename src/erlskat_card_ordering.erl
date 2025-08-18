@@ -82,7 +82,7 @@ order_cards_for_skat(Cards) ->
     sort_cards_by_order_map(Cards, OrderMap).
 
 %% Order cards according to specific game type rules
--spec order_cards_for_game_type(erlskat:cards(), binary()) -> erlskat:cards().
+-spec order_cards_for_game_type(erlskat:cards(), erlskat:game_type()) -> erlskat:cards().
 order_cards_for_game_type(Cards, GameType) ->
     Ordering = get_card_ordering_for_game_type(GameType),
     OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(Ordering)]),
@@ -95,22 +95,22 @@ sort_cards_by_order_map(Cards, OrderMap) ->
                end, Cards).
 
 %% Get the complete card ordering for a specific game type
--spec get_card_ordering_for_game_type(binary()) -> [erlskat:card()].
-get_card_ordering_for_game_type(<<"clubs">>) ->
+-spec get_card_ordering_for_game_type(erlskat:game_type()) -> [erlskat:card()].
+get_card_ordering_for_game_type(clubs) ->
     get_suit_game_ordering(clubs);
-get_card_ordering_for_game_type(<<"spades">>) ->
+get_card_ordering_for_game_type(spades) ->
     get_suit_game_ordering(spades);
-get_card_ordering_for_game_type(<<"hearts">>) ->
+get_card_ordering_for_game_type(hearts) ->
     get_suit_game_ordering(hearts);
-get_card_ordering_for_game_type(<<"diamonds">>) ->
+get_card_ordering_for_game_type(diamonds) ->
     get_suit_game_ordering(diamonds);
-get_card_ordering_for_game_type(<<"grand">>) ->
+get_card_ordering_for_game_type(grand) ->
     get_grand_game_ordering();
-get_card_ordering_for_game_type(<<"null">>) ->
+get_card_ordering_for_game_type(null) ->
     get_null_game_ordering().
 
 %% Reorder all player hands according to game type
--spec reorder_all_hands_for_game_type([map()], binary()) -> [map()].
+-spec reorder_all_hands_for_game_type([map()], erlskat:game_type()) -> [map()].
 reorder_all_hands_for_game_type(Hands, GameType) ->
     [Hand#{hand => order_cards_for_game_type(maps:get(hand, Hand), GameType)} || Hand <- Hands].
 

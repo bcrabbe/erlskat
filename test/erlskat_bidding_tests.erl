@@ -343,7 +343,7 @@ test_game_type_prompt() ->
     %% Test that game type prompt has correct structure
     Player = #{id => player1, name => "Player1", socket => self()},
     Hand = #{player => Player, hand => []},
-    GameTypes = [<<"grand">>, <<"clubs">>, <<"spades">>],
+    GameTypes = [grand, clubs, spades],
 
     %% Test that the function can be called without error
     try
@@ -358,7 +358,7 @@ test_multiplier_prompt() ->
     Player = #{id => player1, name => "Player1", socket => self()},
     Hand = #{player => Player, hand => []},
     Multipliers = [<<"schnieder">>, <<"schwartz">>],
-    GameType = <<"grand">>,
+    GameType = grand,
 
     %% Test that the function can be called without error
     try
@@ -407,7 +407,7 @@ test_hand_game_flow_no_multipliers() ->
             %% Should transition to multiplier_selection
             case Result2 of
                 {next_state, multiplier_selection, NewData2} ->
-                    ?assertEqual(<<"grand">>, maps:get(chosen_game, NewData2)),
+                    ?assertEqual(grand, maps:get(chosen_game, NewData2)),
                     ?assertEqual(multiplier_choice, maps:get(game_declaration_step, NewData2)),
 
                     %% Test skip multipliers
@@ -419,7 +419,7 @@ test_hand_game_flow_no_multipliers() ->
                     %% Should complete bidding (hand game)
                     case Result3 of
                         {next_state, completed, FinalData, _Timeout} ->
-                            ?assertEqual(<<"grand">>, maps:get(chosen_game, FinalData)),
+                            ?assertEqual(grand, maps:get(chosen_game, FinalData)),
                             ?assertEqual([], maps:get(selected_multipliers, FinalData, [])),
                             ?assert(maps:get(is_hand_game, FinalData));
                         _ ->
@@ -478,7 +478,7 @@ test_hand_game_flow_with_schnieder() ->
         Data3),
 
     %% Should complete with schnieder
-    ?assertEqual(<<"clubs">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual(clubs, maps:get(chosen_game, FinalData)),
     ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
     ?assert(maps:get(is_hand_game, FinalData)).
 
@@ -542,7 +542,7 @@ test_hand_game_flow_with_schnieder_schwartz() ->
         Data4),
 
     %% Should complete with both multipliers
-    ?assertEqual(<<"spades">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual(spades, maps:get(chosen_game, FinalData)),
     ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
     ?assert(lists:member(schwartz, maps:get(selected_multipliers, FinalData))),
     ?assert(maps:get(is_hand_game, FinalData)).
@@ -591,7 +591,7 @@ test_hand_game_flow_with_all_multipliers() ->
         Data4),
 
     %% Should complete with all multipliers
-    ?assertEqual(<<"hearts">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual(hearts, maps:get(chosen_game, FinalData)),
     ?assert(lists:member(schnieder, maps:get(selected_multipliers, FinalData))),
     ?assert(lists:member(schwartz, maps:get(selected_multipliers, FinalData))),
     ?assert(lists:member(ouvert, maps:get(selected_multipliers, FinalData))),
@@ -629,7 +629,7 @@ test_skat_game_flow_no_multipliers() ->
         Data1),
 
     %% Should transition to skat_exchange (not hand game)
-    ?assertEqual(<<"diamonds">>, maps:get(chosen_game, Data2)),
+    ?assertEqual(diamonds, maps:get(chosen_game, Data2)),
     ?assertNot(maps:get(is_hand_game, Data2, false)).
 
 test_null_game_flow_with_ouvert() ->
@@ -666,7 +666,7 @@ test_null_game_flow_with_ouvert() ->
         Data2),
 
     %% Should complete with ouvert
-    ?assertEqual(<<"null">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual(null, maps:get(chosen_game, FinalData)),
     ?assert(lists:member(ouvert, maps:get(selected_multipliers, FinalData))),
     ?assert(maps:get(is_hand_game, FinalData)).
 
@@ -704,7 +704,7 @@ test_null_game_flow_without_ouvert() ->
         Data2),
 
     %% Should complete without ouvert
-    ?assertEqual(<<"null">>, maps:get(chosen_game, FinalData)),
+    ?assertEqual(null, maps:get(chosen_game, FinalData)),
     ?assertEqual([], maps:get(selected_multipliers, FinalData, [])),
     ?assert(maps:get(is_hand_game, FinalData)).
 
@@ -859,7 +859,7 @@ test_reorder_all_hands_clubs() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"clubs">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, clubs),
 
     %% Check that structure is preserved
     ?assertEqual(3, length(ReorderedHands)),
@@ -888,7 +888,7 @@ test_reorder_all_hands_spades() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"spades">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, spades),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -911,7 +911,7 @@ test_reorder_all_hands_hearts() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"hearts">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, hearts),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -939,7 +939,7 @@ test_reorder_all_hands_diamonds() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"diamonds">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, diamonds),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -963,7 +963,7 @@ test_reorder_all_hands_grand() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"grand">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, grand),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -990,7 +990,7 @@ test_reorder_all_hands_null() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, <<"null">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, null),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -1013,7 +1013,7 @@ test_reorder_preserves_structure() ->
     OriginalHands = [#{player => Player, hand => TestCards, extra_field => some_value}
                      || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(OriginalHands, <<"clubs">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(OriginalHands, clubs),
 
     %% Check that all non-hand fields are preserved
     [begin
@@ -1033,7 +1033,7 @@ test_reorder_empty_hands() ->
     Players = create_test_players(),
     EmptyHands = [#{player => Player, hand => []} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(EmptyHands, <<"grand">>),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(EmptyHands, grand),
 
     %% Check that structure is preserved
     ?assertEqual(3, length(ReorderedHands)),
@@ -1061,7 +1061,7 @@ test_order_cards_for_game_type() ->
                  #{rank => king, suit => diamonds}],
 
     %% Test clubs game ordering
-    ClubsOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, <<"clubs">>),
+    ClubsOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, clubs),
     ?assertEqual(12, length(ClubsOrdered)),
 
     %% In clubs game: Jacks first (C♣ > J♠ > J♥ > J♦), then trump clubs (A, 10, K, Q, 9, 8, 7), then other suits
@@ -1078,7 +1078,7 @@ test_order_cards_for_game_type() ->
     ?assert(ClubsTrumpPos > 4), % Should come after all jacks
 
     %% Test grand game ordering
-    GrandOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, <<"grand">>),
+    GrandOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, grand),
     ?assertEqual(12, length(GrandOrdered)),
 
     %% In grand: Only jacks are trumps, then regular suit ordering
@@ -1095,7 +1095,7 @@ test_order_cards_for_game_type() ->
     ?assert(ClubsTenPos < ClubsKingPosGrand), % 10 > K in non-trump suits
 
     %% Test null game ordering
-    NullOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, <<"null">>),
+    NullOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, null),
     ?assertEqual(12, length(NullOrdered)),
 
     %% In null games: no trumps, suits ordered clubs > spades > hearts > diamonds
@@ -1235,7 +1235,7 @@ test_unexpected_message_skat_exchange() ->
              passed_players => [],
              bidding_order => [player1, player2, player3],
              highest_bidder => player1,
-             chosen_game => <<"clubs">>,
+             chosen_game => clubs,
              is_hand_game => false},
 
     %% Test with invalid message format (should be array of indices)
@@ -1319,7 +1319,7 @@ test_unexpected_message_multiplier_selection() ->
              bidding_order => [player1, player2, player3],
              highest_bidder => player1,
              game_declaration_step => multiplier_choice,
-             chosen_game => <<"clubs">>,
+             chosen_game => clubs,
              is_hand_game => true,
              selected_multipliers => []},
 
@@ -1363,7 +1363,7 @@ test_unexpected_message_completed() ->
              passed_players => [],
              bidding_order => [player1, player2, player3],
              highest_bidder => player1,
-             chosen_game => <<"clubs">>,
+             chosen_game => clubs,
              is_hand_game => true,
              selected_multipliers => []},
 

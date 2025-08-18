@@ -158,15 +158,15 @@
 
 -type game_type_prompt_msg() :: #{
     type := game_type_prompt,
-    game_types := [binary()],
+    game_types := [erlskat:game_type()],
     message := binary(),
-    game_type_values => [#{game_type := binary(), value_display := binary()}]
+    game_type_values => [#{game_type := erlskat:game_type(), value_display := binary()}]
 }.
 
 -type multiplier_prompt_msg() :: #{
     type := multiplier_prompt,
     multipliers := [binary()],
-    game_type := binary(),
+    game_type := erlskat:game_type(),
     message := binary(),
     current_value => binary(),
     multiplier_values => [#{multiplier := binary(), value_display := binary()}]
@@ -224,14 +224,14 @@
 -type game_type_broadcast_msg() :: #{
     type := game_type_broadcast,
     winner_id := erlskat:player_id(),
-    game_type := binary(),
+    game_type := erlskat:game_type(),
     message := binary()
 }.
 
 -type hand_reorder_broadcast_msg() :: #{
     type := hand_reorder_broadcast,
     winner_id := erlskat:player_id(),
-    game_type := binary(),
+    game_type := erlskat:game_type(),
     hand := erlskat:cards(),
     message := binary()
 }.
@@ -278,7 +278,7 @@
 -type game_start_broadcast_msg() :: #{
     type := game_start_broadcast,
     declarer := erlskat:player_id(),
-    game_type := binary(),
+    game_type := erlskat:game_type(),
     is_hand_game := boolean(),
     selected_multipliers := [atom()],
     message := binary()
@@ -430,13 +430,13 @@ awaiting_bid(BidValue, WaitingForPlayerId) ->
                                   <<" to bid ">>,
                                   integer_to_list(BidValue)])}.
 
--spec game_type_prompt([binary()]) -> game_type_prompt_msg().
+-spec game_type_prompt([erlskat:game_type()]) -> game_type_prompt_msg().
 game_type_prompt(GameTypes) ->
     #{type => game_type_prompt,
       game_types => GameTypes,
       message => <<"Choose your game type">>}.
 
--spec game_type_prompt_with_values([binary()], map()) -> game_type_prompt_msg().
+-spec game_type_prompt_with_values([erlskat:game_type()], map()) -> game_type_prompt_msg().
 game_type_prompt_with_values(GameTypes, PlayerData) ->
     PlayerHand = maps:get(hand, PlayerData),
     % Determine if this is a hand game based on hand size
@@ -456,14 +456,14 @@ game_type_prompt_with_values(GameTypes, PlayerData) ->
       game_type_values => GameTypeValues,
       message => <<"Choose your game type (estimated values shown)">>}.
 
--spec multiplier_prompt([binary()], binary()) -> multiplier_prompt_msg().
+-spec multiplier_prompt([binary()], erlskat:game_type()) -> multiplier_prompt_msg().
 multiplier_prompt(Multipliers, GameType) ->
     #{type => multiplier_prompt,
       multipliers => Multipliers,
       game_type => GameType,
       message => <<"Choose additional multipliers (or skip)">>}.
 
--spec multiplier_prompt_with_values([binary()], binary(), map(), map()) -> multiplier_prompt_msg().
+-spec multiplier_prompt_with_values([binary()], erlskat:game_type(), map(), map()) -> multiplier_prompt_msg().
 multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData) ->
     PlayerHand = maps:get(hand, PlayerData),
     IsHandGame = maps:get(is_hand_game, GameData, false),
@@ -571,7 +571,7 @@ game_declaration_broadcast(WinnerId, Choice) ->
                                   <<" chose to play ">>,
                                   Choice])}.
 
--spec game_type_broadcast(erlskat:player_id(), binary()) ->
+-spec game_type_broadcast(erlskat:player_id(), erlskat:game_type()) ->
           game_type_broadcast_msg().
 game_type_broadcast(WinnerId, GameType) ->
     WinnerIdBin = case is_atom(WinnerId) of
@@ -584,12 +584,12 @@ game_type_broadcast(WinnerId, GameType) ->
       message => iolist_to_binary([<<"Player ">>,
                                   WinnerIdBin,
                                   <<" chose ">>,
-                                  GameType,
+                                  atom_to_binary(GameType, utf8),
                                   <<" game">>])}.
 
 -spec hand_reorder_broadcast(
         erlskat:player_id(),
-        binary(),
+        erlskat:game_type(),
         erlskat:cards(),
         erlskat:skat(),
         boolean(),
@@ -616,7 +616,7 @@ hand_reorder_broadcast(
       game_type => GameType,
       hand => FormattedHand,
       message => iolist_to_binary([<<"Hand reordered for ">>,
-                                  GameType,
+                                  atom_to_binary(GameType, utf8),
                                   <<" game">>])}.
 
 -spec bid_broadcast(erlskat:player(), integer()) -> bid_broadcast_msg().
@@ -671,7 +671,7 @@ awaiting_card(WaitingForPlayerId) ->
                                   WaitingForPlayerId,
                                   <<" to play...">>])}.
 
--spec game_start_broadcast(erlskat:player_id(), binary(), boolean(), [atom()]) ->
+-spec game_start_broadcast(erlskat:player_id(), erlskat:game_type(), boolean(), [atom()]) ->
           game_start_broadcast_msg().
 game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
     HandGameText = case IsHandGame of
@@ -698,7 +698,7 @@ game_start_broadcast(Declarer, GameType, IsHandGame, SelectedMultipliers) ->
       message => iolist_to_binary([<<"Game starting: ">>,
                                   DeclarerBin,
                                   <<" is playing ">>,
-                                  GameType,
+                                  atom_to_binary(GameType, utf8),
                                   HandGameText,
                                   MultiplierText])}.
 
@@ -735,14 +735,14 @@ game_complete_broadcast(GameResult) ->
         true -> iolist_to_binary(
                   [Declarer,
                    <<" won the ">>,
-                   GameType,
+                   atom_to_binary(GameType, utf8),
                    <<" game with ">>,
                    integer_to_list(DeclarerPoints),
                    <<" points">>]);
         false -> iolist_to_binary(
                    [Declarer,
                     <<" lost the ">>,
-                    GameType,
+                    atom_to_binary(GameType, utf8),
                     <<" game with only ">>,
                     integer_to_list(DeclarerPoints),
                     <<" points">>])

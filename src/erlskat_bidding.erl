@@ -41,7 +41,6 @@
 
 %% Type definitions
 -type color_game() :: erlskat:suit().
--type game_type() :: color_game() | grand | null.
 -type game_value() ::
         18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36 | 40 | 44 | 45 |
         48 | 50 | 54 | 55 | 59 | 60 | 63 | 66 | 70 | 72 | 77 | 80 | 81 |
@@ -75,21 +74,28 @@
                      50, 54, 55, 59, 60, 63, 66, 70, 72, 77, 80, 81, 84, 88, 90,
                      96, 99, 100, 108, 110, 117, 120]).
 
--define(GAME_TYPES, [<<"grand">>,
-                     <<"clubs">>,
-                     <<"spades">>,
-                     <<"hearts">>,
-                     <<"diamonds">>,
-                     <<"null">>,
-                     <<"null_ouvert">>,
-                     <<"hand_game">>]).
+-define(GAME_TYPES, [grand,
+                     clubs,
+                     spades,
+                     hearts,
+                     diamonds,
+                     null,
+                     null_ouvert,
+                     hand_game]).
 
--define(REGULAR_GAME_TYPES, [<<"grand">>,
-                             <<"clubs">>,
-                             <<"spades">>,
-                             <<"hearts">>,
-                             <<"diamonds">>,
-                             <<"null">>]).
+-define(REGULAR_GAME_TYPES, [grand,
+                             clubs,
+                             spades,
+                             hearts,
+                             diamonds,
+                             null]).
+
+-define(REGULAR_GAME_TYPES_BINARY, [<<"grand">>,
+                                    <<"clubs">>,
+                                    <<"spades">>,
+                                    <<"hearts">>,
+                                    <<"diamonds">>,
+                                    <<"null">>]).
 
 
 %%%===================================================================
@@ -248,9 +254,10 @@ game_type_selection(cast,
                     Data) ->
     PlayerId = maps:get(id, Player),
     case PlayerId =:= maps:get(highest_bidder, Data) andalso
-         lists:member(GameType, ?REGULAR_GAME_TYPES) of
+         lists:member(GameType, ?REGULAR_GAME_TYPES_BINARY) of
         true ->
-            handle_game_type_selection(PlayerId, GameType, Data);
+            AtomGameType = convert_game_type_to_atom(GameType),
+            handle_game_type_selection(PlayerId, AtomGameType, Data);
         false ->
             handle_unexpected_event(cast, Msg, Data, game_type_selection),
             keep_state_and_data
@@ -471,7 +478,7 @@ handle_multiplier_selection(Player, Multiplier, Data) ->
     case Multiplier of
         <<"ouvert">> ->
             case GameType of
-                <<"null">> ->
+                null ->
                     % For null games, ouvert completes the selection
                     complete_game_declaration(Data#{selected_multipliers =>
                                                    [ouvert | CurrentMultipliers]});
@@ -526,12 +533,12 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
     UpdatedData = Data#{hands => ReorderedHands},
 
     case GameType of
-        <<"null">> ->
+        null ->
             % For null games, offer ouvert option
             send_multiplier_prompt_to_player(
                 get_player_by_id(PlayerId, ReorderedHands),
                 [<<"ouvert">>],
-                <<"null">>,
+                null,
                 UpdatedData),
             {next_state, multiplier_selection,
              UpdatedData#{chosen_game => GameType,
@@ -602,6 +609,15 @@ get_next_valid_bid(CurrentBid) ->
         [Next | _] -> Next
     end.
 
+%% Convert binary game type from client to atom for internal use
+convert_game_type_to_atom(<<"clubs">>) -> clubs;
+convert_game_type_to_atom(<<"spades">>) -> spades;
+convert_game_type_to_atom(<<"hearts">>) -> hearts;
+convert_game_type_to_atom(<<"diamonds">>) -> diamonds;
+convert_game_type_to_atom(<<"grand">>) -> grand;
+convert_game_type_to_atom(<<"null">>) -> null;
+convert_game_type_to_atom(GameType) when is_atom(GameType) -> GameType.
+
 complete_bidding(Data) ->
     % Send completion message to coordinator
     Result = #{winner => maps:get(highest_bidder, Data),
@@ -650,7 +666,7 @@ send_awaiting_bid_to_player(#{player := #{id := PlayerId}}, BidValue, WaitingFor
 
 -spec send_game_type_prompt_to_player(
         player_bidding_data(),
-        [game_type()],
+        [erlskat:game_type()],
         erlskat:cards()) -> done.
 send_game_type_prompt_to_player(
   #{player := #{id := PlayerId}} = PlayerData,
@@ -811,8 +827,7 @@ get_expected_message_format(game_declaration) ->
 get_expected_message_format(skat_exchange) ->
     <<"Array of 2 card indices to discard">>;
 get_expected_message_format(game_type_selection) ->
-     [<<"grand">>, <<"clubs">>, <<"spades">>,
-      <<"hearts">>, <<"diamonds">>, <<"null">>];
+     ?REGULAR_GAME_TYPES_BINARY;
 get_expected_message_format(multiplier_selection) ->
     [<<"schnieder">>, <<"schwartz">>, <<"ouvert">>, <<"skip">>];
 get_expected_message_format(completed) ->

@@ -35,7 +35,6 @@
 
 %% Type definitions
 % Game types: clubs, spades, hearts, diamonds, grand, null
--type game_type() :: binary().
 -type game_options() :: #{
     is_hand_game => boolean(),
     selected_multipliers => [atom()], % [schnieder, schwartz, ouvert]
@@ -59,15 +58,15 @@
     sequence_type := with | without
 }.
 
--export_type([game_type/0, game_options/0, game_value_result/0, tops_result/0]).
+-export_type([game_options/0, game_value_result/0, tops_result/0]).
 
 %% Base values according to International Skat Order
 -define(BASE_VALUES, #{
-    <<"diamonds">> => 9,
-    <<"hearts">> => 10,
-    <<"spades">> => 11,
-    <<"clubs">> => 12,
-    <<"grand">> => 24
+    diamonds => 9,
+    hearts => 10,
+    spades => 11,
+    clubs => 12,
+    grand => 24
 }).
 
 %% Fixed Null game values
@@ -94,7 +93,7 @@
 %%%===================================================================
 
 %% Main game value calculation function
--spec calculate_game_value(game_type(), erlskat:cards(), game_options()) -> game_value_result().
+-spec calculate_game_value(erlskat:game_type(), erlskat:cards(), game_options()) -> game_value_result().
 calculate_game_value(GameType, PlayerHand, Options) ->
     IsHandGame = maps:get(is_hand_game, Options, false),
     case IsHandGame of
@@ -105,11 +104,11 @@ calculate_game_value(GameType, PlayerHand, Options) ->
     end.
 
 %% Calculate estimated game value for hand games (Skat unknown)
--spec calculate_estimated_game_value(game_type(), erlskat:cards(), game_options()) ->
+-spec calculate_estimated_game_value(erlskat:game_type(), erlskat:cards(), game_options()) ->
           game_value_result().
 calculate_estimated_game_value(GameType, PlayerHand, Options) ->
     case GameType of
-        <<"null">> ->
+        null ->
             calculate_null_game_value(Options);
         _ ->
             BaseValue = get_base_value(GameType),
@@ -137,11 +136,11 @@ calculate_estimated_game_value(GameType, PlayerHand, Options) ->
     end.
 
 %% Calculate actual game value with known Skat cards
--spec calculate_actual_game_value(game_type(), erlskat:cards(), erlskat:skat(),
+-spec calculate_actual_game_value(erlskat:game_type(), erlskat:cards(), erlskat:skat(),
                                    game_options()) -> game_value_result().
 calculate_actual_game_value(GameType, PlayerHand, SkatCards, Options) ->
     case GameType of
-        <<"null">> ->
+        null ->
             calculate_null_game_value(Options);
         _ ->
             FullHand = PlayerHand ++ SkatCards,
@@ -178,7 +177,7 @@ is_estimated(#{is_estimated := IsEstimated}) ->
     IsEstimated.
 
 %% Calculate tops (matadors) for a given game type and hand
--spec calculate_tops(game_type(), erlskat:cards()) -> tops_result().
+-spec calculate_tops(erlskat:game_type(), erlskat:cards()) -> tops_result().
 calculate_tops(GameType, Hand) ->
     TrumpSequence = get_trump_sequence(GameType),
     case count_consecutive_tops(TrumpSequence, Hand) of
@@ -197,7 +196,7 @@ calculate_tops(GameType, Hand) ->
     end.
 
 %% Get base value for a game type
--spec get_base_value(game_type()) -> integer().
+-spec get_base_value(erlskat:game_type()) -> integer().
 get_base_value(GameType) ->
     maps:get(GameType, ?BASE_VALUES, 0).
 
@@ -232,7 +231,7 @@ format_game_value_display(#{value := Value, is_estimated := IsEstimated,
         <<" (">>,
         TopsDesc,
         <<", ">>,
-        GameType,
+        atom_to_binary(GameType, utf8),
         <<")">>
     ]).
 
@@ -248,7 +247,7 @@ validate_bid_possible(BidValue, #{value := CalculatedValue,
     end.
 
 %% Get minimum possible game value for conservative estimates
--spec get_minimum_possible_value(game_type(), erlskat:cards()) -> integer().
+-spec get_minimum_possible_value(erlskat:game_type(), erlskat:cards()) -> integer().
 get_minimum_possible_value(GameType, PlayerHand) ->
     BaseValue = get_base_value(GameType),
     TopsResult = calculate_tops(GameType, PlayerHand),
@@ -260,16 +259,16 @@ get_minimum_possible_value(GameType, PlayerHand) ->
 %%%===================================================================
 
 %% Get complete trump sequence for a game type
--spec get_trump_sequence(game_type()) -> [erlskat:card()].
-get_trump_sequence(<<"grand">>) ->
+-spec get_trump_sequence(erlskat:game_type()) -> [erlskat:card()].
+get_trump_sequence(grand) ->
     ?JACK_ORDER;
-get_trump_sequence(<<"null">>) ->
+get_trump_sequence(null) ->
     [];
-get_trump_sequence(GameType) when GameType =:= <<"clubs">>;
-                                  GameType =:= <<"spades">>;
-                                  GameType =:= <<"hearts">>;
-                                  GameType =:= <<"diamonds">> ->
-    TrumpSuit = binary_to_atom(GameType, utf8),
+get_trump_sequence(GameType) when GameType =:= clubs;
+                                  GameType =:= spades;
+                                  GameType =:= hearts;
+                                  GameType =:= diamonds ->
+    TrumpSuit = GameType,
     TrumpSuitCards = [#{rank => Rank, suit => TrumpSuit} || Rank <- ?SUIT_ORDER],
     ?JACK_ORDER ++ TrumpSuitCards.
 
@@ -374,7 +373,7 @@ calculate_null_game_value(Options) ->
         multiplier => 1,
         base_value => Value,
         calculation_details => #{
-            game_type => <<"null">>,
+            game_type => null,
             is_hand_game => IsHandGame,
             is_ouvert => IsOuvert,
             options => Options

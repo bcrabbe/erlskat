@@ -29,7 +29,7 @@
     declarer_won := boolean(),
     declarer_points := non_neg_integer(),
     defender_points := non_neg_integer(),
-    game_type := binary(),
+    game_type := erlskat:game_type(),
     final_bid := integer(),
     actual_game_value := integer(),
     is_hand_game := boolean(),
