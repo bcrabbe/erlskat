@@ -12,6 +12,21 @@
 -behaviour(gen_statem).
 -include_lib("kernel/include/logger.hrl").
 
+%% Import types from bidding module
+-type player_bidding_data() :: erlskat_bidding:player_bidding_data().
+
+%% Type for the result map produced by erlskat_bidding:complete_bidding/1
+-type bidding_result() :: #{
+    winner => erlskat:player_id(),
+    final_bid => integer(),
+    chosen_game => erlskat:game_type(),
+    discarded_cards => erlskat:cards(),
+    skat_cards => erlskat:skat(),
+    player_hands => [player_bidding_data()],
+    is_hand_game => boolean(),
+    selected_multipliers => [atom()]
+}.
+
 %% API
 -export([start_link/5]).
 
@@ -51,7 +66,8 @@
 %%% API
 %%%===================================================================
 
--spec start_link(pid(), erlskat:player_id(), erlskat:game_type(), map(), [erlskat:player()]) ->
+-spec start_link(pid(), erlskat:player_id(), erlskat:game_type(), bidding_result(),
+                  [erlskat:player()]) ->
           {ok, Pid :: pid()} | ignore | {error, Error :: term()}.
 start_link(CoordinatorPid, Declarer, GameType, BiddingResult, Players) ->
     gen_statem:start_link(
@@ -66,7 +82,8 @@ start_link(CoordinatorPid, Declarer, GameType, BiddingResult, Players) ->
 -spec callback_mode() -> gen_statem:callback_mode_result().
 callback_mode() -> state_functions.
 
--spec init({pid(), erlskat:player_id(), erlskat:game_type(), map(), [erlskat:player()]}) ->
+-spec init({pid(), erlskat:player_id(), erlskat:game_type(), bidding_result(),
+            [erlskat:player()]}) ->
           gen_statem:init_result(trick_play).
 init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
     process_flag(trap_exit, true),
