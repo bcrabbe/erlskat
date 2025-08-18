@@ -112,6 +112,12 @@ start_with_leaver() ->
     Pid.
 
 start_with_leaver_mocks(TestPid) ->
+    try meck:validate(erlskat_manager) of
+        true -> meck:unload(erlskat_manager);
+        false -> ok
+    catch
+        error:_ -> ok
+    end,
     meck:new(erlskat_manager, [unstick, passthrough]),
     meck:expect(
       erlskat_manager,

@@ -9,7 +9,10 @@ happy_path_test_() ->
     [{"Can start",
      {setup, fun start/0, fun stop/1, fun can_start/1}},
      {"A player can join",
-      {setup, fun start/0, fun stop/1, fun test_new_player/1}},
+      {setup,
+       fun () -> start(), simple_manager_mock() end,
+       fun (Arg) -> unload_simple_manager_mock(), stop(Arg) end,
+       fun test_new_player/1}},
      {"When 3 players join, a game is started",
       {setup,
        fun () -> start(), mocks() end,
@@ -18,7 +21,10 @@ happy_path_test_() ->
 
 player_disconnects_test_() ->
     [{"when player leaves he should be removed from the waiting players",
-     {setup, fun start/0, fun stop/1, fun player_leaves/1}},
+     {setup,
+      fun () -> start(), simple_manager_mock() end,
+      fun (Arg) -> unload_simple_manager_mock(), stop(Arg) end,
+      fun player_leaves/1}},
      {"Once a game is started disconnects should not be monitored",
       {setup,
        fun () -> start(), mocks() end,
@@ -59,16 +65,17 @@ player_leaves(_) ->
     spawn(
       fun() ->
               new_player(leaver),
-              true = receive
-                  #{type := lobby_status,
-                    state := waiting,
-                    players := [leaver]} ->
-                             true
-              after 2000 -> false
-              end,
               timer:sleep(1600),
               exit(normal)
       end),
+    true = receive
+               #{type := lobby_status,
+                 state := waiting,
+                 players := [leaver]} ->
+                   true
+           after
+               2000 -> false
+           end,
     timer:sleep(500),
     new_player(1),
     BeforeLeaving = receive
@@ -115,14 +122,14 @@ player_leaves_after_game_started(_) ->
     spawn(
       fun() ->
               new_player(leaver),
-              true = receive
-                         #{type := lobby_status,
-                           players := [leaver, 2, 1]} -> true
-                     after 2000 -> false
-                     end,
               timer:sleep(100),
               exit(normal)
       end),
+    true = receive
+               #{type := lobby_status,
+                 players := [leaver, 2, 1]} -> true
+           after 2000 -> false
+           end,
     timer:sleep(5),
     Resp4 = receive
                 #{type := lobby_status} = Msg4 -> Msg4
@@ -158,16 +165,52 @@ player_leaves_after_game_started(_) ->
 %%% SETUP FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%
 mocks() ->
+    TestPid = self(),
     meck:new(erlskat_floor_manager, [unstick, passthrough]),
     meck:expect(
       erlskat_floor_manager,
       new_table,
       fun
           (Players) when length(Players) =:= 3 -> ok
+      end),
+    try meck:validate(erlskat_manager) of
+        true -> meck:unload(erlskat_manager);
+        false -> ok
+    catch
+        error:_ -> ok
+    end,
+    meck:new(erlskat_manager, [unstick, passthrough]),
+    meck:expect(
+      erlskat_manager,
+      socket_response,
+      fun(_PlayerId, Response) ->
+          TestPid ! Response,
+          ok
       end).
 
 unload_mocks() ->
-    ok = meck:unload(erlskat_floor_manager).
+    ok = meck:unload(erlskat_floor_manager),
+    ok = meck:unload(erlskat_manager).
+
+simple_manager_mock() ->
+    TestPid = self(),
+    try meck:validate(erlskat_manager) of
+        true -> meck:unload(erlskat_manager);
+        false -> ok
+    catch
+        error:_ -> ok
+    end,
+    meck:new(erlskat_manager, [unstick, passthrough]),
+    meck:expect(
+      erlskat_manager,
+      socket_response,
+      fun(_PlayerId, Response) ->
+          TestPid ! Response,
+          ok
+      end).
+
+unload_simple_manager_mock() ->
+    ok = meck:unload(erlskat_manager).
 
 start() ->
     {ok, Pid} = erlskat_lobby:start_link(),

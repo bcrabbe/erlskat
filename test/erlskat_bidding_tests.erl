@@ -1,5 +1,3 @@
-
-
 -module(erlskat_bidding_tests).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -1126,6 +1124,13 @@ test_order_cards_for_game_type() ->
 
 %% Test for unexpected message formats that should return error messages
 test_unexpected_message_bidding_phase() ->
+    %% Set up mock
+    TestPid = self(),
+    meck:new(erlskat_manager, [unstick]),
+    meck:expect(erlskat_manager, socket_response, fun(_PlayerId, Response) ->
+        TestPid ! Response, ok
+    end),
+
     %% Flush any existing messages
     flush_messages(),
 
@@ -1163,9 +1168,19 @@ test_unexpected_message_bidding_phase() ->
             ?assert(maps:is_key(<<"pass">>, ExpectedFormat))
     after 100 ->
         ?assert(false) % Should have received an error message
-    end.
+    end,
+
+    %% Cleanup
+    meck:unload(erlskat_manager).
 
 test_unexpected_message_game_declaration() ->
+    %% Set up mock
+    TestPid = self(),
+    meck:new(erlskat_manager, [unstick]),
+    meck:expect(erlskat_manager, socket_response, fun(_PlayerId, Response) ->
+        TestPid ! Response, ok
+    end),
+
     %% Flush any existing messages
     flush_messages(),
 
