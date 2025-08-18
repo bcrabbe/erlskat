@@ -35,6 +35,18 @@
 
 %% Type definitions
 % Game types: clubs, spades, hearts, diamonds, grand, null
+
+%% Valid bid/game values for Skat according to International Skat Order
+-type game_value() ::
+        18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36 | 40 | 44 | 45 |
+        48 | 50 | 54 | 55 | 59 | 60 | 63 | 66 | 70 | 72 | 77 | 80 | 81 |
+        84 | 88 | 90 | 96 | 99 | 100 | 108 | 110 | 117 | 120 | 121 |
+        126 | 130 | 132 | 135 | 140 | 143 | 144 | 150 | 154 | 156 | 162 |
+        165 | 168 | 170 | 176 | 180 | 187 | 192 | 198 | 204 | 216 | 220 |
+        225 | 228 | 234 | 240 | 264 | 270 | 273 | 288 | 300 | 306 | 315 |
+        330 | 336 | 360 | 363 | 384 | 396 | 405 | 432 | 441 | 450 | 462 |
+        480 | 495 | 540 | 546 | 567 | 576 | 594 | 600 | 612 | 624 | 720 |
+        792 | 882 | 1080 | 1188 | 1200 | 1296 | 1320 | 1440 | 1584 | 1764.
 -type game_options() :: #{
     is_hand_game => boolean(),
     selected_multipliers => [atom()], % [schnieder, schwartz, ouvert]
@@ -58,7 +70,7 @@
     sequence_type := with | without
 }.
 
--export_type([game_options/0, game_value_result/0, tops_result/0]).
+-export_type([game_value/0, game_options/0, game_value_result/0, tops_result/0]).
 
 %% Base values according to International Skat Order
 -define(BASE_VALUES, #{

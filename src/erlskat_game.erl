@@ -18,7 +18,7 @@
 %% Type for the result map produced by erlskat_bidding:complete_bidding/1
 -type bidding_result() :: #{
     winner => erlskat:player_id(),
-    final_bid => integer(),
+    final_bid => erlskat_game_value:game_value(),
     chosen_game => erlskat:game_type(),
     discarded_cards => erlskat:cards(),
     skat_cards => erlskat:skat(),

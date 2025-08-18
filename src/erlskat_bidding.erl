@@ -40,18 +40,6 @@
 -define(SERVER, ?MODULE).
 
 %% Type definitions
--type color_game() :: erlskat:suit().
--type game_value() ::
-        18 | 20 | 22 | 23 | 24 | 27 | 30 | 33 | 35 | 36 | 40 | 44 | 45 |
-        48 | 50 | 54 | 55 | 59 | 60 | 63 | 66 | 70 | 72 | 77 | 80 | 81 |
-        84 | 88 | 90 | 96 | 99 | 100 | 108 | 110 | 117 | 120 | 121 |
-        126 | 130 | 132 | 135 | 140 | 143 | 144 | 150 | 154 | 156 | 162 |
-        165 | 168 | 170 | 176 | 180 | 187 | 192 | 198 | 204 | 216 | 220 |
-        225 | 228 | 234 | 240 | 264 | 270 | 273 | 288 | 300 | 306 | 315 |
-        330 | 336 | 360 | 363 | 384 | 396 | 405 | 432 | 441 | 450 | 462 |
-        480 | 495 | 540 | 546 | 567 | 576 | 594 | 600 | 612 | 624 | 720 |
-        792 | 882 | 1080 | 1188 | 1200 | 1296 | 1320 | 1440 | 1584 | 1764.
-
 -type server_state() :: bidding_phase | game_declaration | skat_exchange |
                         game_type_selection | multiplier_selection | completed.
 
@@ -652,12 +640,12 @@ send_hands_to_players(#{id := PlayerId}, #{hand := Hand}) ->
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:cards_dealt(Hand)),
     done.
 
--spec send_bid_prompt_to_player(player_bidding_data(), game_value()) -> done.
+-spec send_bid_prompt_to_player(player_bidding_data(), erlskat_game_value:game_value()) -> done.
 send_bid_prompt_to_player(#{player := #{id := PlayerId}}, BidValue) ->
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:bid_prompt(BidValue)),
     done.
 
--spec send_awaiting_bid_to_player(player_bidding_data(), game_value(), erlskat:player_id()) -> done.
+-spec send_awaiting_bid_to_player(player_bidding_data(), erlskat_game_value:game_value(), erlskat:player_id()) -> done.
 send_awaiting_bid_to_player(#{player := #{id := PlayerId}}, BidValue, WaitingForPlayerId) ->
     erlskat_manager:socket_response(PlayerId,
                                     erlskat_client_responses:awaiting_bid(
@@ -737,7 +725,7 @@ send_bidding_winner_notification_to_player(#{player := #{id := PlayerId}}, Winne
                                       WinnerId, BidValue)),
     done.
 
--spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), game_value()) -> done.
+-spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), erlskat_game_value:game_value()) -> done.
 broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
     BroadcastMsg = erlskat_client_responses:bid_broadcast(BiddingPlayer, BidValue),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
