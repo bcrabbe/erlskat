@@ -105,7 +105,8 @@
 %%%===================================================================
 
 %% Main game value calculation function
--spec calculate_game_value(erlskat:game_type(), erlskat:cards(), game_options()) -> game_value_result().
+-spec calculate_game_value(erlskat:game_type(), erlskat:cards(),
+                          game_options()) -> game_value_result().
 calculate_game_value(GameType, PlayerHand, Options) ->
     IsHandGame = maps:get(is_hand_game, Options, false),
     case IsHandGame of
@@ -225,7 +226,7 @@ calculate_multiplier(#{tops_count := TopsCount} = Options) ->
     Base + Tops + Hand + Bonuses.
 
 %% Format game value for display to client
--spec format_game_value_display(game_value_result(), binary()) -> binary().
+-spec format_game_value_display(game_value_result(), atom()) -> binary().
 format_game_value_display(#{value := Value, is_estimated := IsEstimated,
                            tops_description := TopsDesc}, GameType) ->
     EstimatePrefix = case IsEstimated of

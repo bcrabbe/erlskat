@@ -28,7 +28,7 @@
          broadcast_game_type_to_other_players/3,
          get_expected_message_format/1]).
 
--export_type([game_response/0]).
+-export_type([game_response/0, player_bidding_data/0]).
 
 %% gen_statem callbacks
 -export([callback_mode/0, init/1, terminate/3]).
@@ -90,7 +90,7 @@
 %%% API
 %%%===================================================================
 
--spec start_link(pid(), list(erlskat:players())) ->
+-spec start_link(pid(), erlskat:players()) ->
           {ok, Pid :: pid()} |
           ignore |
           {error, Error :: term()}.
@@ -104,7 +104,7 @@ start_link(CoordinatorPid, Players) ->
 -spec callback_mode() -> gen_statem:callback_mode_result().
 callback_mode() -> state_functions.
 
--spec init(list(Players :: list(erlskat:player()))) ->
+-spec init({pid(), erlskat:players()}) ->
           gen_statem:init_result(bidding_phase).
 init({CoordinatorPid, Players}) ->
     process_flag(trap_exit, true),
@@ -143,7 +143,7 @@ init({CoordinatorPid, Players}) ->
     send_bid_prompt_to_player(get_player_by_id(Middlehand, Hands), 18),
     send_awaiting_bid_to_player(get_player_by_id(Forehand, Hands), 18, Middlehand),
     % Send awaiting bid message to the third player (rearhand)
-    [ThirdPlayerId] = get_third_player(Middlehand, Forehand, BiddingOrder),
+    ThirdPlayerId = get_third_player(Middlehand, Forehand, BiddingOrder),
     send_awaiting_bid_to_player(get_player_by_id(ThirdPlayerId, Hands), 18, Middlehand),
 
     ?LOG_INFO(#{module => ?MODULE,
@@ -369,7 +369,7 @@ handle_bidder_accept(Player, Data) ->
               ValidNextBid,
                 maps:get(responding_player, Data)),
             % Send awaiting bid message to the third player
-            [ThirdPlayerId] = get_third_player(
+            ThirdPlayerId = get_third_player(
                 maps:get(current_bidder, Data),
                 maps:get(responding_player, Data),
                 maps:get(bidding_order, Data)),
@@ -396,7 +396,7 @@ handle_bidder_pass(Player, Data) ->
                 maps:get(bid, Data),
                 NewCurrentBidder),
             % Send awaiting bid message to the third player
-            [ThirdPlayerId] = get_third_player(NewCurrentBidder, NewRespondingPlayer,
+            ThirdPlayerId = get_third_player(NewCurrentBidder, NewRespondingPlayer,
                                               maps:get(bidding_order, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
@@ -425,7 +425,7 @@ handle_responder_pass(Player, Data) ->
                 maps:get(bid, Data),
                 NewCurrentBidder),
             % Send awaiting bid message to the third player
-            [ThirdPlayerId] = get_third_player(NewCurrentBidder, NewRespondingPlayer,
+            ThirdPlayerId = get_third_player(NewCurrentBidder, NewRespondingPlayer,
                                               maps:get(bidding_order, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
@@ -631,9 +631,7 @@ complete_bidding(Data) ->
 
 -spec send_hands_to_players(player_bidding_data()) -> done.
 send_hands_to_players(#{player := Player} = PlayerBiddingData) ->
-    send_hands_to_players(Player, PlayerBiddingData);
-send_hands_to_players(_) ->
-    done.
+    send_hands_to_players(Player, PlayerBiddingData).
 
 -spec send_hands_to_players(erlskat:player(), player_bidding_data()) -> done.
 send_hands_to_players(#{id := PlayerId}, #{hand := Hand}) ->
@@ -645,7 +643,9 @@ send_bid_prompt_to_player(#{player := #{id := PlayerId}}, BidValue) ->
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:bid_prompt(BidValue)),
     done.
 
--spec send_awaiting_bid_to_player(player_bidding_data(), erlskat_game_value:game_value(), erlskat:player_id()) -> done.
+-spec send_awaiting_bid_to_player(player_bidding_data(),
+                                  erlskat_game_value:game_value(),
+                                  erlskat:player_id()) -> done.
 send_awaiting_bid_to_player(#{player := #{id := PlayerId}}, BidValue, WaitingForPlayerId) ->
     erlskat_manager:socket_response(PlayerId,
                                     erlskat_client_responses:awaiting_bid(
@@ -666,14 +666,19 @@ send_game_type_prompt_to_player(
                                       GameTypes, PlayerDataWithSkat)),
     done.
 
--spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary()) -> done.
+-spec send_multiplier_prompt_to_player(player_bidding_data(),
+                                      [binary()],
+                                      erlskat:game_type()) -> done.
 send_multiplier_prompt_to_player(#{player := #{id := PlayerId}}, Multipliers, GameType) ->
     erlskat_manager:socket_response(PlayerId,
                                     erlskat_client_responses:multiplier_prompt(
                                       Multipliers, GameType)),
     done.
 
--spec send_multiplier_prompt_to_player(player_bidding_data(), [binary()], binary(), map()) -> done.
+-spec send_multiplier_prompt_to_player(player_bidding_data(),
+                                      [binary()],
+                                      erlskat:game_type(),
+                                      map()) -> done.
 send_multiplier_prompt_to_player(
   #{player := #{id := PlayerId}} = PlayerData,
   Multipliers,
@@ -718,14 +723,18 @@ send_bidding_complete_to_player(#{player := #{id := PlayerId}}, Result) ->
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:bidding_complete(Result)),
     done.
 
-% Create a map from card to its position in the ordering
+-spec send_bidding_winner_notification_to_player(player_bidding_data(),
+                                                 erlskat:player_id(),
+                                                 integer()) -> done.
 send_bidding_winner_notification_to_player(#{player := #{id := PlayerId}}, WinnerId, BidValue) ->
     erlskat_manager:socket_response(PlayerId,
                                     erlskat_client_responses:bidding_winner_notification(
                                       WinnerId, BidValue)),
     done.
 
--spec broadcast_bid_to_all_players([player_bidding_data()], erlskat:player(), erlskat_game_value:game_value()) -> done.
+-spec broadcast_bid_to_all_players([player_bidding_data()],
+                                   erlskat:player(),
+                                   erlskat_game_value:game_value()) -> done.
 broadcast_bid_to_all_players(Hands, BiddingPlayer, BidValue) ->
     BroadcastMsg = erlskat_client_responses:bid_broadcast(BiddingPlayer, BidValue),
     [send_broadcast_msg(Hand, BroadcastMsg) || Hand <- Hands],
@@ -746,8 +755,9 @@ broadcast_game_declaration_to_other_players(Hands, WinnerId, Choice) ->
         maps:get(id, maps:get(player, Hand)) =/= WinnerId],
     done.
 
--spec broadcast_game_type_to_other_players(
-    [player_bidding_data()], erlskat:player_id(), binary()) -> done.
+-spec broadcast_game_type_to_other_players([player_bidding_data()],
+                                          erlskat:player_id(),
+                                          erlskat:game_type()) -> done.
 broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
     BroadcastMsg = erlskat_client_responses:game_type_broadcast(WinnerId, GameType),
     [send_broadcast_msg(Hand, BroadcastMsg) ||
@@ -755,8 +765,11 @@ broadcast_game_type_to_other_players(Hands, WinnerId, GameType) ->
         maps:get(id, maps:get(player, Hand)) =/= WinnerId],
     done.
 
--spec broadcast_hand_reorder_to_all_players(
-    [player_bidding_data()], erlskat:player_id(), binary(), erlskat:skat(), boolean()) -> done.
+-spec broadcast_hand_reorder_to_all_players([player_bidding_data()],
+                                           erlskat:player_id(),
+                                           erlskat:game_type(),
+                                           erlskat:skat(),
+                                           boolean()) -> done.
 broadcast_hand_reorder_to_all_players(BiddingDataList, WinnerId, GameType, Skat, IsHandGame) ->
     % Send individual messages to each player with only their own hand
     SendIndividualMessage = fun(
@@ -828,7 +841,8 @@ get_expected_message_format(completed) ->
 -spec get_third_player(erlskat:player_id(), erlskat:player_id(), [erlskat:player_id()]) ->
           erlskat:player_id().
 get_third_player(Player1, Player2, BiddingOrder) ->
-    [P || P <- BiddingOrder, P =/= Player1, P =/= Player2].
+    [P] = [P || P <- BiddingOrder, P =/= Player1, P =/= Player2],
+    P.
 
 -spec get_player_by_id(erlskat:player_id(), [player_bidding_data()]) ->
           player_bidding_data() | undefined.
@@ -849,7 +863,7 @@ shuffled_deck() ->
                                [{rand:uniform(), Card} ||
                                    Card <- Deck])].
 
--spec deal(list(erlskat:players())) ->
+-spec deal(erlskat:players()) ->
           #{hands => [player_bidding_data()],
             skat => erlskat:skat()}.
 deal(Players) ->

@@ -105,7 +105,7 @@ session(Req) ->
     end.
 
 set_session(Req) ->
-    quickrand:seed(),
+    rand:seed(exs1024),
     PlayerId = generate_session_id(),
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,

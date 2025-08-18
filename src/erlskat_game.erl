@@ -578,7 +578,8 @@ broadcast_trick_won_to_all_players(Players, WinnerId, Trick) ->
     [erlskat_manager:socket_response(PlayerId, Msg) || PlayerId <- PlayerIds].
 
 %% Broadcast game complete to all players
--spec broadcast_game_complete_to_all_players([erlskat:player()], erlskat_hand:game_result()) -> ok.
+-spec broadcast_game_complete_to_all_players([erlskat:player()],
+                                            erlskat_hand:game_result()) -> [ok].
 broadcast_game_complete_to_all_players(Players, GameResult) ->
     Msg = erlskat_client_responses:game_complete_broadcast(GameResult),
     PlayerIds = [maps:get(id, Player) || Player <- Players],

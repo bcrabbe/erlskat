@@ -26,19 +26,19 @@
         #{state => matched | waiting,
           players => list(erlskat:player_id())}.
 
--type new_player_message() :: {new_player, elskat:player()}.
+-type new_player_message() :: {new_player, erlskat:player()}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec return_player_to_lobby(erlskat:player()) -> pid().
+-spec return_player_to_lobby(erlskat:player()) -> atom().
 return_player_to_lobby(Player) ->
     gen_statem:cast(?SERVER, {new_player, Player}),
-    erlskat_manager:update_player_proc(Player, ?SERVER),
+    erlskat_manager:update_player_proc(Player, whereis(?SERVER)),
     ?SERVER.
 
--spec new_player(erlskat:player()) -> pid().
+-spec new_player(erlskat:player()) -> atom().
 new_player(Player) ->
     gen_statem:cast(?SERVER, {?FUNCTION_NAME, Player}),
     ?SERVER.
@@ -64,9 +64,9 @@ init([]) ->
     {ok, ready, #{players => []}}.
 
 -spec handle_event(gen_statem:event_type(),
-                   Msg :: new_player_message(),
+                   Msg :: any(),
                    State :: ready,
-                   Data :: #{players => elskat:player()}) ->
+                   Data :: #{players => [erlskat:player()]}) ->
           gen_statem:event_handler_result(term()).
 
 handle_event(info,
@@ -118,7 +118,9 @@ handle_event(cast,
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:player_joined(PlayerId)),
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
-    erlskat_floor_manager:new_table(NewGamePlayers),
+    % Convert players to table format (removing socket/ref fields)
+    PlayersForTable = lists:map(fun(#{id := Id}) -> #{id => Id} end, NewGamePlayers),
+    erlskat_floor_manager:new_table(PlayersForTable),
     lists:foreach(
       fun
           (#{ref := Ref}) -> erlang:demonitor(Ref);

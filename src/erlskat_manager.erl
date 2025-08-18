@@ -32,7 +32,8 @@
 -type player_message() :: #{player => erlskat:player(), msg => map() | binary()}.
 
 %% requests coming from the player
--spec socket_request(erlskat:player(), Msg :: map() | binary()) -> ok.
+-spec socket_request(#{id := erlskat:player_id(), socket := pid()},
+                     Msg :: map() | binary() | atom()) -> ok.
 socket_request(Player, Msg) ->
     gen_statem:cast(?SERVER, {socket_request, Player, Msg}),
     ok.
@@ -189,12 +190,12 @@ handle_event({call, From},
 terminate(_Reason, _State, _Data) ->
     void.
 
-new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid) ->
+new_player(#{id := PlayerId, socket := Socket} = _Player, PlayersTid) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 new_player => PlayerId}),
-    Proc = erlskat_lobby:new_player(Player),
+    Proc = erlskat_lobby:new_player(#{id => PlayerId}),
     true = ets:insert(
              PlayersTid,
              {PlayerId, Socket, Proc}).

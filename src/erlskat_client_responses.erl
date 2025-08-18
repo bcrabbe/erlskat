@@ -334,7 +334,8 @@
 }.
 
 -type game_closed_msg() :: #{
-    type := game_closed
+    type := game_closed,
+    message := binary()
 }.
 
 %% Lobby Messages
@@ -463,7 +464,8 @@ multiplier_prompt(Multipliers, GameType) ->
       game_type => GameType,
       message => <<"Choose additional multipliers (or skip)">>}.
 
--spec multiplier_prompt_with_values([binary()], erlskat:game_type(), map(), map()) -> multiplier_prompt_msg().
+-spec multiplier_prompt_with_values([binary()], erlskat:game_type(),
+                                   map(), map()) -> multiplier_prompt_msg().
 multiplier_prompt_with_values(Multipliers, GameType, PlayerData, GameData) ->
     PlayerHand = maps:get(hand, PlayerData),
     IsHandGame = maps:get(is_hand_game, GameData, false),
@@ -590,7 +592,7 @@ game_type_broadcast(WinnerId, GameType) ->
 -spec hand_reorder_broadcast(
         erlskat:player_id(),
         erlskat:game_type(),
-        erlskat:cards(),
+        map(),
         erlskat:skat(),
         boolean(),
         erlskat:player_id()) ->
