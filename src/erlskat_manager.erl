@@ -78,7 +78,7 @@ callback_mode() -> handle_event_function.
 init([]) ->
     process_flag(trap_exit, true),
     PlayersTid = ets:new(players, player_table_opts()),
-    {ok, ready, #{players => PlayersTid}}.
+    {ok, ready, #{players => PlayersTid, player_histories => #{}}}.
 
 -spec handle_event(gen_statem:event_type(),
                    Msg :: term(),
@@ -92,41 +92,43 @@ handle_event(cast,
               #{id := PlayerId, socket := Socket} = Player,
               Msg},
              ready,
-             #{players := PlayersTid}) ->
+             #{players := PlayersTid, player_histories := PlayerHistories} = _Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 player => Player,
                 msg => Msg}),
     case ets:lookup(PlayersTid, PlayerId) of
-        [] -> new_player(Player, PlayersTid);
+        [] ->
+            NewData = new_player(Player, PlayersTid, PlayerHistories),
+            {keep_state, NewData};
         [{PlayerId, Socket, Proc}] ->
             gen_statem:cast(
               Proc,
-              {socket_request, #{player => Player, msg => Msg}});
-        [{PlayerId, NewSocket, Proc}] ->
-            %% new socket - this can happen if the player reconnects
-            %% TODO: need to think about how to handle this since the original socket pid
-            %% is held in the controlling processes
+              {socket_request, #{player => Player, msg => Msg}}),
+            keep_state_and_data;
+        [{PlayerId, _OldSocket, Proc}] ->
             ?LOG_INFO(#{module => ?MODULE,
                         line => ?LINE,
                         function => ?FUNCTION_NAME,
                         player_id => PlayerId,
-                        new_socket => NewSocket}),
+                        new_socket => Socket,
+                        msg => "Player reconnected, resyncing history"}),
             true = ets:insert(
                      PlayersTid,
-                     {PlayerId, NewSocket, Proc}),
+                     {PlayerId, Socket, Proc}),
+            resync_player_history(PlayerId, PlayerHistories),
             gen_statem:cast(
               Proc,
-              {socket_request, #{player => Player, msg => Msg}})
-    end,
-    keep_state_and_data;
+              {socket_request, #{player => Player, msg => Msg}}),
+            keep_state_and_data
+    end;
 
 %% response to a player socket
 handle_event(cast,
              {socket_response, PlayerId, Response},
              ready,
-             #{players := PlayersTid}) ->
+             #{players := PlayersTid, player_histories := PlayerHistories}) ->
     case ets:lookup(PlayersTid, PlayerId) of
         [] ->
             ?LOG_WARNING(#{module => ?MODULE,
@@ -136,6 +138,7 @@ handle_event(cast,
                           reason => no_socket_found}),
             ok;
         [{PlayerId, Socket, _Proc}] ->
+            store_response_in_history(PlayerId, Response, PlayerHistories),
             Socket ! Response
     end,
     keep_state_and_data;
@@ -145,7 +148,7 @@ handle_event(cast,
               #{id := PlayerId} = Player,
               NewProc},
              ready,
-             #{players := PlayersTid}) ->
+             #{players := PlayersTid} = _Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -160,18 +163,19 @@ handle_event(cast,
 handle_event(cast,
              {clear_player_proc, PlayerId},
              ready,
-             #{players := PlayersTid}) ->
+             #{players := PlayersTid, player_histories := PlayerHistories} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 player_id => PlayerId}),
     true = ets:delete(PlayersTid, PlayerId),
-    keep_state_and_data;
+    NewData = clear_player_history(PlayerId, PlayerHistories, Data),
+    {keep_state, NewData};
 
 handle_event({call, From},
              {get_player_proc, PlayerId},
              ready,
-             #{players := PlayersTid}) ->
+             #{players := PlayersTid} = _Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => call_get_player_proc,
@@ -190,7 +194,7 @@ handle_event({call, From},
 terminate(_Reason, _State, _Data) ->
     void.
 
-new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid) ->
+new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid, PlayerHistories) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
@@ -198,12 +202,21 @@ new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid) ->
     Proc = erlskat_lobby:new_player(Player),
     true = ets:insert(
              PlayersTid,
-             {PlayerId, Socket, Proc}).
+             {PlayerId, Socket, Proc}),
+    PlayerHistoryTid = ets:new(player_history, player_history_table_opts()),
+    NewPlayerHistories = PlayerHistories#{PlayerId => PlayerHistoryTid},
+    #{players => PlayersTid, player_histories => NewPlayerHistories}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 player_table_opts() ->
+    default_table_opts().
+
+player_history_table_opts() ->
+    default_table_opts().
+
+default_table_opts() ->
     [ordered_set,
      protected,
      {keypos, 1},
@@ -211,3 +224,59 @@ player_table_opts() ->
      {write_concurrency, false},
      {read_concurrency, false},
      {decentralized_counters, false}].
+
+store_response_in_history(PlayerId, Response, PlayerHistories) ->
+    case maps:get(PlayerId, PlayerHistories, undefined) of
+        undefined ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                          line => ?LINE,
+                          function => ?FUNCTION_NAME,
+                          player_id => PlayerId,
+                          reason => no_history_table}),
+            ok;
+        HistoryTid ->
+            ResponseType = extract_response_type(Response),
+            Timestamp = erlang:system_time(microsecond),
+            true = ets:insert(HistoryTid, {Timestamp, ResponseType, Response}),
+            ok
+    end.
+
+extract_response_type(Response) when is_map(Response) ->
+    maps:get(type, Response, unknown);
+extract_response_type(_Response) ->
+    unknown.
+
+resync_player_history(PlayerId, PlayerHistories) ->
+    case maps:get(PlayerId, PlayerHistories, undefined) of
+        undefined ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                          line => ?LINE,
+                          function => ?FUNCTION_NAME,
+                          player_id => PlayerId,
+                          reason => no_history_table_for_resync}),
+            ok;
+        HistoryTid ->
+            ?LOG_INFO(#{module => ?MODULE,
+                       line => ?LINE,
+                       function => ?FUNCTION_NAME,
+                       player_id => PlayerId,
+                       msg => "Resyncing player history"}),
+            Messages = ets:tab2list(HistoryTid),
+            SortedMessages = lists:sort(Messages),
+            lists:foreach(
+              fun({_Timestamp, _Type, Response}) ->
+                  socket_response(PlayerId, Response)
+              end,
+              SortedMessages),
+            ok
+    end.
+
+clear_player_history(PlayerId, PlayerHistories, #{players := _PlayersTid} = Data) ->
+    case maps:get(PlayerId, PlayerHistories, undefined) of
+        undefined ->
+            Data;
+        HistoryTid ->
+            true = ets:delete(HistoryTid),
+            NewPlayerHistories = maps:remove(PlayerId, PlayerHistories),
+            Data#{player_histories => NewPlayerHistories}
+    end.
