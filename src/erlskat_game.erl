@@ -11,9 +11,7 @@
 
 -behaviour(gen_statem).
 -include_lib("kernel/include/logger.hrl").
-
-%% Import types from bidding module
--type player_bidding_data() :: erlskat_bidding:player_bidding_data().
+-export_type([bidding_result/0]).
 
 %% Type for the result map produced by erlskat_bidding:complete_bidding/1
 -type bidding_result() :: #{
@@ -22,7 +20,7 @@
     chosen_game => erlskat:game_type(),
     discarded_cards => erlskat:cards(),
     skat_cards => erlskat:skat(),
-    player_hands => [player_bidding_data()],
+    player_hands => [erlskat_bidding:player_bidding_data()],
     is_hand_game => boolean(),
     selected_multipliers => [atom()]
 }.

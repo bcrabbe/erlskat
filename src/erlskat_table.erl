@@ -56,7 +56,7 @@ start_link(TableNumber, Players) ->
 %% specifications.
 %% @end
 %%--------------------------------------------------------------------
--spec init(Args :: term()) ->
+-spec init([erlskat:player()]) ->
           {ok, {SupFlags :: supervisor:sup_flags(),
                 [ChildSpec :: supervisor:child_spec()]}} |
           ignore.

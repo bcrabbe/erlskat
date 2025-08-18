@@ -105,12 +105,12 @@ handle_event(info,
                 self => self(),
                 reconnecting_deadline => ?RECONNECT_DEADLINE_MS}),
     erlang:demonitor(Ref), % not sure this is needed, but it doesn't hurt?
-    #{id := DisconnectedPlayerId} = maps:get(Ref, ConnectedPlayers),
+    #{id := DisconnectedPlayerId} = DisconnectedPlayer = maps:get(Ref, ConnectedPlayers),
     % get the disconnected player's current process
     {ok, #{proc := PriorProc}} = erlskat_manager:get_player_proc(
                                    DisconnectedPlayerId),
     %% update the player's process to the current process so that we hear if they reconnect
-    erlskat_manager:update_player_proc(#{id => DisconnectedPlayerId}, self()),
+    erlskat_manager:update_player_proc(DisconnectedPlayer, self()),
     NewReconnecting = [#{id => DisconnectedPlayerId, prior_proc => PriorProc} |
                        maps:get(reconnecting, Data, [])],
     % notify the remaining players that a player has disconnected

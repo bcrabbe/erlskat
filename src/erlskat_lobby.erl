@@ -118,8 +118,10 @@ handle_event(cast,
     erlskat_manager:socket_response(PlayerId, erlskat_client_responses:player_joined(PlayerId)),
     NewGamePlayers = [NewPlayer | WaitingPlayers],
     notify_players_of_game(NewGamePlayers),
-    % Convert players to table format (removing socket/ref fields)
-    PlayersForTable = lists:map(fun(#{id := Id}) -> #{id => Id} end, NewGamePlayers),
+    % Convert players to table format (keeping socket, removing ref fields)
+    PlayersForTable = lists:map(
+      fun(#{id := Id, socket := Socket}) -> #{id => Id, socket => Socket} end,
+      NewGamePlayers),
     erlskat_floor_manager:new_table(PlayersForTable),
     lists:foreach(
       fun

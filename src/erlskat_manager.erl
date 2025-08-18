@@ -190,12 +190,12 @@ handle_event({call, From},
 terminate(_Reason, _State, _Data) ->
     void.
 
-new_player(#{id := PlayerId, socket := Socket} = _Player, PlayersTid) ->
+new_player(#{id := PlayerId, socket := Socket} = Player, PlayersTid) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
                 function => ?FUNCTION_NAME,
                 new_player => PlayerId}),
-    Proc = erlskat_lobby:new_player(#{id => PlayerId}),
+    Proc = erlskat_lobby:new_player(Player),
     true = ets:insert(
              PlayersTid,
              {PlayerId, Socket, Proc}).

@@ -6,7 +6,7 @@
                skat/0, suit_game_type/0, game_type/0]).
 
 -type player_id() :: binary().
--type player() :: #{id => player_id()}.
+-type player() :: #{id => player_id(), socket => pid()}.
 -type players() :: list(player()).
 
 -type suit() :: clubs | diamonds | hearts | spades.

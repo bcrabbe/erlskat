@@ -23,7 +23,7 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
--spec new_table(list(erlskat:player())) -> pid().
+-spec new_table([erlskat:player()]) -> pid().
 new_table(Players) ->
     Tables = supervisor:count_children(?SERVER),
     CurrentTableCount = proplists:get_value(specs, Tables, 0),
