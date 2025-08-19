@@ -55,6 +55,9 @@ const App = () => {
   // New state for player reconnection message
   const [reconnectionMessage, setReconnectionMessage] = useState(null);
 
+  // New state for scores modal
+  const [scoresModal, setScoresModal] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -411,6 +414,18 @@ const App = () => {
         }, 2000);
         break;
 
+      case 'scores_update_broadcast':
+        setScoresModal({
+          message: data.message,
+          playerScores: data.player_scores
+        });
+        
+        // Hide scores modal after 5 seconds
+        setTimeout(() => {
+          setScoresModal(null);
+        }, 5000);
+        break;
+
       default:
         console.log('Unhandled message type:', type, data);
     }
@@ -565,7 +580,27 @@ const App = () => {
 
   return (
     <div className="App">
-      {renderContent()}
+      {scoresModal ? (
+        <div className="scores-modal-overlay">
+          <div className="scores-modal">
+            <h2>Scoreboard</h2>
+            <div className="scores-list">
+              {scoresModal.playerScores.map((playerScore) => {
+                const player = players.find(p => p.id === playerScore.player_id);
+                const playerName = player ? player.name : 'Unknown Player';
+                return (
+                  <div key={playerScore.player_id} className="score-item">
+                    <span className="player-name">{playerName}</span>
+                    <span className="player-score">{playerScore.score}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        renderContent()
+      )}
 
       {prompt && prompt.type !== 'card_play_prompt' && (
         <PromptModal

@@ -57,4 +57,62 @@
   border-radius: 8px;
   font-weight: bold;
   z-index: 1000;
+}
+
+.scores-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.scores-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  min-width: 300px;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.scores-modal h2 {
+  margin: 0 0 20px 0;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.player-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.player-score {
+  font-weight: bold;
+  color: #007bff;
+  font-size: 18px;
 } 
