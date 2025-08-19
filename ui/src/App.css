@@ -44,4 +44,17 @@
   z-index: 1001;
   max-width: 400px;
   word-wrap: break-word;
+}
+
+.reconnection-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: bold;
+  z-index: 1000;
 } 

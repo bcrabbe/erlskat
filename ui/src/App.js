@@ -52,6 +52,9 @@ const App = () => {
   // New state for game completion message
   const [gameCompletionMessage, setGameCompletionMessage] = useState(null);
 
+  // New state for player reconnection message
+  const [reconnectionMessage, setReconnectionMessage] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -391,10 +394,27 @@ const App = () => {
         }, data.reconnection_deadline_ms);
         break;
 
+      case 'player_reconnected':
+        setDisconnectedPlayer(null);
+
+        // Always show reconnection message
+        const reconnectedPlayerPosition = tableOrder.findIndex(player => player.id === data.player_id);
+        let reconnectedPositionText = 'player';
+        if (reconnectedPlayerPosition === 1) reconnectedPositionText = 'left player';
+        else if (reconnectedPlayerPosition === 2) reconnectedPositionText = 'right player';
+
+        setReconnectionMessage(`${reconnectedPositionText} reconnected!`);
+
+        // Clear reconnection message after 2 seconds
+        setTimeout(() => {
+          setReconnectionMessage(null);
+        }, 2000);
+        break;
+
       default:
         console.log('Unhandled message type:', type, data);
     }
-  }, [currentBidder, currentBidValue, currentCardPlayer]);
+  }, [currentBidder, currentBidValue, currentCardPlayer, disconnectedPlayer, tableOrder]);
 
   const { connect, disconnect, sendMessage, isConnected } = useWebSocket(
     `ws://${window.location.hostname}:8080/ws`,
@@ -571,11 +591,18 @@ const App = () => {
         </div>
       )}
 
+    {reconnectionMessage && (
+        <div className="reconnection-message">
+          <p>{reconnectionMessage}</p>
+        </div>
+      )}
+
       {gameCompletionMessage && (
         <div className="game-completion-message">
           <p>{gameCompletionMessage}</p>
         </div>
       )}
+
     </div>
   );
 };
