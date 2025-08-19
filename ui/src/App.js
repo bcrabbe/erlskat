@@ -436,6 +436,7 @@ const App = () => {
   const handleCardPlaySubmit = useCallback(() => {
     if (selectedCardPlay !== null && cardPlayPrompt && cardPlayPrompt.validCards.includes(selectedCardPlay)) {
       sendMessage(selectedCardPlay);
+      setPlayerHand(prev => prev.filter((_, index) => index !== selectedCardPlay));
       setCardPlayPrompt(null);
       setSelectedCardPlay(null);
     }
