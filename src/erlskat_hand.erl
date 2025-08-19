@@ -139,6 +139,11 @@ handle_info({game_complete, GamePid, GameResult},
     % Clean up the game process monitor
     erlang:demonitor(State#state.current_monitor_ref, [flush]),
 
+    % Reset player history for each player
+    lists:foreach(fun(#{id := PlayerId}) ->
+                      erlskat_manager:reset_player_history(PlayerId)
+                  end, State#state.players),
+
     % Send game result to scorecard
     case erlskat_scorecard:record_result(TableSupPid, GameResult) of
         ok ->
