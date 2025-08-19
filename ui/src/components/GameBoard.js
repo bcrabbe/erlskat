@@ -1,11 +1,14 @@
 import React from 'react';
 import PlayerHand from './PlayerHand';
+import UnknownPlayerHand from './UnknownPlayerHand';
 import './GameBoard.css';
 
 const GameBoard = ({
   playerHand = [],
   leftPlayerCards = [],
   rightPlayerCards = [],
+  leftPlayerCardCount = 0,
+  rightPlayerCardCount = 0,
   currentTrick = [],
   onCardClick,
   validCards = [],
@@ -159,10 +162,17 @@ const GameBoard = ({
             </div>
           )}
         </div>
-        <PlayerHand
-          cards={leftPlayerCards}
-          isFlipped={true}
-        />
+        {leftPlayerCards.length > 0 ? (
+          <PlayerHand
+            cards={leftPlayerCards}
+            isFlipped={true}
+          />
+        ) : (
+          <UnknownPlayerHand
+            cardsHeld={leftPlayerCardCount}
+            className="left-unknown-hand"
+          />
+        )}
       </div>
 
       {/* Center area for current trick */}
@@ -267,10 +277,17 @@ const GameBoard = ({
             </div>
           )}
         </div>
-        <PlayerHand
-          cards={rightPlayerCards}
-          isFlipped={true}
-        />
+        {rightPlayerCards.length > 0 ? (
+          <PlayerHand
+            cards={rightPlayerCards}
+            isFlipped={true}
+          />
+        ) : (
+          <UnknownPlayerHand
+            cardsHeld={rightPlayerCardCount}
+            className="right-unknown-hand"
+          />
+        )}
       </div>
 
       {/* Bottom player (current player) */}

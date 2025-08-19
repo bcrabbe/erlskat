@@ -5,7 +5,7 @@ const Card = ({ card, onClick, isPlayable = false, isFlipped = false, isSelected
   if (!card) return null;
 
   const { rank, suit } = card;
-  
+
   const getSuitSymbol = (suit) => {
     switch (suit) {
       case 'hearts': return '♥';
@@ -27,7 +27,7 @@ const Card = ({ card, onClick, isPlayable = false, isFlipped = false, isSelected
   };
 
   return (
-    <div 
+    <div
       className={`card ${isPlayable ? 'playable' : ''} ${isFlipped ? 'flipped' : ''} ${isSelected ? 'selected' : ''} ${isDiscardMode ? 'discard-mode' : ''} ${isCardPlayMode ? 'card-play-mode' : ''} ${isInvalid ? 'invalid' : ''}`}
       onClick={handleClick}
     >
@@ -47,4 +47,4 @@ const Card = ({ card, onClick, isPlayable = false, isFlipped = false, isSelected
   );
 };
 
-export default Card; 
+export default Card;

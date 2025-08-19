@@ -13,6 +13,8 @@ const App = () => {
   const [playerHand, setPlayerHand] = useState([]);
   const [leftPlayerCards, setLeftPlayerCards] = useState([]);
   const [rightPlayerCards, setRightPlayerCards] = useState([]);
+  const [leftPlayerCardCount, setLeftPlayerCardCount] = useState(0);
+  const [rightPlayerCardCount, setRightPlayerCardCount] = useState(0);
   const [currentTrick, setCurrentTrick] = useState([]);
   const [validCards, setValidCards] = useState([]);
   const [prompt, setPrompt] = useState(null);
@@ -85,6 +87,8 @@ const App = () => {
 
       case 'cards_dealt':
         setPlayerHand(data.hand || []);
+        setLeftPlayerCardCount(10);
+        setRightPlayerCardCount(10);
         break;
 
       case 'card_play_prompt':
@@ -237,6 +241,15 @@ const App = () => {
         if (data.player_id === currentCardPlayer) {
           setCurrentCardPlayer(null);
         }
+        // Decrement card count for the player who played (if not current player)
+        if (data.player_id !== playerId) {
+          const playerPosition = tableOrder.findIndex(player => player.id === data.player_id);
+          if (playerPosition === 1) {
+            setLeftPlayerCardCount(prev => Math.max(0, prev - 1));
+          } else if (playerPosition === 2) {
+            setRightPlayerCardCount(prev => Math.max(0, prev - 1));
+          }
+        }
         break;
 
       case 'trick_won_broadcast':
@@ -261,6 +274,7 @@ const App = () => {
         setSelectedDiscardCards([]);
         setCardPlayPrompt(null);
         setSelectedCardPlay(null);
+        // Keep card counts - they should persist during gameplay
         break;
 
       case 'game_complete_broadcast':
@@ -303,6 +317,9 @@ const App = () => {
         setSelectedDiscardCards([]);
         setCardPlayPrompt(null);
         setSelectedCardPlay(null);
+        // Reset card counts
+        setLeftPlayerCardCount(0);
+        setRightPlayerCardCount(0);
         break;
 
       case 'hand_reorder_broadcast':
@@ -332,6 +349,8 @@ const App = () => {
         setPlayerHand([]);
         setLeftPlayerCards([]);
         setRightPlayerCards([]);
+        setLeftPlayerCardCount(0);
+        setRightPlayerCardCount(0);
         setCurrentTrick([]);
         setValidCards([]);
         setPrompt(null);
@@ -490,6 +509,8 @@ const App = () => {
             playerHand={playerHand}
             leftPlayerCards={leftPlayerCards}
             rightPlayerCards={rightPlayerCards}
+            leftPlayerCardCount={leftPlayerCardCount}
+            rightPlayerCardCount={rightPlayerCardCount}
             currentTrick={currentTrick}
             onCardClick={handleCardClick}
             validCards={validCards}
