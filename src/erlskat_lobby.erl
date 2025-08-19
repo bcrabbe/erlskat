@@ -32,7 +32,8 @@
 %%%===================================================================
 
 -spec return_player_to_lobby(erlskat:player()) -> atom().
-return_player_to_lobby(Player) ->
+return_player_to_lobby(#{id := PlayerId} = Player) ->
+    erlskat_manager:reset_player_history(PlayerId),
     gen_statem:cast(?SERVER, {new_player, Player}),
     erlskat_manager:update_player_proc(Player, whereis(?SERVER)),
     ?SERVER.

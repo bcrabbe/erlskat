@@ -18,7 +18,9 @@
          socket_response/2,
          update_player_proc/2,
          clear_player_proc/1,
-         get_player_proc/1]).
+         get_player_proc/1,
+         reset_player_history/1,
+         delete_player/1]).
 -export_type([player_message/0]).
 
 %% gen_statem callbacks
@@ -59,6 +61,16 @@ clear_player_proc(PlayerId) ->
           {ok, #{id => erlskat:player_id(), socket => pid(), proc => pid()}}.
 get_player_proc(PlayerId) ->
     gen_statem:call(?SERVER, {get_player_proc, PlayerId}).
+
+-spec reset_player_history(erlskat:player_id()) -> ok.
+reset_player_history(PlayerId) ->
+    gen_statem:cast(?SERVER, {reset_player_history, PlayerId}),
+    ok.
+
+-spec delete_player(erlskat:player_id()) -> ok.
+delete_player(PlayerId) ->
+    gen_statem:cast(?SERVER, {delete_player, PlayerId}),
+    ok.
 
 -spec start_link() ->
           {ok, Pid :: pid()} |
@@ -151,7 +163,7 @@ handle_event(cast,
              #{players := PlayersTid} = _Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
-                function => ?FUNCTION_NAME,
+                function => cast_update_player_proc,
                 player => Player,
                 new_proc => NewProc}),
     true = ets:update_element(
@@ -166,7 +178,7 @@ handle_event(cast,
              #{players := PlayersTid, player_histories := PlayerHistories} = Data) ->
     ?LOG_INFO(#{module => ?MODULE,
                 line => ?LINE,
-                function => ?FUNCTION_NAME,
+                function => cast_clear_player_proc,
                 player_id => PlayerId}),
     true = ets:delete(PlayersTid, PlayerId),
     NewData = clear_player_history(PlayerId, PlayerHistories, Data),
@@ -187,7 +199,47 @@ handle_event({call, From},
                           socket => Socket,
                           proc => Proc}}
     end,
-    {keep_state_and_data, [{reply, From, Reply}]}.
+    {keep_state_and_data, [{reply, From, Reply}]};
+
+handle_event(cast,
+             {reset_player_history, PlayerId},
+             ready,
+             #{player_histories := PlayerHistories} = _Data) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => cast_reset_player_history,
+                player_id => PlayerId,
+                msg => "Resetting player history"}),
+    case maps:get(PlayerId, PlayerHistories, undefined) of
+        undefined ->
+            ?LOG_WARNING(#{module => ?MODULE,
+                          line => ?LINE,
+                          function => ?FUNCTION_NAME,
+                          player_id => PlayerId,
+                          reason => no_history_table}),
+            ok;
+        HistoryTid ->
+            true = ets:delete_all_objects(HistoryTid),
+            ?LOG_INFO(#{module => ?MODULE,
+                       line => ?LINE,
+                       function => ?FUNCTION_NAME,
+                       player_id => PlayerId,
+                       msg => "Player history cleared"})
+    end,
+    keep_state_and_data;
+
+handle_event(cast,
+             {delete_player, PlayerId},
+             ready,
+             #{players := PlayersTid, player_histories := PlayerHistories} = Data) ->
+    ?LOG_INFO(#{module => ?MODULE,
+                line => ?LINE,
+                function => cast_delete_player,
+                player_id => PlayerId,
+                msg => "Deleting player"}),
+    true = ets:delete(PlayersTid, PlayerId),
+    NewData = clear_player_history(PlayerId, PlayerHistories, Data),
+    {keep_state, NewData}.
 
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) -> any().
 
