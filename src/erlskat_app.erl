@@ -27,6 +27,7 @@
                    {ok, Pid :: pid(), State :: term()} |
                    {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
+    Port = get_port(),
     Dispatch = cowboy_router:compile([
         {'_', [
             {"/ws", erlskat_handler, []},
@@ -36,7 +37,7 @@ start(_StartType, _StartArgs) ->
     ]),
     {ok, _} = cowboy:start_clear(
                 erlskat_handler,
-                [{port, 8080}],
+                [{port, Port}],
                 #{env => #{dispatch => Dispatch}}),
     case erlskat_sup:start_link() of
         {ok, Pid} ->
@@ -100,3 +101,14 @@ config_change(_Changed, _New, _Removed) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Gets the port configuration from environment variable ERLSKAT_PORT
+%% or from application configuration, with OS env taking precedence.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_port() -> Port :: pos_integer().
+get_port() ->
+    envy:to_integer(erlskat, port, [os_env, app_env, {default, 8080}]).

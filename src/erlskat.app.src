@@ -2,7 +2,7 @@
  [{description, "Websocket-based multiplayer Skat card game server"},
   {vsn, "0.1.0"},
   {registered, [erlskat_sup, erlskat_manager, erlskat_lobby, erlskat_floor_manager]},
-  {applications, [kernel, stdlib, sasl, cowboy, jsx, uuid]},
+  {applications, [kernel, stdlib, sasl, cowboy, jsx, uuid, any, envy]},
   {mod, {erlskat_app, []}},
   {modules, [erlskat,
              erlskat_app,
@@ -17,6 +17,6 @@
              erlskat_hand,
              erlskat_scorecard,
              erlskat_util]},
-  {env, []},
+  {env, [{port, 8080}]},
   {licenses, ["Apache-2.0"]},
   {links, []}]}.
