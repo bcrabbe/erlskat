@@ -24,7 +24,10 @@ init(Req0, _) ->
          function => ?FUNCTION_NAME,
          req => Req0,
          event => connection_received}),
-    {PlayerId, Req1} = session(Req0),
+    {PlayerId, Req1} = case get_session_behavior() of
+        true -> set_session(Req0);
+        false -> get_or_set_session(Req0)
+    end,
     {cowboy_websocket,
      Req1,
      #{player_id => PlayerId},
@@ -86,7 +89,7 @@ websocket_info(Msg, #{player_id := PlayerId} = State) ->
 to_json(Reply) ->
     jsx:encode(Reply).
 
-session(Req) ->
+get_or_set_session(Req) ->
     try
         % Filter cookies first to avoid crashes from malformed cookies
         FilteredReq = cowboy_req:filter_cookies([?SESSION_COOKIE], Req),
@@ -165,3 +168,6 @@ decrypt_session(Req, SessionCookie) ->
             % If session decryption fails, create a new session
             set_session(Req)
     end.
+
+get_session_behavior() ->
+    envy:to_boolean(erlskat, set_session_only, [os_env, app_env, {default, false}]).

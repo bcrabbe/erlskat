@@ -17,6 +17,5 @@
              erlskat_hand,
              erlskat_scorecard,
              erlskat_util]},
-  {env, [{port, 8080}]},
   {licenses, ["Apache-2.0"]},
   {links, []}]}.
