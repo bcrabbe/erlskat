@@ -1,0 +1,27 @@
+.unknown-player-hand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* Calculate width based on number of cards: base card width + (cards-1) * overlap */
+  /* For max 10 cards: 60px + 9 * 6px = 114px */
+  min-width: 114px;
+  height: 90px; /* Same as card height */
+}
+
+.unknown-card-container {
+  position: absolute;
+}
+
+.unknown-card {
+  margin: 0; /* Remove default card margin to prevent spacing issues */
+}
+
+/* Specific styles for left and right hands */
+.left-unknown-hand {
+  justify-content: flex-start;
+}
+
+.right-unknown-hand {
+  justify-content: flex-start;
+}
