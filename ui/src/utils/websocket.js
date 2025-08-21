@@ -11,7 +11,7 @@ export const useWebSocket = (url, onMessage) => {
 
     try {
       wsRef.current = new WebSocket(url);
-      
+
       wsRef.current.onopen = () => {
         console.log('WebSocket connected');
       };
@@ -67,4 +67,4 @@ export const useWebSocket = (url, onMessage) => {
     sendMessage,
     isConnected: wsRef.current?.readyState === WebSocket.OPEN
   };
-}; 
+};

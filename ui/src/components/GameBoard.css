@@ -1,10 +1,12 @@
 .game-board {
   display: grid;
   grid-template-areas: 
+    "info info info"
+    "piles piles piles"
     "left center right"
     "bottom bottom bottom";
   grid-template-columns: 1fr 2fr 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   height: 100vh;
   gap: 20px;
   padding: 20px;
@@ -37,6 +39,52 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+/* Card piles section styles */
+.card-piles-section {
+  grid-area: piles;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  padding: 10px 0;
+}
+
+.declarer-cards-pile,
+.opponents-cards-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pile-label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+/* Game info display styles */
+.game-info-display {
+  grid-area: info;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.game-info-text {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .current-trick {

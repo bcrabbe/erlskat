@@ -1,0 +1,19 @@
+.unknown-card-pile {
+  position: relative;
+  width: 60px;
+  height: 90px;
+  display: inline-block;
+}
+
+.pile-card-container {
+  transition: none; /* Remove any hover effects for pile cards */
+}
+
+.pile-card {
+  cursor: default; /* Remove pointer cursor for pile cards */
+}
+
+.pile-card:hover {
+  transform: none !important; /* Prevent hover effects on pile cards */
+  box-shadow: none !important;
+}

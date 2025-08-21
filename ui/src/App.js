@@ -60,10 +60,15 @@ const App = () => {
 
   // New state for game info display
   const [gameInfo, setGameInfo] = useState(null);
+  console.log({gameInfo});
+
+  // New state for card piles (tricks won)
+  const [declarerCardsWon, setDeclarerCardsWon] = useState(0);
+  const [opponentsCardsWon, setOpponentsCardsWon] = useState(0);
 
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
-
+    console.log({2: true, gameInfo});
     const { type, ...data } = message;
 
     switch (type) {
@@ -264,6 +269,22 @@ const App = () => {
       case 'trick_won_broadcast':
         // Clear current trick when a trick is won
         setCurrentTrick([]);
+      console.log({
+        b: gameInfo && gameInfo.declarer && data.winner_id && data.trick,
+        gameInfo,
+        data,
+      });
+        // Update card pile counts based on who won the trick
+        if (gameInfo && gameInfo.declarer && data.winner_id && data.trick) {
+          const trickCardCount = data.trick.length;
+          if (data.winner_id === gameInfo.declarer) {
+            // Declarer won the trick
+            setDeclarerCardsWon(prev => prev + trickCardCount);
+          } else {
+            // Opponent won the trick
+            setOpponentsCardsWon(prev => prev + trickCardCount);
+          }
+        }
         break;
 
       case 'game_start_broadcast':
@@ -291,6 +312,9 @@ const App = () => {
         setSelectedDiscardCards([]);
         setCardPlayPrompt(null);
         setSelectedCardPlay(null);
+        // Reset card pile counts for new game
+        setDeclarerCardsWon(0);
+        setOpponentsCardsWon(0);
         // Keep card counts - they should persist during gameplay
         break;
 
@@ -339,6 +363,9 @@ const App = () => {
         // Reset card counts
         setLeftPlayerCardCount(0);
         setRightPlayerCardCount(0);
+        // Reset card pile counts
+        setDeclarerCardsWon(0);
+        setOpponentsCardsWon(0);
         break;
 
       case 'hand_reorder_broadcast':
@@ -384,6 +411,8 @@ const App = () => {
         setSelectedDiscardCards([]);
         setSkatCards([]);
         setShowSkatCards(false);
+        setDeclarerCardsWon(0);
+        setOpponentsCardsWon(0);
         console.log('Game closed, returning to lobby');
         break;
 
@@ -442,7 +471,7 @@ const App = () => {
       default:
         console.log('Unhandled message type:', type, data);
     }
-  }, [currentBidder, currentBidValue, currentCardPlayer, disconnectedPlayer, tableOrder]);
+  }, [currentBidder, currentBidValue, currentCardPlayer, disconnectedPlayer, tableOrder, playerId, gameInfo]);
 
   const { connect, disconnect, sendMessage, isConnected } = useWebSocket(
     `ws://${window.location.hostname}:8080/ws`,
@@ -584,6 +613,8 @@ const App = () => {
             hasActiveBidPrompt={prompt && prompt.type === 'bid_prompt'}
             hasInitialChoicePrompt={prompt && prompt.type === 'initial_choice_prompt'}
             gameInfo={gameInfo}
+            declarerCardsWon={declarerCardsWon}
+            opponentsCardsWon={opponentsCardsWon}
           />
         );
 

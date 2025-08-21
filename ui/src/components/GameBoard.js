@@ -1,6 +1,7 @@
 import React from 'react';
 import PlayerHand from './PlayerHand';
 import UnknownPlayerHand from './UnknownPlayerHand';
+import UnknownCardPile from './UnknownCardPile';
 import './GameBoard.css';
 
 const GameBoard = ({
@@ -33,7 +34,9 @@ const GameBoard = ({
   showSkatCards = false,
   hasActiveBidPrompt = false,
   hasInitialChoicePrompt = false,
-  gameInfo = null
+  gameInfo = null,
+  declarerCardsWon = 0,
+  opponentsCardsWon = 0
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -176,7 +179,21 @@ const GameBoard = ({
 
   return (
     <div className="game-board">
-      {/* Game info display at top */}
+      {/* Card piles section at very top */}
+      {gameInfo && gameInfo.declarer && (
+        <div className="card-piles-section">
+          <div className="declarer-cards-pile">
+            <div className="pile-label">Declarer's tricks:</div>
+            <UnknownCardPile cardCount={declarerCardsWon} className="declarer-pile" />
+          </div>
+          <div className="opponents-cards-pile">
+            <div className="pile-label">Opponents' tricks:</div>
+            <UnknownCardPile cardCount={opponentsCardsWon} className="opponents-pile" />
+          </div>
+        </div>
+      )}
+      
+      {/* Game info display */}
       {gameInfo && (
         <div className="game-info-display">
           <div className="game-info-text">
@@ -233,6 +250,7 @@ const GameBoard = ({
             </div>
           ))}
         </div>
+
 
         {/* Bidding status display */}
         {currentBidder && !hasActiveBidPrompt && !biddingWinner && !hasInitialChoicePrompt && (
