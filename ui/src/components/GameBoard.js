@@ -32,7 +32,8 @@ const GameBoard = ({
   skatCards = [],
   showSkatCards = false,
   hasActiveBidPrompt = false,
-  hasInitialChoicePrompt = false
+  hasInitialChoicePrompt = false,
+  gameInfo = null
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -138,8 +139,51 @@ const GameBoard = ({
     };
   };
 
+  // Helper function to get game info display text
+  const getGameInfoDisplay = (info) => {
+    if (!info) return null;
+    
+    const gameTypeText = info.gameType === 'grand' ? 'Grand' :
+                        info.gameType === 'null' ? 'Null' :
+                        info.gameType === 'ramsch' ? 'Ramsch' :
+                        info.gameType.charAt(0).toUpperCase() + info.gameType.slice(1);
+    
+    let displayText;
+    
+    // Check if there's a declarer (ramsch games don't have declarers)
+    if (info.declarer) {
+      const declarerName = getWinnerDisplayName(info.declarer);
+      const verb = declarerName === 'You' ? 'are' : 'is';
+      displayText = `${declarerName} ${verb} playing ${gameTypeText}`;
+    } else {
+      displayText = `Playing ${gameTypeText}`;
+    }
+    
+    const additionalInfo = [];
+    if (info.isHandGame) {
+      additionalInfo.push('hand');
+    }
+    if (info.selectedMultipliers && info.selectedMultipliers.length > 0) {
+      additionalInfo.push(...info.selectedMultipliers);
+    }
+    
+    if (additionalInfo.length > 0) {
+      displayText += `, ${additionalInfo.join(', ')}`;
+    }
+    
+    return displayText;
+  };
+
   return (
     <div className="game-board">
+      {/* Game info display at top */}
+      {gameInfo && (
+        <div className="game-info-display">
+          <div className="game-info-text">
+            {getGameInfoDisplay(gameInfo)}
+          </div>
+        </div>
+      )}
       {/* Top player (left) */}
       <div className="player-position left-player">
         <div className="player-info">

@@ -58,6 +58,9 @@ const App = () => {
   // New state for scores modal
   const [scoresModal, setScoresModal] = useState(null);
 
+  // New state for game info display
+  const [gameInfo, setGameInfo] = useState(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
 
@@ -264,6 +267,14 @@ const App = () => {
         break;
 
       case 'game_start_broadcast':
+        // Store game info for display during play
+        setGameInfo({
+          declarer: data.declarer,
+          gameType: data.game_type,
+          isHandGame: data.is_hand_game,
+          selectedMultipliers: data.selected_multipliers,
+          message: data.message
+        });
         setGameState('game');
         // Clear bidding state when game starts
         setCurrentBidder(null);
@@ -318,6 +329,8 @@ const App = () => {
         // Clear game declaration and type state
         setGameDeclaration(null);
         setGameType(null);
+        // Clear game info
+        setGameInfo(null);
         // Clear discard and card play state
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
@@ -570,6 +583,7 @@ const App = () => {
             showSkatCards={showSkatCards}
             hasActiveBidPrompt={prompt && prompt.type === 'bid_prompt'}
             hasInitialChoicePrompt={prompt && prompt.type === 'initial_choice_prompt'}
+            gameInfo={gameInfo}
           />
         );
 
