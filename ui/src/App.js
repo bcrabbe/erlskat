@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useWebSocket } from './utils/websocket';
 import LoginScreen from './components/LoginScreen';
 import LobbyScreen from './components/LobbyScreen';
@@ -60,6 +60,7 @@ const App = () => {
 
   // New state for game info display
   const [gameInfo, setGameInfo] = useState(null);
+  const gameInfoRef = useRef(null);
   console.log({gameInfo});
 
   // New state for card piles (tricks won)
@@ -275,9 +276,9 @@ const App = () => {
         data,
       });
         // Update card pile counts based on who won the trick
-        if (gameInfo && gameInfo.declarer && data.winner_id && data.trick) {
+        if (gameInfoRef.current && gameInfoRef.current.declarer && data.winner_id && data.trick) {
           const trickCardCount = data.trick.length;
-          if (data.winner_id === gameInfo.declarer) {
+          if (data.winner_id === gameInfoRef.current.declarer) {
             // Declarer won the trick
             setDeclarerCardsWon(prev => prev + trickCardCount);
           } else {
@@ -289,13 +290,15 @@ const App = () => {
 
       case 'game_start_broadcast':
         // Store game info for display during play
-        setGameInfo({
+        const newGameInfo = {
           declarer: data.declarer,
           gameType: data.game_type,
           isHandGame: data.is_hand_game,
           selectedMultipliers: data.selected_multipliers,
           message: data.message
-        });
+        };
+        setGameInfo(newGameInfo);
+        gameInfoRef.current = newGameInfo;
         setGameState('game');
         // Clear bidding state when game starts
         setCurrentBidder(null);
@@ -355,6 +358,7 @@ const App = () => {
         setGameType(null);
         // Clear game info
         setGameInfo(null);
+        gameInfoRef.current = null;
         // Clear discard and card play state
         setDiscardPrompt(null);
         setSelectedDiscardCards([]);
@@ -471,7 +475,7 @@ const App = () => {
       default:
         console.log('Unhandled message type:', type, data);
     }
-  }, [currentBidder, currentBidValue, currentCardPlayer, disconnectedPlayer, tableOrder, playerId, gameInfo]);
+  }, [currentBidder, currentBidValue, currentCardPlayer, disconnectedPlayer, tableOrder, playerId]);
 
   const { connect, disconnect, sendMessage, isConnected } = useWebSocket(
     `ws://${window.location.hostname}:8080/ws`,
