@@ -1,28 +1,27 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import UnknownCard from './UnknownCard';
 import './Card.css';
 import './UnknownCardPile.css';
 
 const UnknownCardPile = ({ cardCount = 0, className = '' }) => {
-  // Generate random jitter values for position and rotation
-  const generateJitter = (index) => {
-    // Use index as seed for consistent positioning
-    const seed = index + 1;
-    const random1 = (seed * 9301 + 49297) % 233280 / 233280;
-    const random2 = (seed * 15485863 + 49297) % 233280 / 233280;
-    const random3 = (seed * 12345 + 67890) % 233280 / 233280;
-    
-    return {
-      x: (random1 - 0.5) * 4, // -2px to +2px
-      y: (random2 - 0.5) * 4, // -2px to +2px
-      rotation: (random3 - 0.5) * 6 // -3deg to +3deg
-    };
+  // Store jitter values per card index to persist across re-renders
+  const jitterCache = useRef({});
+
+  const getJitterForCard = (index) => {
+    if (!jitterCache.current[index]) {
+      jitterCache.current[index] = {
+        x: (Math.random() - 0.5) * 30, // -15px to +15px
+        y: (Math.random() - 0.5) * 30, // -15px to +15px
+        rotation: (Math.random() - 0.5) * 30 // -15deg to +15deg
+      };
+    }
+    return jitterCache.current[index];
   };
 
   return (
     <div className={`unknown-card-pile ${className}`}>
       {Array.from({ length: cardCount }, (_, index) => {
-        const jitter = generateJitter(index);
+        const jitter = getJitterForCard(index);
         return (
           <div
             key={index}

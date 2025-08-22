@@ -61,7 +61,6 @@ const App = () => {
   // New state for game info display
   const [gameInfo, setGameInfo] = useState(null);
   const gameInfoRef = useRef(null);
-  console.log({gameInfo});
 
   // New state for card piles (tricks won)
   const [declarerCardsWon, setDeclarerCardsWon] = useState(0);
@@ -69,7 +68,6 @@ const App = () => {
 
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received message:', message);
-    console.log({2: true, gameInfo});
     const { type, ...data } = message;
 
     switch (type) {
@@ -270,11 +268,6 @@ const App = () => {
       case 'trick_won_broadcast':
         // Clear current trick when a trick is won
         setCurrentTrick([]);
-      console.log({
-        b: gameInfo && gameInfo.declarer && data.winner_id && data.trick,
-        gameInfo,
-        data,
-      });
         // Update card pile counts based on who won the trick
         if (gameInfoRef.current && gameInfoRef.current.declarer && data.winner_id && data.trick) {
           const trickCardCount = data.trick.length;
@@ -344,7 +337,6 @@ const App = () => {
         }, 4000);
 
         // Handle game completion
-        setGameState('lobby');
         setPlayerHand([]);
         setCurrentTrick([]);
         setValidCards([]);
