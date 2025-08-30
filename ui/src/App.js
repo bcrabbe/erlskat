@@ -118,6 +118,7 @@ const App = () => {
         setSelectedDiscardCards([]);
         // Clear regular prompt
         setPrompt(null);
+        setCurrentCardPlayer(null);
         break;
 
       case 'bid_prompt':
