@@ -106,7 +106,7 @@ get_card_ordering_for_game_type(diamonds) ->
     get_suit_game_ordering(diamonds);
 get_card_ordering_for_game_type(grand) ->
     get_grand_game_ordering();
-get_card_ordering_for_game_type(null) ->
+get_card_ordering_for_game_type(null_game) ->
     get_null_game_ordering().
 
 %% Reorder all player hands according to game type

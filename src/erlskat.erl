@@ -24,7 +24,7 @@
 -type cards() :: list(erlskat:card()).
 -type skat() :: cards().
 -type suit_game_type() :: clubs | spades | hearts | diamonds.
--type game_type() :: suit_game_type() | grand | null.
+-type game_type() :: suit_game_type() | grand | null_game.
 
 start() ->
     error_logger:info_report(

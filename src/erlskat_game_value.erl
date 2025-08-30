@@ -83,7 +83,7 @@
 
 %% Fixed Null game values
 -define(NULL_VALUES, #{
-    null => 23,
+    null_game => 23,
     null_hand => 35,
     null_ouvert => 46,
     null_hand_ouvert => 59
@@ -121,7 +121,7 @@ calculate_game_value(GameType, PlayerHand, Options) ->
           game_value_result().
 calculate_estimated_game_value(GameType, PlayerHand, Options) ->
     case GameType of
-        null ->
+        null_game ->
             calculate_null_game_value(Options);
         _ ->
             BaseValue = get_base_value(GameType),
@@ -153,7 +153,7 @@ calculate_estimated_game_value(GameType, PlayerHand, Options) ->
                                    game_options()) -> game_value_result().
 calculate_actual_game_value(GameType, PlayerHand, SkatCards, Options) ->
     case GameType of
-        null ->
+        null_game ->
             calculate_null_game_value(Options);
         _ ->
             FullHand = PlayerHand ++ SkatCards,
@@ -275,7 +275,7 @@ get_minimum_possible_value(GameType, PlayerHand) ->
 -spec get_trump_sequence(erlskat:game_type()) -> [erlskat:card()].
 get_trump_sequence(grand) ->
     ?JACK_ORDER;
-get_trump_sequence(null) ->
+get_trump_sequence(null_game) ->
     [];
 get_trump_sequence(GameType) when GameType =:= clubs;
                                   GameType =:= spades;
@@ -372,7 +372,7 @@ calculate_null_game_value(Options) ->
     IsOuvert = lists:member(ouvert, SelectedMultipliers),
 
     Value = case {IsHandGame, IsOuvert} of
-        {false, false} -> maps:get(null, ?NULL_VALUES);
+        {false, false} -> maps:get(null_game, ?NULL_VALUES);
         {true, false} -> maps:get(null_hand, ?NULL_VALUES);
         {false, true} -> maps:get(null_ouvert, ?NULL_VALUES);
         {true, true} -> maps:get(null_hand_ouvert, ?NULL_VALUES)
@@ -386,7 +386,7 @@ calculate_null_game_value(Options) ->
         multiplier => 1,
         base_value => Value,
         calculation_details => #{
-            game_type => null,
+            game_type => null_game,
             is_hand_game => IsHandGame,
             is_ouvert => IsOuvert,
             options => Options

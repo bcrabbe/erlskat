@@ -269,8 +269,7 @@ process_valid_card_play(PlayerId, PlayedCard, CardIndex, State) ->
 %% Complete a trick and determine winner
 complete_trick(State) ->
     % Determine trick winner
-    TrickWinner = determine_trick_winner(State#state.current_trick, State#state.card_ordering,
-                                         State#state.game_type),
+    TrickWinner = determine_trick_winner(State#state.current_trick, State#state.card_ordering),
 
     % Add trick to winner's tricks
     WinnerTricks = maps:get(TrickWinner, State#state.tricks_won, []),
@@ -283,7 +282,7 @@ complete_trick(State) ->
     NewTrickCount = State#state.trick_count + 1,
 
     % Check for null game immediate loss condition
-    case State#state.game_type =:= null andalso
+    case State#state.game_type =:= null_game andalso
          TrickWinner =:= State#state.declarer andalso
          length(WinnerTricks) =:= 0 of
         true ->
@@ -378,9 +377,9 @@ validate_follow_suit(PlayedCard, FirstCard, PlayerHand, GameType) ->
     end.
 
 %% Get effective suit considering trumps
-get_effective_suit(#{rank := jack}, _GameType) when _GameType =/= null ->
+get_effective_suit(#{rank := jack}, GameType) when GameType =/= null_game ->
     trump;
-get_effective_suit(#{suit := Suit}, null) ->
+get_effective_suit(#{suit := Suit}, null_game) ->
     Suit;
 get_effective_suit(#{suit := Suit}, GameType) when GameType =:= grand ->
     Suit;
@@ -394,7 +393,7 @@ get_effective_suit(#{suit := Suit}, GameType) ->
     end.
 
 %% Determine trick winner based on card ordering
-determine_trick_winner(Trick, CardOrdering, _GameType) ->
+determine_trick_winner(Trick, CardOrdering) ->
     % Create ordering map for quick lookup
     OrderMap = maps:from_list([{Card, Index} || {Index, Card} <- lists:enumerate(CardOrdering)]),
 
@@ -421,7 +420,7 @@ calculate_game_result(State) ->
 
     % Determine if declarer won
     DeclarerWon = case State#state.game_type of
-        null ->
+        null_game ->
             % In null games, declarer wins by taking 0 tricks
             length(maps:get(State#state.declarer, State#state.tricks_won, [])) =:= 0;
         _ ->

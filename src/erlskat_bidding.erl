@@ -67,7 +67,7 @@
                      spades,
                      hearts,
                      diamonds,
-                     null,
+                     null_game,
                      null_ouvert,
                      hand_game]).
 
@@ -76,14 +76,14 @@
                              spades,
                              hearts,
                              diamonds,
-                             null]).
+                             null_game]).
 
 -define(REGULAR_GAME_TYPES_BINARY, [<<"grand">>,
                                     <<"clubs">>,
                                     <<"spades">>,
                                     <<"hearts">>,
                                     <<"diamonds">>,
-                                    <<"null">>]).
+                                    <<"null_game">>]).
 
 
 %%%===================================================================
@@ -487,7 +487,7 @@ handle_multiplier_selection(Player, Multiplier, Data) ->
     case Multiplier of
         <<"ouvert">> ->
             case GameType of
-                null ->
+                null_game ->
                     % For null games, ouvert completes the selection
                     complete_game_declaration(Data#{selected_multipliers =>
                                                    [ouvert | CurrentMultipliers]});
@@ -542,12 +542,12 @@ handle_game_type_selection(PlayerId, GameType, Data) ->
     UpdatedData = Data#{hands => ReorderedHands},
 
     case GameType of
-        null ->
+        null_game ->
             % For null games, offer ouvert option
             send_multiplier_prompt_to_player(
                 get_player_by_id(PlayerId, ReorderedHands),
                 [<<"ouvert">>],
-                null,
+                null_game,
                 UpdatedData),
             {next_state, multiplier_selection,
              UpdatedData#{chosen_game => GameType,
@@ -628,7 +628,7 @@ convert_game_type_to_atom(<<"spades">>) -> spades;
 convert_game_type_to_atom(<<"hearts">>) -> hearts;
 convert_game_type_to_atom(<<"diamonds">>) -> diamonds;
 convert_game_type_to_atom(<<"grand">>) -> grand;
-convert_game_type_to_atom(<<"null">>) -> null;
+convert_game_type_to_atom(<<"null_game">>) -> null_game;
 convert_game_type_to_atom(GameType) when is_atom(GameType) -> GameType.
 
 complete_bidding(Data) ->
