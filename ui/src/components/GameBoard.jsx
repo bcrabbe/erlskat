@@ -1,7 +1,7 @@
 import React from 'react';
-import PlayerHand from './PlayerHand.jsx';
-import UnknownPlayerHand from './UnknownPlayerHand.jsx';
-import UnknownCardPile from './UnknownCardPile.jsx';
+import PlayerHand from './PlayerHand';
+import UnknownPlayerHand from './UnknownPlayerHand';
+import UnknownCardPile from './UnknownCardPile';
 import './GameBoard.css';
 
 const GameBoard = ({

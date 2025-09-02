@@ -1,5 +1,5 @@
 import React from 'react';
-import UnknownCard from './UnknownCard.jsx';
+import UnknownCard from './UnknownCard';
 import './PlayerHand.css';
 import './UnknownPlayerHand.css';
 

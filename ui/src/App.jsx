@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useWebSocket } from './utils/websocket';
-import LoginScreen from './components/LoginScreen.jsx';
-import LobbyScreen from './components/LobbyScreen.jsx';
-import GameBoard from './components/GameBoard.jsx';
-import PromptModal from './components/PromptModal.jsx';
+import LoginScreen from './components/LoginScreen';
+import LobbyScreen from './components/LobbyScreen';
+import GameBoard from './components/GameBoard';
+import PromptModal from './components/PromptModal';
 import './App.css';
 
 const App = () => {
