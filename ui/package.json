@@ -2,7 +2,7 @@
   "name": "erlskat-ui",
   "version": "1.0.0",
   "description": "React UI for Erlskat game",
-  "main": "index.js",
+  "main": "src/index.jsx",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

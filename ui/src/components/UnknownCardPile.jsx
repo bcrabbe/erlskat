@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import UnknownCard from './UnknownCard';
+import UnknownCard from './UnknownCard.jsx';
 import './Card.css';
 import './UnknownCardPile.css';
 
