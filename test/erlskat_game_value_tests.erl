@@ -117,7 +117,7 @@ test_base_values() ->
     ?assertEqual(11, erlskat_game_value:get_base_value(spades)),
     ?assertEqual(12, erlskat_game_value:get_base_value(clubs)),
     ?assertEqual(24, erlskat_game_value:get_base_value(grand)),
-    ?assertEqual(0, erlskat_game_value:get_base_value(null)),
+    ?assertEqual(0, erlskat_game_value:get_base_value(null_game)),
     ?assertEqual(0, erlskat_game_value:get_base_value(<<"invalid">>)).
 
 test_multiplier_calculation() ->
@@ -235,7 +235,7 @@ test_tops_edge_cases() ->
     ?assertEqual(<<"with 2">>, maps:get(description, Result)),
 
     %% Test with null game (no trumps)
-    Result2 = erlskat_game_value:calculate_tops(null, Hand),
+    Result2 = erlskat_game_value:calculate_tops(null_game, Hand),
     ?assertEqual(0, maps:get(count, Result2)),
     ?assertEqual(<<"with 0">>, maps:get(description, Result2)).
 
@@ -293,7 +293,7 @@ test_hand_game_estimation_accuracy() ->
 test_null_game_basic() ->
     %% Basic null game value (23)
     Options = #{is_hand_game => false, selected_multipliers => []},
-    Result = erlskat_game_value:calculate_game_value(null, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null_game, [], Options),
 
     ?assertEqual(23, maps:get(value, Result)),
     ?assertEqual(0, maps:get(tops_count, Result)),
@@ -303,21 +303,21 @@ test_null_game_basic() ->
 test_null_hand_game() ->
     %% Null hand game value (35)
     Options = #{is_hand_game => true, selected_multipliers => []},
-    Result = erlskat_game_value:calculate_game_value(null, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null_game, [], Options),
 
     ?assertEqual(35, maps:get(value, Result)).
 
 test_null_ouvert_game() ->
     %% Null ouvert game value (46)
     Options = #{is_hand_game => false, selected_multipliers => [ouvert]},
-    Result = erlskat_game_value:calculate_game_value(null, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null_game, [], Options),
 
     ?assertEqual(46, maps:get(value, Result)).
 
 test_null_hand_ouvert_game() ->
     %% Null hand ouvert game value (59)
     Options = #{is_hand_game => true, selected_multipliers => [ouvert]},
-    Result = erlskat_game_value:calculate_game_value(null, [], Options),
+    Result = erlskat_game_value:calculate_game_value(null_game, [], Options),
 
     ?assertEqual(59, maps:get(value, Result)).
 
@@ -428,7 +428,7 @@ test_trump_sequence_grand() ->
 
 test_trump_sequence_null() ->
     %% Test trump sequence for null (no trumps)
-    NullSequence = erlskat_game_value:get_trump_sequence(null),
+    NullSequence = erlskat_game_value:get_trump_sequence(null_game),
     ?assertEqual([], NullSequence).
 
 %% Validation Tests

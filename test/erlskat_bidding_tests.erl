@@ -667,7 +667,7 @@ test_null_game_flow_with_ouvert() ->
 
     %% Test game type selection -> null
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_request, #{player => #{id => player1}, msg => <<"null">>}},
+        {socket_request, #{player => #{id => player1}, msg => <<"null_game">>}},
         Data1),
 
     %% Test ouvert selection (should be available for null games)
@@ -676,7 +676,7 @@ test_null_game_flow_with_ouvert() ->
         Data2),
 
     %% Should complete with ouvert
-    ?assertEqual(null, maps:get(chosen_game, FinalData)),
+    ?assertEqual(null_game, maps:get(chosen_game, FinalData)),
     ?assert(lists:member(ouvert, maps:get(selected_multipliers, FinalData))),
     ?assert(maps:get(is_hand_game, FinalData)).
 
@@ -705,7 +705,7 @@ test_null_game_flow_without_ouvert() ->
 
     %% Test game type selection -> null
     {next_state, multiplier_selection, Data2} = erlskat_bidding:game_type_selection(cast,
-        {socket_request, #{player => #{id => player1}, msg => <<"null">>}},
+        {socket_request, #{player => #{id => player1}, msg => <<"null_game">>}},
         Data1),
 
     %% Test skip ouvert
@@ -714,7 +714,7 @@ test_null_game_flow_without_ouvert() ->
         Data2),
 
     %% Should complete without ouvert
-    ?assertEqual(null, maps:get(chosen_game, FinalData)),
+    ?assertEqual(null_game, maps:get(chosen_game, FinalData)),
     ?assertEqual([], maps:get(selected_multipliers, FinalData, [])),
     ?assert(maps:get(is_hand_game, FinalData)).
 
@@ -1000,7 +1000,7 @@ test_reorder_all_hands_null() ->
 
     Hands = [#{player => Player, hand => TestCards} || Player <- Players],
 
-    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, null),
+    ReorderedHands = erlskat_card_ordering:reorder_all_hands_for_game_type(Hands, null_game),
 
     FirstHand = maps:get(hand, hd(ReorderedHands)),
 
@@ -1105,7 +1105,7 @@ test_order_cards_for_game_type() ->
     ?assert(ClubsTenPos < ClubsKingPosGrand), % 10 > K in non-trump suits
 
     %% Test null game ordering
-    NullOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, null),
+    NullOrdered = erlskat_card_ordering:order_cards_for_game_type(TestCards, null_game),
     ?assertEqual(12, length(NullOrdered)),
 
     %% In null games: no trumps, suits ordered clubs > spades > hearts > diamonds
