@@ -46,7 +46,8 @@
     actual_game_value := integer(),
     is_hand_game := boolean(),
     selected_multipliers := [atom()],
-    tricks_won := #{erlskat:player_id() => [map()]}
+    tricks_won := #{erlskat:player_id() => [map()]},
+    game_value_details := erlskat_game_value:game_value_result()
 }.
 
 % State record for the coordinator

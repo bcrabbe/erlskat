@@ -429,7 +429,8 @@ calculate_game_result(State) ->
     end,
 
     % Calculate actual game value
-    ActualGameValue = calculate_actual_game_value(State, DeclarerWon, DeclarerPoints),
+    {ActualGameValue, GameValueDetails} = calculate_actual_game_value(
+        State, DeclarerWon, DeclarerPoints),
     #{declarer => State#state.declarer,
       declarer_won => DeclarerWon,
       declarer_points => DeclarerPoints,
@@ -439,7 +440,8 @@ calculate_game_result(State) ->
       actual_game_value => ActualGameValue,
       is_hand_game => State#state.is_hand_game,
       selected_multipliers => State#state.selected_multipliers,
-      tricks_won => State#state.tricks_won}.
+      tricks_won => State#state.tricks_won,
+      game_value_details => GameValueDetails}.
 
 %% Calculate card points for a player
 calculate_player_points(PlayerId, TricksWon, DiscardedCards) ->
@@ -475,18 +477,20 @@ calculate_actual_game_value(State, DeclarerWon, DeclarerPoints) ->
         is_schwarz_achieved => IsSchwarzAchieved
     },
 
-    Result = erlskat_game_value:calculate_actual_game_value(
+    GameValueDetails = erlskat_game_value:calculate_actual_game_value(
                State#state.game_type,
                AllDeclarerCards,
                State#state.skat_cards,
                Options),
 
-    BaseValue = maps:get(value, Result),
+    BaseValue = maps:get(value, GameValueDetails),
 
-    case DeclarerWon of
+    FinalGameValue = case DeclarerWon of
         true -> BaseValue;
         false -> -2 * BaseValue  % Double penalty for losing
-    end.
+    end,
+
+    {FinalGameValue, GameValueDetails}.
 
 %% Get next player in order
 get_next_player(CurrentPlayer, PlayerOrder) ->

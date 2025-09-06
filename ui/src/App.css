@@ -116,3 +116,73 @@
   color: #007bff;
   font-size: 18px;
 } 
+
+.game-value-working {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #dee2e6;
+}
+
+.game-value-working h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 5px;
+}
+
+.calculation-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.base-value, .final-calculation, .bid-comparison, .final-score {
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.multiplier-breakdown {
+  padding: 10px 12px;
+  background: #e7f3ff;
+  border-radius: 6px;
+  border: 1px solid #b8d4f0;
+}
+
+.multiplier-components {
+  margin: 8px 0;
+  padding-left: 15px;
+}
+
+.multiplier-components div {
+  margin: 3px 0;
+  color: #495057;
+}
+
+.total-multiplier {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #b8d4f0;
+}
+
+.bid-comparison .won {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.bid-comparison .lost {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.scores-modal h3 {
+  margin: 15px 0 15px 0;
+  color: #333;
+  font-size: 20px;
+  font-weight: bold;
+}
