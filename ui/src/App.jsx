@@ -58,6 +58,7 @@ const App = () => {
 
   // New state for scores modal
   const [scoresModal, setScoresModal] = useState(null);
+  const [showScoresModal, setShowScoresModal] = useState(false);
 
   // New state for game info display
   const [gameInfo, setGameInfo] = useState(null);
@@ -469,6 +470,7 @@ const App = () => {
           message: data.message,
           playerScores: data.player_scores
         });
+        setShowScoresModal(true);
         break;
 
       default:
@@ -619,6 +621,7 @@ const App = () => {
             gameInfo={gameInfo}
             declarerCardsWon={declarerCardsWon}
             opponentsCardsWon={opponentsCardsWon}
+            onScoreboardClick={handleScoreboardClick}
           />
         );
 
@@ -628,19 +631,23 @@ const App = () => {
   };
 
   const handleScoresModalClose = useCallback(() => {
-    setScoresModal(null);
+    setShowScoresModal(false);
+  }, []);
+
+  const handleScoreboardClick = useCallback(() => {
+    setShowScoresModal(prev => !prev);
   }, []);
 
   return (
     <div className="App">
       <ScoresModal
-        scoresModal={scoresModal}
+        scoresModal={showScoresModal ? scoresModal : null}
         gameValueDetails={gameValueDetails}
         lastGameResult={lastGameResult}
         players={players}
         onClose={handleScoresModalClose}
       />
-      {!scoresModal && renderContent()}
+      {!showScoresModal && renderContent()}
 
       {prompt && prompt.type !== 'card_play_prompt' && (
         <PromptModal

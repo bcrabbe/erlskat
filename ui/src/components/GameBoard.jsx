@@ -36,7 +36,8 @@ const GameBoard = ({
   hasInitialChoicePrompt = false,
   gameInfo = null,
   declarerCardsWon = 0,
-  opponentsCardsWon = 0
+  opponentsCardsWon = 0,
+  onScoreboardClick = null
 }) => {
   // Helper function to get player position
   const getPlayerPosition = (targetPlayerId) => {
@@ -179,6 +180,11 @@ const GameBoard = ({
 
   return (
     <div className="game-board">
+      {/* Scoreboard icon in top left */}
+      <div className="scoreboard-icon" onClick={onScoreboardClick}>
+        📊
+      </div>
+      
       {/* Card piles section at very top */}
       {gameInfo && gameInfo.declarer && (
         <div className="card-piles-section">
