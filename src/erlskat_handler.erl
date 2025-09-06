@@ -28,9 +28,10 @@ init(Req0, _) ->
         true -> set_session(Req0);
         false -> get_or_set_session(Req0)
     end,
+    PlayerName = extract_player_name(Req1),
     {cowboy_websocket,
      Req1,
-     #{player_id => PlayerId},
+     #{player_id => PlayerId, player_name => PlayerName},
      #{idle_timeout => infinity, max_frame_size => infinity}}.
 
 websocket_init(#{player_id := PlayerId} = State) ->
@@ -171,3 +172,36 @@ decrypt_session(Req, SessionCookie) ->
 
 get_session_behavior() ->
     envy:to_boolean(erlskat, set_session_only, [os_env, app_env, {default, false}]).
+
+extract_player_name(Req) ->
+    try
+        {ok, Body, _Req1} = cowboy_req:read_body(Req),
+        case Body of
+            <<>> ->
+                generate_random_german_name();
+            _ ->
+                JsonData = jsx:decode(Body, [return_maps]),
+                case maps:get(<<"name">>, JsonData, undefined) of
+                    Name when is_binary(Name), byte_size(Name) > 0 -> Name;
+                    _ -> generate_random_german_name()
+                end
+        end
+    catch
+        _:_ ->
+            generate_random_german_name()
+    end.
+
+generate_random_german_name() ->
+    Names = [
+        <<"Hans">>, <<"Klaus">>, <<"Wolfgang">>, <<"Helmut">>, <<"Günter">>,
+        <<"Werner">>, <<"Manfred">>, <<"Gerhard">>, <<"Horst">>, <<"Dieter">>,
+        <<"Jürgen">>, <<"Peter">>, <<"Michael">>, <<"Andreas">>, <<"Stefan">>,
+        <<"Thomas">>, <<"Christian">>, <<"Uwe">>, <<"Frank">>, <<"Rainer">>,
+        <<"Ingrid">>, <<"Ursula">>, <<"Christa">>, <<"Gisela">>, <<"Monika">>,
+        <<"Barbara">>, <<"Petra">>, <<"Sabine">>, <<"Gabriele">>, <<"Susanne">>,
+        <<"Brigitte">>, <<"Andrea">>, <<"Karin">>, <<"Martina">>, <<"Nicole">>,
+        <<"Claudia">>, <<"Stefanie">>, <<"Birgit">>, <<"Angelika">>, <<"Heike">>
+    ],
+    rand:seed(exs1024),
+    Index = rand:uniform(length(Names)),
+    lists:nth(Index, Names).
