@@ -10,6 +10,12 @@ const ScoresModal = ({ scoresModal, gameValueDetails, lastGameResult, players, o
     }
   }, [onClose]);
 
+  const handleOverlayClick = useCallback((event) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
   useEffect(() => {
     if (scoresModal) {
       document.addEventListener('keydown', handleKeyDown);
@@ -20,7 +26,7 @@ const ScoresModal = ({ scoresModal, gameValueDetails, lastGameResult, players, o
   if (!scoresModal) return null;
 
   return (
-    <div className="scores-modal-overlay">
+    <div className="scores-modal-overlay" onClick={handleOverlayClick}>
       <div className="scores-modal">
         <h2>Game Complete</h2>
         <div className="scores-modal-content">
