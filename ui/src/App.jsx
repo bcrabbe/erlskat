@@ -4,7 +4,7 @@ import LoginScreen from './components/LoginScreen';
 import LobbyScreen from './components/LobbyScreen';
 import GameBoard from './components/GameBoard';
 import PromptModal from './components/PromptModal';
-import GameValueWorking from './components/GameValueWorking';
+import ScoresModal from './components/ScoresModal';
 import './App.css';
 
 const App = () => {
@@ -368,7 +368,7 @@ const App = () => {
         // Reset card pile counts
         setDeclarerCardsWon(0);
         setOpponentsCardsWon(0);
-        
+
         // Store game value details for scores modal display
         if (result.game_value_details) {
           setGameValueDetails(result.game_value_details);
@@ -469,11 +469,6 @@ const App = () => {
           message: data.message,
           playerScores: data.player_scores
         });
-        
-        // Hide scores modal after 5 seconds
-        setTimeout(() => {
-          setScoresModal(null);
-        }, 5000);
         break;
 
       default:
@@ -632,32 +627,20 @@ const App = () => {
     }
   };
 
+  const handleScoresModalClose = useCallback(() => {
+    setScoresModal(null);
+  }, []);
+
   return (
     <div className="App">
-      {scoresModal ? (
-        <div className="scores-modal-overlay">
-          <div className="scores-modal">
-            <h2>Game Complete</h2>
-            {/* Add game value working here */}
-            <GameValueWorking gameValueDetails={gameValueDetails} gameResult={lastGameResult} />
-            <h3>Scoreboard</h3>
-            <div className="scores-list">
-              {scoresModal.playerScores.map((playerScore) => {
-                const player = players.find(p => p.id === playerScore.player_id);
-                const playerName = player ? player.name : 'Unknown Player';
-                return (
-                  <div key={playerScore.player_id} className="score-item">
-                    <span className="player-name">{playerName}</span>
-                    <span className="player-score">{playerScore.score}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : (
-        renderContent()
-      )}
+      <ScoresModal
+        scoresModal={scoresModal}
+        gameValueDetails={gameValueDetails}
+        lastGameResult={lastGameResult}
+        players={players}
+        onClose={handleScoresModalClose}
+      />
+      {!scoresModal && renderContent()}
 
       {prompt && prompt.type !== 'card_play_prompt' && (
         <PromptModal
