@@ -131,7 +131,7 @@ test_multiplier_calculation() ->
 
     %% Test with multipliers
     Options3 = #{tops_count => 3, is_hand_game => true, selected_multipliers => [schnieder]},
-    ?assertEqual(7, erlskat_game_value:calculate_multiplier(Options3)), % 1 + 3 + 1 + 2 (schnieder bonus + announced)
+    ?assertEqual(6, erlskat_game_value:calculate_multiplier(Options3)), % 1 + 3 + 1 + 1 (schnieder announced)
 
     %% Test with all bonuses
     Options4 = #{tops_count => 4, is_hand_game => true,
@@ -334,9 +334,9 @@ test_schneider_multiplier() ->
     ResultWith = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWith),
 
     ?assertEqual(maps:get(multiplier, ResultWith),
-                maps:get(multiplier, ResultWithout) + 2),
+                maps:get(multiplier, ResultWithout) + 1),
     ?assertEqual(maps:get(value, ResultWith),
-                maps:get(value, ResultWithout) + 24). % Base value * 2
+                maps:get(value, ResultWithout) + 12). % Base value * 1
 
 test_schwarz_multiplier() ->
     %% Test schwarz multiplier adds +2 (bonus + announced)
@@ -349,7 +349,7 @@ test_schwarz_multiplier() ->
     ResultSchwarz = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsWithSchwarz),
 
     ?assertEqual(maps:get(multiplier, ResultSchwarz),
-                maps:get(multiplier, ResultSchneider) + 2).
+                maps:get(multiplier, ResultSchneider) + 1).
 
 test_ouvert_multiplier() ->
     %% Test ouvert multiplier adds +6 (total bonus)
@@ -372,10 +372,9 @@ test_combined_multipliers() ->
 
     Result = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, Options),
 
-    %% Expected: 1 (base) + 4 (tops) + 1 (hand) + 1 (schnieder) + 1 (schwartz) +
-    %%           1 (schnieder announced) + 1 (schwarz announced) + 6 (ouvert) = 16
-    ?assertEqual(16, maps:get(multiplier, Result)),
-    ?assertEqual(192, maps:get(value, Result)). % 12 * 16
+    %% Expected: 1 (base) + 4 (tops) + 1 (hand) + 1 (schnieder) + 1 (schwartz) + 6 (ouvert) = 14
+    ?assertEqual(14, maps:get(multiplier, Result)),
+    ?assertEqual(168, maps:get(value, Result)). % 12 * 14
 
 test_multiplier_announcements_vs_achievements() ->
     %% Test difference between announced and achieved multipliers
@@ -391,8 +390,8 @@ test_multiplier_announcements_vs_achievements() ->
     ResultAnnounced = erlskat_game_value:calculate_estimated_game_value(clubs, Hand, OptionsAnnounced),
     ResultAchieved = erlskat_game_value:calculate_actual_game_value(clubs, Hand, [], OptionsAchieved),
 
-    % Both should have same value (announced gives +1, achieved gives +1, but they overlap in calculation)
-    ?assertEqual(maps:get(multiplier, ResultAnnounced), maps:get(multiplier, ResultAchieved)).
+    % Announced only: +1, Announced and achieved: +2 (so achieved should be +1 higher)
+    ?assertEqual(maps:get(multiplier, ResultAnnounced) + 1, maps:get(multiplier, ResultAchieved)).
 
 %% Trump Sequence Tests
 

@@ -329,32 +329,18 @@ format_tops_description({without, Count}) ->
 %% Apply bonuses from multipliers and achievements
 -spec apply_bonuses([atom()], map()) -> integer().
 apply_bonuses(SelectedMultipliers, Options) ->
-    SchneiderBonus = case lists:member(schnieder, SelectedMultipliers) of
-        true -> 1;
-        false ->
-            case maps:get(is_schneider_achieved, Options, false) of
-                true -> 1;
-                false -> 0
-            end
+    SchneiderBonus = case {lists:member(schnieder, SelectedMultipliers), maps:get(is_schneider_achieved, Options, false)} of
+        {true, true} -> 2;  % Announced and achieved
+        {true, false} -> 1; % Announced but not achieved
+        {false, true} -> 1; % Not announced but achieved
+        {false, false} -> 0 % Neither announced nor achieved
     end,
 
-    SchwarzBonus = case lists:member(schwartz, SelectedMultipliers) of
-        true -> 1;
-        false ->
-            case maps:get(is_schwarz_achieved, Options, false) of
-                true -> 1;
-                false -> 0
-            end
-    end,
-
-    SchneiderAnnouncedBonus = case lists:member(schnieder, SelectedMultipliers) of
-        true -> 1;
-        false -> 0
-    end,
-
-    SchwarzAnnouncedBonus = case lists:member(schwartz, SelectedMultipliers) of
-        true -> 1;
-        false -> 0
+    SchwarzBonus = case {lists:member(schwartz, SelectedMultipliers), maps:get(is_schwarz_achieved, Options, false)} of
+        {true, true} -> 2;  % Announced and achieved
+        {true, false} -> 1; % Announced but not achieved
+        {false, true} -> 1; % Not announced but achieved
+        {false, false} -> 0 % Neither announced nor achieved
     end,
 
     OuvertBonus = case lists:member(ouvert, SelectedMultipliers) of
@@ -362,7 +348,7 @@ apply_bonuses(SelectedMultipliers, Options) ->
         false -> 0
     end,
 
-    SchneiderBonus + SchwarzBonus + SchneiderAnnouncedBonus + SchwarzAnnouncedBonus + OuvertBonus.
+    SchneiderBonus + SchwarzBonus + OuvertBonus.
 
 %% Calculate Null game values (fixed values)
 -spec calculate_null_game_value(game_options()) -> game_value_result().

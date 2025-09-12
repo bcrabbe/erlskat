@@ -2,15 +2,15 @@ import React from 'react';
 
 const GameValueWorking = ({ gameValueDetails, gameResult, players }) => {
   if (!gameValueDetails || !gameResult) return null;
-  
+
   const {
     base_value: baseValue,
-    tops_count: topsCount, 
+    tops_count: topsCount,
     tops_description: topsDescription,
     multiplier: totalMultiplier,
     value: calculatedValue
   } = gameValueDetails;
-  
+
   const {
     game_type: gameType,
     is_hand_game: isHandGame,
@@ -30,16 +30,16 @@ const GameValueWorking = ({ gameValueDetails, gameResult, players }) => {
   // Calculate individual multiplier components
   const baseMultiplier = 1;
   const handMultiplier = isHandGame ? 1 : 0;
-  
+
   // Calculate bonus multipliers
   const schneiderAnnounced = selectedMultipliers.includes('schnieder');
   const schwarzAnnounced = selectedMultipliers.includes('schwartz');
   const ouvertAnnounced = selectedMultipliers.includes('ouvert');
-  
+
   // Calculate achieved bonuses
   const schneiderAchieved = defenderPoints <= 30;
   const schwarzAchieved = defenderPoints === 0;
-  
+
   return (
     <div className="game-value-working">
       <div className="calculation-breakdown">
@@ -47,13 +47,13 @@ const GameValueWorking = ({ gameValueDetails, gameResult, players }) => {
         <div className="game-summary">
           <strong>{declarerName} played {gameType.charAt(0).toUpperCase() + gameType.slice(1)} (base value: {baseValue})</strong>
         </div>
-        
+
         {/* Point breakdown */}
         <div className="points-breakdown">
           <div>Declarer won: {declarerPoints}</div>
           <div>Defenders won: {defenderPoints}</div>
         </div>
-        
+
         {/* Multiplier calculation */}
         <div className="multiplier-breakdown">
           <strong>Multiplier Calculation:</strong>
@@ -70,16 +70,16 @@ const GameValueWorking = ({ gameValueDetails, gameResult, players }) => {
             <strong>Total Multiplier: {totalMultiplier}</strong>
           </div>
         </div>
-        
+
         {/* Game value calculation */}
         <div className="game-value-calculation">
           <strong>Total Game Value: {baseValue} × {totalMultiplier} = {calculatedValue}</strong>
         </div>
-        
+
         {/* Bid result */}
         <div className="bid-result">
           <div className="bid-info">
-            <strong>Declarer bid: {finalBid}, achieved: {calculatedValue}</strong>
+            <strong>Declarer bid: {finalBid}, and played at {calculatedValue}</strong>
           </div>
           <div className={declarerWon ? "bid-status won" : "bid-status lost"}>
             {declarerWon ? "✓ Made bid" : "✗ Failed bid"}
