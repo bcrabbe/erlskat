@@ -427,7 +427,11 @@ calculate_game_result(State) ->
             length(maps:get(State#state.declarer, State#state.tricks_won, [])) =:= 0;
         _ ->
             % In other games, declarer needs >= 61 points
-            DeclarerPoints >= 61
+            % AND must achieve any announced Schneider/Schwarz
+            BasicWin = DeclarerPoints >= 61,
+            AnnouncementsSatisfied = check_announced_conditions_satisfied(
+                DeclarerPoints, 120 - DeclarerPoints, State#state.selected_multipliers),
+            BasicWin andalso AnnouncementsSatisfied
     end,
 
     % Calculate actual game value
@@ -462,6 +466,28 @@ get_card_points(#{rank := king}) -> 4;
 get_card_points(#{rank := queen}) -> 3;
 get_card_points(#{rank := jack}) -> 2;
 get_card_points(_) -> 0.
+
+%% Check if announced conditions (Schneider/Schwarz) are satisfied
+check_announced_conditions_satisfied(_DeclarerPoints, DefenderPoints, SelectedMultipliers) ->
+    SchneiderAnnounced = lists:member(schneider_announced, SelectedMultipliers),
+    SchwarzAnnounced = lists:member(schwarz_announced, SelectedMultipliers),
+
+    SchneiderAchieved = DefenderPoints =< 30,  % Defenders get <= 30 points
+    SchwarzAchieved = DefenderPoints =:= 0,    % Defenders get 0 points
+
+    % If Schwarz was announced, it must be achieved (and implies Schneider)
+    SchwarzCondition = case SchwarzAnnounced of
+        true -> SchwarzAchieved;
+        false -> true  % Not announced, so satisfied
+    end,
+
+    % If Schneider was announced (but not Schwarz), it must be achieved
+    SchneiderCondition = case SchneiderAnnounced andalso not SchwarzAnnounced of
+        true -> SchneiderAchieved;
+        false -> true  % Not announced or Schwarz supersedes, so satisfied
+    end,
+
+    SchneiderCondition andalso SchwarzCondition.
 
 %% Calculate actual game value based on result
 calculate_actual_game_value(State, DeclarerWon, DeclarerPoints) ->
