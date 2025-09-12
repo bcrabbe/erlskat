@@ -47,6 +47,7 @@
     is_hand_game := boolean(),
     selected_multipliers := [atom()],
     tricks_won := #{erlskat:player_id() => [map()]},
+    original_player_hands := #{erlskat:player_id() => [erlskat:card()]},
     game_value_details := erlskat_game_value:game_value_result()
 }.
 

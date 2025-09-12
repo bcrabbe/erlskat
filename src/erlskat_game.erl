@@ -49,7 +49,8 @@
     declarer :: erlskat:player_id(),
     game_type :: erlskat:game_type(),
     players :: [erlskat:player()],
-    player_hands :: map(),
+    player_hands :: #{erlskat:player_id() => [erlskat:card()]},
+    original_player_hands :: #{erlskat:player_id() => [erlskat:card()]},
     current_trick :: [map()],
     current_leader :: erlskat:player_id(),
     current_player :: erlskat:player_id(),
@@ -141,6 +142,7 @@ init({CoordinatorPid, Declarer, GameType, BiddingResult, Players}) ->
         game_type = GameType,
         players = Players,
         player_hands = PlayerHands,
+        original_player_hands = PlayerHands,
         current_trick = [],
         current_leader = FirstLeader,
         current_player = FirstLeader,
@@ -441,6 +443,7 @@ calculate_game_result(State) ->
       is_hand_game => State#state.is_hand_game,
       selected_multipliers => State#state.selected_multipliers,
       tricks_won => State#state.tricks_won,
+      original_player_hands => State#state.original_player_hands,
       game_value_details => GameValueDetails}.
 
 %% Calculate card points for a player
@@ -463,8 +466,8 @@ get_card_points(_) -> 0.
 %% Calculate actual game value based on result
 calculate_actual_game_value(State, DeclarerWon, DeclarerPoints) ->
     % Use game value module for actual calculation
-    PlayerHand = maps:get(State#state.declarer, State#state.player_hands),
-    AllDeclarerCards = PlayerHand ++ State#state.discarded_cards,
+    OriginalPlayerHand = maps:get(State#state.declarer, State#state.original_player_hands),
+    AllDeclarerCards = OriginalPlayerHand ++ State#state.discarded_cards,
 
     % Determine additional bonuses based on points
     IsSchneiderAchieved = DeclarerPoints >= 90 orelse (120 - DeclarerPoints) =< 30,
