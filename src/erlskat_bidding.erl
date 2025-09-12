@@ -163,40 +163,14 @@ init({CoordinatorPid, Players}) ->
                     map()) -> gen_statem:event_handler_result(map()).
 bidding_phase(cast, {socket_request, #{player := Player, msg := <<"hold">>}}, Data) ->
     PlayerId = maps:get(id, Player),
-    CurrentBidder = maps:get(current_bidder, Data),
-    RespondingPlayer = maps:get(responding_player, Data),
-    
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                player_id => PlayerId,
-                current_bidder => CurrentBidder,
-                responding_player => RespondingPlayer,
-                action => hold_message_received}),
-    
-    case PlayerId =:= CurrentBidder of
+    case PlayerId =:= maps:get(current_bidder, Data) of
         true ->
-            ?LOG_INFO(#{module => ?MODULE,
-                        line => ?LINE,
-                        function => ?FUNCTION_NAME,
-                        player_id => PlayerId,
-                        action => calling_handle_bidder_accept}),
             handle_bidder_accept(Player, Data);
         false ->
-            case PlayerId =:= RespondingPlayer of
+            case PlayerId =:= maps:get(responding_player, Data) of
                 true ->
-                    ?LOG_INFO(#{module => ?MODULE,
-                            line => ?LINE,
-                            function => ?FUNCTION_NAME,
-                            player_id => PlayerId,
-                            action => calling_handle_responder_accept}),
                     handle_responder_accept(Player, Data);
                 false ->
-                    ?LOG_INFO(#{module => ?MODULE,
-                            line => ?LINE,
-                            function => ?FUNCTION_NAME,
-                            player_id => PlayerId,
-                            action => ignoring_hold_from_wrong_player}),
                     keep_state_and_data
             end
     end;
@@ -436,31 +410,14 @@ handle_bidder_accept(Player, Data) ->
     end.
 
 handle_responder_accept(Player, Data) ->
-    CurrentBid = maps:get(bid, Data),
-    PlayerId = maps:get(id, Player),
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                player_id => PlayerId,
-                current_bid => CurrentBid,
-                action => responder_accept}),
-    
     % Check if we have a pre-calculated next bid, otherwise calculate it
     ValidNextBid = case maps:get(next_bid, Data, undefined) of
         undefined ->
+            CurrentBid = maps:get(bid, Data),
             get_next_valid_bid(CurrentBid);
         PreCalculatedBid ->
             PreCalculatedBid
     end,
-    
-    ?LOG_INFO(#{module => ?MODULE,
-                line => ?LINE,
-                function => ?FUNCTION_NAME,
-                player_id => PlayerId,
-                current_bid => CurrentBid,
-                next_bid => ValidNextBid,
-                action => bid_calculation}),
-    
     case ValidNextBid of
         none ->
             % No higher bids possible, responding player wins
@@ -524,32 +481,46 @@ handle_bidder_pass(Player, Data) ->
     end.
 
 handle_responder_pass(Player, Data) ->
-    broadcast_pass_to_all_players(maps:get(hands, Data), Player, maps:get(bid, Data)),
+    BidderAccepted = maps:get(bidder_accepted, Data, false),
+    CurrentBid = maps:get(bid, Data),
+    % If bidder already accepted, they win at the next bid level
+    WinningBid = case BidderAccepted of
+        true ->
+            maps:get(next_bid, Data, CurrentBid);
+        false ->
+            CurrentBid
+    end,
+    broadcast_pass_to_all_players(maps:get(hands, Data), Player, CurrentBid),
     PassedPlayers = [maps:get(id, Player) | maps:get(passed_players, Data)],
     case get_next_bidding_pair(maps:get(bidding_order, Data), PassedPlayers) of
         {NewCurrentBidder, NewRespondingPlayer} ->
             % Continue bidding with current bidder vs new responder
             send_bid_prompt_to_player(
                 get_player_by_id(NewCurrentBidder, maps:get(hands, Data)),
-                maps:get(bid, Data)),
+                WinningBid),
             send_awaiting_bid_to_player(
                 get_player_by_id(NewRespondingPlayer, maps:get(hands, Data)),
-                maps:get(bid, Data),
+                WinningBid,
                 NewCurrentBidder),
             % Send awaiting bid message to the third player
             ThirdPlayerId = get_third_player(NewCurrentBidder, NewRespondingPlayer,
                                               maps:get(bidding_order, Data)),
             send_awaiting_bid_to_player(
                 get_player_by_id(ThirdPlayerId, maps:get(hands, Data)),
-                maps:get(bid, Data),
+                WinningBid,
                 NewCurrentBidder),
-            {keep_state, Data#{current_bidder => NewCurrentBidder,
-                               responding_player => NewRespondingPlayer,
-                               passed_players => PassedPlayers}};
+            % Clean up helper fields and continue with new bid
+            CleanData = maps:remove(next_bid, maps:remove(bidder_accepted, Data)),
+            {keep_state, CleanData#{current_bidder => NewCurrentBidder,
+                                   responding_player => NewRespondingPlayer,
+                                   passed_players => PassedPlayers,
+                                   bid => WinningBid}};
         no_more_bidders ->
-            % Current bidder wins
+            % Current bidder wins at the winning bid level
             Winner = maps:get(current_bidder, Data),
-            transition_to_game_declaration(Winner, Data)
+            % Update the bid to the winning level before transitioning
+            UpdatedData = Data#{bid => WinningBid},
+            transition_to_game_declaration(Winner, UpdatedData)
     end.
 
 transition_to_game_declaration(Winner, Data) ->
